@@ -55,22 +55,23 @@ switch ($action) {
 
     // Lista todos los proyectos (carpetas en raíz)
     case 'proyectos':
-        // Intentar con API Key pública primero
-        $files = driveQ(
-            "'" . CARPETA_RAIZ_ID . "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
-            'files(id,name)',
-            200
-        );
+        $nombres = [];
         
-        // Si no hay resultados, intentar a través del Apps Script
-        if (empty($files) && APPS_SCRIPT_URL) {
+        // 1. Intentar a través del Apps Script (tiene OAuth propio, no necesita carpetas públicas)
+        if (APPS_SCRIPT_URL) {
             $res = httpGet(APPS_SCRIPT_URL . '?action=listarProyectos');
-            if ($res && isset($res['exito']) && $res['exito']) {
+            if ($res && isset($res['exito']) && $res['exito'] && isset($res['datos'])) {
                 echo json_encode($res);
                 break;
             }
         }
         
+        // 2. Fallback: API Key pública de Google Drive
+        $files = driveQ(
+            "'" . CARPETA_RAIZ_ID . "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
+            'files(id,name)',
+            200
+        );
         $nombres = array_column($files, 'name');
         sort($nombres);
         echo json_encode(['exito' => true, 'datos' => $nombres]);

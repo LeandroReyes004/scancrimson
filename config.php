@@ -8,7 +8,7 @@ define('CONTRASENA_ADMIN',   'crimson2026');
 
 // URL de tu Apps Script desplegado (solo para crear proyectos desde admin)
 // Déjalo vacío si no lo necesitas
-define('APPS_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbxc8rWW_TD5kqz7nGb0t95VCBsXjYbGsmzm3yhMzgtMdUGRoIbcRYcQusQEkV-mpc4q/exec');
+define('APPS_SCRIPT_URL', 'https://script.google.com/macros/s/AKfycbz4WLH7u2WMZhAElhj78Vm1keTwGWEVNS0LwcdhHjrk0ysyYfkk4RoBvvd8Voj7N9Ja/exec');
 
 define('DRIVE_API',  'https://www.googleapis.com/drive/v3');
 define('SHEETS_API', 'https://sheets.googleapis.com/v4/spreadsheets');

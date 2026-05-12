@@ -370,6 +370,24 @@ function crearProyectoAction(inputId, btnId, resultId) {
         });
 }
 
+/* ─── CARGAR PROYECTOS ─── */
+async function cargarProyectos() {
+    const grid = document.getElementById('projects-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div class="loading-cell" style="grid-column:1/-1; padding:4rem; text-align:center"><span class="spinner"></span> Cargando proyectos…</div>';
+
+    const res = await apiFetch('proyectos');
+    if (res && res.exito && res.datos) {
+        state.proyectos = res.datos;
+        // Actualizar stat del dashboard si está disponible
+        const statEl = document.getElementById('stat-proyectos');
+        if (statEl) statEl.textContent = res.datos.length;
+        filterProyectos(); // Renderizar usando filterProyectos
+    } else {
+        grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">No se pudieron cargar los proyectos.</div>';
+    }
+}
+
 let editIndex = -1;
 
 function openEditModal(realIndex) {
@@ -400,7 +418,7 @@ async function guardarEdicion() {
 
     if (!manga || !cap) { toast('Completa los campos', 'err'); return; }
 
-    const btn = document.querySelector('#edit-modal .btn-primary');
+    const btn = document.querySelector('#edit-drawer .btn-primary');
     btn.disabled = true;
     btn.textContent = 'Guardando...';
 

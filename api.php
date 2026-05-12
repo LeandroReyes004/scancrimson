@@ -154,22 +154,21 @@ switch ($action) {
 
     // Historial desde Google Sheets
     case 'historial':
-        // Intentar con API Key pública primero
-        $url  = SHEETS_API . '/' . HOJA_CALCULO_ID . '/values/A%3AZ?key=' . GOOGLE_API_KEY;
-        $data = httpGet($url);
-        
-        // Si falla (hoja privada), intentar a través del Apps Script
-        if (!$data && APPS_SCRIPT_URL) {
-            $data = httpGet(APPS_SCRIPT_URL . '?action=historial');
-            if ($data && isset($data['exito']) && $data['exito']) {
-                echo json_encode($data);
+        // 1. Intentar a través del Apps Script (tiene OAuth, no necesita hoja pública)
+        if (APPS_SCRIPT_URL) {
+            $res = httpGet(APPS_SCRIPT_URL . '?action=historial');
+            if ($res && isset($res['exito']) && $res['exito'] && isset($res['datos'])) {
+                echo json_encode($res);
                 break;
             }
         }
         
-        $filas = $data['values'] ?? [];
+        // 2. Fallback: API Key pública de Google Sheets
+        $url  = SHEETS_API . '/' . HOJA_CALCULO_ID . '/values/A%3AZ?key=' . GOOGLE_API_KEY;
+        $data = httpGet($url);
+        $filas = isset($data['values']) ? $data['values'] : [];
         if (count($filas) <= 1) { echo json_encode(['exito' => true, 'datos' => []]); break; }
-        array_shift($filas); // quitar encabezado
+        array_shift($filas);
         $filas = array_filter($filas, fn($f) => !empty(trim($f[0] ?? '')));
         $filas = array_reverse(array_values($filas));
         echo json_encode(['exito' => true, 'datos' => $filas]);

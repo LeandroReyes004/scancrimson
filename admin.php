@@ -253,30 +253,132 @@
 
 <script src="assets/admin.js?v=4"></script>
 <script>
-// Parches inline - funciones críticas que garantizan que los tabs carguen
-window.addEventListener('DOMContentLoaded', function() {
-  // Sobrescribir cargarProyectos si no fue definida por admin.js
-  if (typeof cargarProyectos !== 'function') {
-    window.cargarProyectos = async function() {
-      const grid = document.getElementById('projects-grid');
-      if (!grid) return;
-      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem"><span class="spinner"></span> Cargando...</div>';
-      try {
-        const r = await fetch('api.php?action=proyectos');
-        const res = await r.json();
-        if (res && res.exito && res.datos && res.datos.length) {
-          grid.innerHTML = res.datos.map(function(nombre) {
-            return '<div class="project-card"><div class="project-icon">📖</div><div class="project-name">' + nombre + '</div><div class="project-meta">' + nombre + '</div><div class="project-actions"><button class="act-btn" onclick="window.open(\'index.php?proyecto=' + encodeURIComponent(nombre) + '\',\'_blank\')">🔍 Ver</button></div></div>';
-          }).join('');
-        } else {
-          grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">No hay proyectos.</div>';
-        }
-      } catch(e) {
-        grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">Error: ' + e.message + '</div>';
+// ─── PARCHES INLINE v2: historial + proyectos con estadísticas ───────────────
+(function() {
+  var _historial = [];
+
+  // Cargar historial desde Apps Script y guardarlo en state
+  async function fetchHistorial() {
+    try {
+      const r = await fetch('api.php?action=historial');
+      const res = await r.json();
+      if (res && res.exito && res.datos) {
+        _historial = res.datos;
+        // Sincronizar con el state global si existe
+        if (window.state) window.state.historial = res.datos;
+        return res.datos;
       }
+    } catch(e) {}
+    return [];
+  }
+
+  // Estadísticas por manga del historial
+  function statsParaManga(nombre, historial) {
+    var filas = historial.filter(function(f) { return f[1] === nombre; });
+    var caps = filas.map(function(f) { return parseFloat(f[2]); }).filter(function(n) { return !isNaN(n); });
+    var etapas = {};
+    filas.forEach(function(f) { var e = (f[3] || '').substring(0, 2); etapas[e] = (etapas[e] || 0) + 1; });
+    return {
+      total: filas.length,
+      minCap: caps.length ? Math.min.apply(null, caps) : '—',
+      maxCap: caps.length ? Math.max.apply(null, caps) : '—',
+      etapas: etapas,
+      ultima: filas.length ? filas[0][0] : '—',
+      estado: filas.length && filas[0][5] ? filas[0][5] : 'Activo'
     };
   }
-});
+
+  function colorEtapa(e) {
+    var c = {'01':'#ef4444','02':'#3b82f6','03':'#8b5cf6','04':'#f59e0b','05':'#10b981'};
+    return c[e] || '#888';
+  }
+
+  function renderTarjeta(nombre, s) {
+    var estadoBadge = s.estado === 'Inactivo'
+      ? '<span style="background:rgba(239,68,68,.15);color:#ef4444;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600">Inactivo</span>'
+      : '<span style="background:rgba(16,185,129,.15);color:#10b981;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600">Activo</span>';
+    var capRango = s.total > 0
+      ? 'Cap. <b style="color:#dc2020">' + s.minCap + '</b> → <b style="color:#dc2020">' + s.maxCap + '</b>'
+      : '<span style="color:var(--muted)">Sin registros</span>';
+    return [
+      '<div class="project-card" style="display:flex;flex-direction:column;gap:10px">',
+        '<div style="display:flex;align-items:center;justify-content:space-between">',
+          '<div style="display:flex;align-items:center;gap:10px">',
+            '<div class="project-icon">📖</div>',
+            '<div class="project-name" style="font-size:.9rem">' + nombre + '</div>',
+          '</div>',
+          estadoBadge,
+        '</div>',
+        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">',
+          '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px">',
+            '<div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Rango caps.</div>',
+            '<div style="font-size:.85rem">' + capRango + '</div>',
+          '</div>',
+          '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px">',
+            '<div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Total subidas</div>',
+            '<div style="font-size:.85rem;font-weight:700;color:var(--text)">' + s.total + '</div>',
+          '</div>',
+        '</div>',
+        '<div style="font-size:.72rem;color:var(--muted)">Última: ' + s.ultima + '</div>',
+        '<div class="project-actions">',
+          '<button class="act-btn" onclick="window.open(\'index.php?proyecto=' + encodeURIComponent(nombre) + '\',\'_blank\')">🔍 Buscador</button>',
+        '</div>',
+      '</div>'
+    ].join('');
+  }
+
+  // Sobrescribir cargarProyectos con versión mejorada
+  window.cargarProyectos = async function() {
+    const grid = document.getElementById('projects-grid');
+    if (!grid) return;
+    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem"><span class="spinner"></span> Cargando proyectos…</div>';
+    try {
+      // Cargar historial y proyectos en paralelo
+      const [historial, resP] = await Promise.all([fetchHistorial(), fetch('api.php?action=proyectos').then(r => r.json())]);
+      if (resP && resP.exito && resP.datos && resP.datos.length) {
+        if (window.state) window.state.proyectos = resP.datos;
+        const statEl = document.getElementById('stat-proyectos');
+        if (statEl) { statEl.textContent = resP.datos.length; }
+        grid.innerHTML = resP.datos.map(function(nombre) {
+          return renderTarjeta(nombre, statsParaManga(nombre, historial));
+        }).join('');
+      } else {
+        grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">No hay proyectos.</div>';
+      }
+    } catch(e) {
+      grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">Error: ' + e.message + '</div>';
+    }
+  };
+
+  // Sobrescribir cargarHistorialFull con versión que funciona aunque el JS del servidor sea viejo
+  window.cargarHistorialFull = async function() {
+    const tbody = document.getElementById('historial-full-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem"><span class="spinner"></span> Cargando historial…</td></tr>';
+    const historial = await fetchHistorial();
+    if (!historial || !historial.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No hay registros.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = historial.map(function(f, i) {
+      var estado = f[5] || 'Activo';
+      var estadoClass = estado === 'Inactivo' ? 'badge-inactive' : 'badge-active';
+      return [
+        '<tr id="hrow-' + i + '">',
+          '<td>' + (f[1] || '—') + '</td>',
+          '<td>' + (f[2] || '—') + '</td>',
+          '<td>' + (f[3] || '—') + '</td>',
+          '<td>' + (f[0] || '—') + '</td>',
+          '<td><span class="status-badge ' + estadoClass + '">' + estado + '</span></td>',
+          '<td class="actions-cell">',
+            '<button class="act-btn" onclick="openEditModal(' + i + ')">✎ Editar</button>',
+          '</td>',
+        '</tr>'
+      ].join('');
+    }).join('');
+  };
+
+})();
 </script>
 </body>
 </html>

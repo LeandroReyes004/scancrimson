@@ -1,11 +1,12 @@
 /**
  * CRIMSON SCAN - SISTEMA UNIFICADO DE GESTIÓN
- * Versión 2.2 (Gestión CRUD Completa + Métricas + Discord)
+ * Versión 2.3 (Hoja de registros correcta)
  */
 
 // --- CONFIGURACIÓN ---
 const CARPETA_RAIZ_ID = '1MEkmLbc2xbvZ6KxL-Dqlhw4JgqAy5Lzp';
 const HOJA_CALCULO_ID = '15rsdxNP8gcyhwTyNWfI8oRSAb8ELehkxO5wu9kCIJZw';
+const HOJA_REGISTROS  = 'Respuestas de formulario 1'; // <-- Hoja donde se registran las subidas
 const DISCORD_WEBHOOK = 'https://discordapp.com/api/webhooks/1481805598373707929/5RGhzp__my2SrASyDjKFY28WIL3T-uqaVOqqJbimX_hlalibEHZiNEWf4NGxWt3tlXW3';
 
 /**
@@ -14,7 +15,8 @@ const DISCORD_WEBHOOK = 'https://discordapp.com/api/webhooks/1481805598373707929
 function doGet(e) {
   var action = e.parameter.action;
   var ss = SpreadsheetApp.openById(HOJA_CALCULO_ID);
-  var sheet = ss.getSheets()[0];
+  // Usar la hoja de registros correcta (donde se guardan las subidas del formulario)
+  var sheet = ss.getSheetByName(HOJA_REGISTROS) || ss.getSheets()[0];
 
   // LISTAR PROYECTOS desde Drive
   if (action === 'listarProyectos') {

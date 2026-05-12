@@ -11,6 +11,7 @@ const TAB_LABELS = {
 let state = {
     historial: [],
     proyectos: [],
+    progreso: {}, // { 'Nombre Manga': MaxCap }
     searchQuery: ''
 };
 
@@ -134,32 +135,46 @@ function refrescarTodo() {
 }
 
 async function cargarStats() {
-    const resP = await apiFetch('proyectos');
-    if (resP && resP.exito) {
-        document.getElementById('stat-proyectos').textContent = resP.datos.length;
-        document.getElementById('stat-proyectos-sub').textContent = `${resP.datos.length} en Drive`;
-        state.proyectos = resP.datos;
-    }
-
     const resH = await apiFetch('historial');
     if (resH && resH.exito) {
-        const datos = resH.datos;
-        state.historial = datos;
+        state.historial = resH.datos;
+        calcularProgreso(); // Calcular métricas antes de mostrar
         
-        document.getElementById('stat-total').textContent = datos.length;
+        document.getElementById('stat-total').textContent = state.historial.length;
         document.getElementById('stat-total-sub').textContent = 'registros en total';
 
         const hoyStr = new Date().toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' });
-        const hoyCount = datos.filter(f => f[0] && f[0].includes(hoyStr)).length;
+        const hoyCount = state.historial.filter(f => f[0] && f[0].includes(hoyStr)).length;
         document.getElementById('stat-hoy').textContent = hoyCount;
         document.getElementById('stat-hoy-sub').textContent = 'subidas hoy';
 
-        const rawsCount = datos.filter(f => f[3] && f[3].includes('RAWs')).length;
+        const rawsCount = state.historial.filter(f => f[3] && f[3].includes('RAWs')).length;
         document.getElementById('stat-raws').textContent = rawsCount;
         document.getElementById('stat-raws-sub').textContent = 'de todos los tiempos';
 
-        renderActividad(datos.slice(0, 5));
+        renderActividad(state.historial.slice(0, 5));
     }
+
+    const resP = await apiFetch('proyectos');
+    if (resP && resP.exito) {
+        state.proyectos = resP.datos;
+        document.getElementById('stat-proyectos').textContent = state.proyectos.length;
+        document.getElementById('stat-proyectos-sub').textContent = `${state.proyectos.length} en Drive`;
+    }
+}
+
+function calcularProgreso() {
+    const prog = {};
+    state.historial.forEach(f => {
+        const manga = f[1];
+        const cap = parseFloat(f[2]);
+        if (manga && !isNaN(cap)) {
+            if (!prog[manga] || cap > prog[manga]) {
+                prog[manga] = cap;
+            }
+        }
+    });
+    state.progreso = prog;
 }
 
 function renderActividad(filas) {
@@ -210,7 +225,10 @@ function buildHistorialRows(datos) {
                         <button class="act-btn" title="Copiar nombre" onclick="copyToClipboard('${escHtml(fila[4] || '')}')">
                             <span>⎘</span>
                         </button>
-                        <button class="act-btn danger" title="Eliminar" onclick="confirmDeleteRegistro('${index}', '${escHtml(fila[1])}')">
+                        <button class="act-btn" title="Editar" onclick="openEditModal(${state.historial.length - 1 - index})">
+                            <span>✏️</span>
+                        </button>
+                        <button class="act-btn danger" title="Eliminar" onclick="confirmDeleteRegistro(${state.historial.length - 1 - index}, '${escHtml(fila[1])}')">
                             <span>✕</span>
                         </button>
                     </div>
@@ -290,20 +308,23 @@ function filterProyectos() {
         return;
     }
     
-    grid.innerHTML = filtered.map(nombre => `
-        <div class="project-card">
-            <div class="project-icon">📖</div>
-            <div class="project-name">${escHtml(nombre)}</div>
-            <div class="project-meta">
-                <span>📂 5 carpetas</span>
-                <span>☁ Drive</span>
+    grid.innerHTML = filtered.map(nombre => {
+        const ultimoCap = state.progreso[nombre] || '—';
+        return `
+            <div class="project-card">
+                <div class="project-icon">📖</div>
+                <div class="project-name">${escHtml(nombre)}</div>
+                <div class="project-meta">
+                    <span style="color:var(--red-bright); font-weight:700">Hasta Cap. ${ultimoCap}</span>
+                    <span>☁ Drive</span>
+                </div>
+                <div class="project-actions">
+                    <button class="act-btn" onclick="window.open('index.php?proyecto=${encodeURIComponent(nombre)}', '_blank')">Buscador</button>
+                    <button class="act-btn danger" onclick="confirmDeleteProyecto('${escHtml(nombre)}')">Eliminar</button>
+                </div>
             </div>
-            <div class="project-actions">
-                <button class="act-btn" onclick="window.open('index.php?proyecto=${encodeURIComponent(nombre)}', '_blank')">Ver buscador</button>
-                <button class="act-btn danger" onclick="confirmDeleteProyecto('${escHtml(nombre)}')">Eliminar</button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 /* ─── ACTIONS ─── */
@@ -347,13 +368,75 @@ function crearProyectoAction(inputId, btnId, resultId) {
         });
 }
 
-function confirmDeleteRegistro(index, manga) {
+let editIndex = -1;
+
+function openEditModal(realIndex) {
+    const data = state.historial[realIndex];
+    if (!data) return;
+    
+    editIndex = realIndex;
+    document.getElementById('edit-manga').value = data[1] || '';
+    document.getElementById('edit-cap').value = data[2] || '';
+    document.getElementById('edit-etapa').value = data[3] || '01. RAWs';
+    
+    document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.add('hidden');
+    editIndex = -1;
+}
+
+async function guardarEdicion() {
+    const manga = document.getElementById('edit-manga').value;
+    const cap = document.getElementById('edit-cap').value;
+    const etapa = document.getElementById('edit-etapa').value;
+    const pass = sessionStorage.getItem(PASS_KEY);
+
+    if (!manga || !cap) { toast('Completa los campos', 'err'); return; }
+
+    const btn = document.querySelector('#edit-modal .btn-primary');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
+    const form = new FormData();
+    form.append('pass', pass);
+    form.append('fila', editIndex + 2); // +2 por encabezado y base 1
+    form.append('manga', manga);
+    form.append('cap', cap);
+    form.append('etapa', etapa);
+
+    const res = await apiFetch('editarRegistro', { method: 'POST', body: form });
+    
+    btn.disabled = false;
+    btn.textContent = 'Guardar Cambios';
+
+    if (res && res.exito) {
+        toast('Registro actualizado correctamente');
+        closeEditModal();
+        refrescarTodo();
+    } else {
+        toast(res?.mensaje || 'Error al guardar', 'err');
+    }
+}
+
+function confirmDeleteRegistro(realIndex, manga) {
     showConfirm(
         '¿Eliminar registro?',
-        `¿Estás seguro de eliminar el registro de "${manga}"? Esta acción se reflejará en el historial.`,
-        () => {
-            // Aquí iría la llamada a la API si existiera eliminarRegistro
-            toast('Funcionalidad de eliminación en desarrollo', 'err');
+        `¿Estás seguro de eliminar el registro de "${manga}"? Esta acción se reflejará en el historial de Google Sheets.`,
+        async () => {
+            const pass = sessionStorage.getItem(PASS_KEY);
+            const form = new FormData();
+            form.append('pass', pass);
+            form.append('fila', realIndex + 2);
+
+            const res = await apiFetch('eliminarRegistro', { method: 'POST', body: form });
+            if (res && res.exito) {
+                toast('Registro eliminado');
+                refrescarTodo();
+            } else {
+                toast(res?.mensaje || 'Error al eliminar', 'err');
+            }
         }
     );
 }

@@ -300,6 +300,43 @@
 <!-- TOAST CONTAINER -->
 <div class="toast-container" id="toast-container"></div>
 
+<!-- EDIT MODAL -->
+<div id="edit-modal" class="overlay hidden">
+  <div class="dialog" style="max-width: 460px">
+    <div class="dialog-icon">✏️</div>
+    <h3>Editar Registro</h3>
+    <p>Modifica los datos del capítulo en el historial.</p>
+    
+    <div style="text-align: left; margin-bottom: 1.5rem">
+      <div class="field-group">
+        <label class="field-label">Manga</label>
+        <input id="edit-manga" type="text" class="field-input">
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem">
+        <div class="field-group">
+          <label class="field-label">Capítulo</label>
+          <input id="edit-cap" type="number" step="0.1" class="field-input">
+        </div>
+        <div class="field-group">
+          <label class="field-label">Etapa</label>
+          <select id="edit-etapa" class="field-input">
+            <option value="01. RAWs">01. RAWs</option>
+            <option value="02. Traducción">02. Traducción</option>
+            <option value="03. Limpieza y Redibujo">03. Limpieza y Redibujo</option>
+            <option value="04. Typos">04. Typos</option>
+            <option value="05. Control de Calidad">05. Control de Calidad</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-actions">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeEditModal()">Cancelar</button>
+      <button class="btn btn-primary" style="flex:1" onclick="guardarEdicion()">Guardar Cambios</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONFIRM DIALOG -->
 <div id="confirm-overlay" class="overlay hidden">
   <div class="dialog">

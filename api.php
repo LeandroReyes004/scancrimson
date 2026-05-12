@@ -156,6 +156,23 @@ switch ($action) {
         echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
         break;
 
+    // Editar registro del historial (requiere soporte en Apps Script)
+    case 'editarRegistro':
+        $pass   = $_POST['pass']   ?? '';
+        $fila   = $_POST['fila']   ?? '';
+        $manga  = $_POST['manga']  ?? '';
+        $cap    = $_POST['cap']    ?? '';
+        $etapa  = $_POST['etapa']  ?? '';
+
+        if ($pass !== CONTRASENA_ADMIN) { echo json_encode(['exito' => false, 'mensaje' => 'No autorizado.']); break; }
+        if (!$fila || !$manga) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
+        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
+
+        $url = APPS_SCRIPT_URL . '?action=editarRegistro&fila=' . urlencode($fila) . '&manga=' . urlencode($manga) . '&cap=' . urlencode($cap) . '&etapa=' . urlencode($etapa);
+        $res = httpGet($url);
+        echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
+        break;
+
     // Eliminar registro del historial (requiere soporte en Apps Script)
     case 'eliminarRegistro':
         $pass  = $_POST['pass']  ?? '';

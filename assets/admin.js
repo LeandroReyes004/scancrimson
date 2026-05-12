@@ -206,30 +206,31 @@ function renderActividad(filas) {
     if (container.lastElementChild) container.lastElementChild.style.borderBottom = 'none';
 }
 
-function buildHistorialRows(datos) {
+function buildHistorialRows(datos, offset = 0) {
     if (!datos || !datos.length) {
         return '<tr><td colspan="6" class="empty-msg">No hay registros que coincidan.</td></tr>';
     }
     
     return datos.map((fila, index) => {
+        const realIndex = state.historial.indexOf(fila);
         const etapa = (fila[3] || '').substring(0, 2);
         const estado = fila[5] === 'Inactivo' ? 'Inactivo' : 'Activo';
         const isInactive = estado === 'Inactivo';
         
         return `
-            <tr style="animation: fadeUp 0.3s ease forwards; animation-delay: ${index * 0.03}s; opacity:0; ${isInactive ? 'opacity:0.5; filter:grayscale(0.8)' : ''}">
+            <tr id="row-${realIndex}" style="animation: fadeUp 0.3s ease forwards; animation-delay: ${index * 0.03}s; opacity:0; ${isInactive ? 'filter:grayscale(0.7); opacity:0.55' : ''}">
                 <td class="cell-manga">${escHtml(fila[1] || '—')}</td>
                 <td class="cell-cap">#${escHtml(fila[2] || '?')}</td>
                 <td><span class="badge badge-${etapa}">${escHtml(fila[3] || '—')}</span></td>
                 <td class="cell-date">${escHtml(fila[0] || '—')}</td>
-                <td><span class="badge" style="background:${isInactive ? 'var(--muted)' : 'var(--c5b)'}; color:${isInactive ? 'var(--text)' : 'var(--c5)'}">${estado}</span></td>
+                <td><span class="estado-badge" id="estado-badge-${realIndex}" style="background:${isInactive ? 'var(--muted)33' : 'var(--c5b)'}; color:${isInactive ? 'var(--muted2)' : 'var(--c5)'}; border:1px solid ${isInactive ? 'var(--muted)' : 'var(--c5)'}; border-radius:20px; padding:2px 10px; font-size:.75rem; font-weight:600">${estado}</span></td>
                 <td>
                     <div class="row-actions">
-                        <button class="act-btn" title="Editar" onclick="openEditModal(${state.historial.length - 1 - index})">
-                            <span>✏️</span>
+                        <button class="act-btn" title="Editar" onclick="openEditModal(${realIndex})">
+                            ✏️ Editar
                         </button>
-                        <button class="act-btn ${isInactive ? '' : 'danger'}" title="${isInactive ? 'Activar' : 'Desactivar'}" onclick="toggleEstadoRegistro(${state.historial.length - 1 - index}, '${isInactive ? 'Activo' : 'Inactivo'}')">
-                            <span>${isInactive ? '◎' : '⊘'}</span>
+                        <button class="act-btn ${isInactive ? '' : 'danger'}" id="btn-estado-${realIndex}" onclick="toggleEstadoRegistro(${realIndex}, '${isInactive ? 'Activo' : 'Inactivo'}', this)">
+                            ${isInactive ? '◎ Activar' : '⊘ Inactivar'}
                         </button>
                     </div>
                 </td>
@@ -392,8 +393,8 @@ function closeEditModal() {
 }
 
 async function guardarEdicion() {
-    const manga = document.getElementById('edit-manga').value;
-    const cap = document.getElementById('edit-cap').value;
+    const manga = document.getElementById('edit-manga').value.trim();
+    const cap = document.getElementById('edit-cap').value.trim();
     const etapa = document.getElementById('edit-etapa').value;
     const pass = sessionStorage.getItem(PASS_KEY);
 
@@ -405,7 +406,7 @@ async function guardarEdicion() {
 
     const form = new FormData();
     form.append('pass', pass);
-    form.append('fila', editIndex + 2); // +2 por encabezado y base 1
+    form.append('fila', editIndex + 2);
     form.append('manga', manga);
     form.append('cap', cap);
     form.append('etapa', etapa);
@@ -416,26 +417,70 @@ async function guardarEdicion() {
     btn.textContent = 'Guardar Cambios';
 
     if (res && res.exito) {
+        // Actualizar el estado local sin recargar toda la tabla
+        state.historial[editIndex][1] = manga;
+        state.historial[editIndex][2] = cap;
+        state.historial[editIndex][3] = etapa;
+
+        const row = document.getElementById('row-' + editIndex);
+        if (row) {
+            const etapaCod = etapa.substring(0, 2);
+            row.cells[0].textContent = manga;
+            row.cells[1].textContent = '#' + cap;
+            row.cells[2].innerHTML = `<span class="badge badge-${etapaCod}">${escHtml(etapa)}</span>`;
+        }
+
         toast('Registro actualizado correctamente');
         closeEditModal();
-        refrescarTodo();
+        calcularProgreso(); // Actualizar métricas en memoria
     } else {
         toast(res?.mensaje || 'Error al guardar', 'err');
     }
 }
 
-async function toggleEstadoRegistro(realIndex, nuevoEstado) {
+async function toggleEstadoRegistro(realIndex, nuevoEstado, btnEl) {
+    const isInactive = nuevoEstado === 'Inactivo'; // Si el nuevo estado es Inactivo, actualmente estaba Activo
     const pass = sessionStorage.getItem(PASS_KEY);
+
+    // Feedback inmediato: deshabilitar botón
+    btnEl.disabled = true;
+    btnEl.textContent = '...';
+
     const form = new FormData();
     form.append('pass', pass);
     form.append('fila', realIndex + 2);
     form.append('estado', nuevoEstado);
 
     const res = await apiFetch('cambiarEstado', { method: 'POST', body: form });
+
     if (res && res.exito) {
-        toast(`Registro marcado como ${nuevoEstado}`);
-        refrescarTodo();
+        // Actualizar el DOM local SIN recargar toda la tabla
+        state.historial[realIndex][5] = nuevoEstado;
+        const row = document.getElementById('row-' + realIndex);
+        const badge = document.getElementById('estado-badge-' + realIndex);
+        const nowInactive = nuevoEstado === 'Inactivo';
+
+        if (row) {
+            row.style.filter = nowInactive ? 'grayscale(0.7)' : '';
+            row.style.opacity = nowInactive ? '0.55' : '1';
+        }
+        if (badge) {
+            badge.textContent = nuevoEstado;
+            badge.style.background = nowInactive ? 'var(--muted)33' : 'var(--c5b)';
+            badge.style.color = nowInactive ? 'var(--muted2)' : 'var(--c5)';
+            badge.style.borderColor = nowInactive ? 'var(--muted)' : 'var(--c5)';
+        }
+
+        // Actualizar el botón al nuevo estado contrario
+        btnEl.disabled = false;
+        btnEl.className = `act-btn ${nowInactive ? '' : 'danger'}`;
+        btnEl.textContent = nowInactive ? '◎ Activar' : '⊘ Inactivar';
+        btnEl.onclick = () => toggleEstadoRegistro(realIndex, nowInactive ? 'Activo' : 'Inactivo', btnEl);
+
+        toast(`Registro ${nuevoEstado.toLowerCase()}`);
     } else {
+        btnEl.disabled = false;
+        btnEl.textContent = isInactive ? '⊘ Inactivar' : '◎ Activar';
         toast(res?.mensaje || 'Error al cambiar estado', 'err');
     }
 }

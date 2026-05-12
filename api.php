@@ -46,11 +46,22 @@ switch ($action) {
 
     // Lista todos los proyectos (carpetas en raíz)
     case 'proyectos':
+        // Intentar con API Key pública primero
         $files = driveQ(
             "'" . CARPETA_RAIZ_ID . "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
             'files(id,name)',
             200
         );
+        
+        // Si no hay resultados, intentar a través del Apps Script
+        if (empty($files) && APPS_SCRIPT_URL) {
+            $res = httpGet(APPS_SCRIPT_URL . '?action=listarProyectos');
+            if ($res && isset($res['exito']) && $res['exito']) {
+                echo json_encode($res);
+                break;
+            }
+        }
+        
         $nombres = array_column($files, 'name');
         sort($nombres);
         echo json_encode(['exito' => true, 'datos' => $nombres]);
@@ -133,8 +144,19 @@ switch ($action) {
 
     // Historial desde Google Sheets
     case 'historial':
+        // Intentar con API Key pública primero
         $url  = SHEETS_API . '/' . HOJA_CALCULO_ID . '/values/A%3AZ?key=' . GOOGLE_API_KEY;
         $data = httpGet($url);
+        
+        // Si falla (hoja privada), intentar a través del Apps Script
+        if (!$data && APPS_SCRIPT_URL) {
+            $data = httpGet(APPS_SCRIPT_URL . '?action=historial');
+            if ($data && isset($data['exito']) && $data['exito']) {
+                echo json_encode($data);
+                break;
+            }
+        }
+        
         $filas = $data['values'] ?? [];
         if (count($filas) <= 1) { echo json_encode(['exito' => true, 'datos' => []]); break; }
         array_shift($filas); // quitar encabezado

@@ -16,7 +16,29 @@ function doGet(e) {
   var ss = SpreadsheetApp.openById(HOJA_CALCULO_ID);
   var sheet = ss.getSheets()[0];
 
-  // 1. EDITAR REGISTRO
+  // LISTAR PROYECTOS desde Drive
+  if (action === 'listarProyectos') {
+    var folder = DriveApp.getFolderById(CARPETA_RAIZ_ID);
+    var folders = folder.getFolders();
+    var nombres = [];
+    while (folders.hasNext()) {
+      nombres.push(folders.next().getName());
+    }
+    nombres.sort();
+    return jsonResponse({exito: true, datos: nombres});
+  }
+
+  // HISTORIAL desde Google Sheets
+  if (action === 'historial') {
+    var lastRow = sheet.getLastRow();
+    if (lastRow <= 1) return jsonResponse({exito: true, datos: []});
+    var values = sheet.getRange(2, 1, lastRow - 1, Math.max(sheet.getLastColumn(), 6)).getValues();
+    var filas = values.filter(function(f) { return f[0] && f[0].toString().trim() !== ''; });
+    filas.reverse();
+    return jsonResponse({exito: true, datos: filas});
+  }
+
+  // EDITAR REGISTRO
   if (action === "editarRegistro") {
     var fila = parseInt(e.parameter.fila);
     sheet.getRange(fila, 2).setValue(e.parameter.manga);

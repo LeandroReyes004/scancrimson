@@ -156,6 +156,18 @@ switch ($action) {
         echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
         break;
 
+    // Eliminar registro del historial (requiere soporte en Apps Script)
+    case 'eliminarRegistro':
+        $pass  = $_POST['pass']  ?? '';
+        $fila  = $_POST['fila']  ?? ''; // Índice o identificador
+        if ($pass !== CONTRASENA_ADMIN) { echo json_encode(['exito' => false, 'mensaje' => 'No autorizado.']); break; }
+        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
+        
+        $url = APPS_SCRIPT_URL . '?action=eliminarRegistro&fila=' . urlencode($fila);
+        $res = httpGet($url);
+        echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);

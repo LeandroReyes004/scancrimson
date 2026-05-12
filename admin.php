@@ -179,7 +179,7 @@
                     <th>Cap.</th>
                     <th>Etapa</th>
                     <th>Fecha</th>
-                    <th>Archivo</th>
+                    <th>Estado</th>
                     <th>Acciones</th>
                   </tr>
                 </thead>
@@ -281,7 +281,7 @@
                   <th>Cap.</th>
                   <th>Etapa</th>
                   <th>Fecha</th>
-                  <th>Archivo</th>
+                  <th>Estado</th>
                   <th>Acciones</th>
                 </tr>
               </thead>

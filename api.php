@@ -173,6 +173,21 @@ switch ($action) {
         echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
         break;
 
+    // Cambiar estado (Activo/Inactivo)
+    case 'cambiarEstado':
+        $pass   = $_POST['pass']   ?? '';
+        $fila   = $_POST['fila']   ?? '';
+        $estado = $_POST['estado'] ?? '';
+
+        if ($pass !== CONTRASENA_ADMIN) { echo json_encode(['exito' => false, 'mensaje' => 'No autorizado.']); break; }
+        if (!$fila || !$estado) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
+        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
+
+        $url = APPS_SCRIPT_URL . '?action=cambiarEstado&fila=' . urlencode($fila) . '&estado=' . urlencode($estado);
+        $res = httpGet($url);
+        echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
+        break;
+
     // Eliminar registro del historial (requiere soporte en Apps Script)
     case 'eliminarRegistro':
         $pass  = $_POST['pass']  ?? '';

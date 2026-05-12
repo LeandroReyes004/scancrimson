@@ -213,23 +213,23 @@ function buildHistorialRows(datos) {
     
     return datos.map((fila, index) => {
         const etapa = (fila[3] || '').substring(0, 2);
+        const estado = fila[5] === 'Inactivo' ? 'Inactivo' : 'Activo';
+        const isInactive = estado === 'Inactivo';
+        
         return `
-            <tr style="animation: fadeUp 0.3s ease forwards; animation-delay: ${index * 0.03}s; opacity:0">
+            <tr style="animation: fadeUp 0.3s ease forwards; animation-delay: ${index * 0.03}s; opacity:0; ${isInactive ? 'opacity:0.5; filter:grayscale(0.8)' : ''}">
                 <td class="cell-manga">${escHtml(fila[1] || '—')}</td>
                 <td class="cell-cap">#${escHtml(fila[2] || '?')}</td>
                 <td><span class="badge badge-${etapa}">${escHtml(fila[3] || '—')}</span></td>
                 <td class="cell-date">${escHtml(fila[0] || '—')}</td>
-                <td class="cell-file" title="${escHtml(fila[4] || '')}">${escHtml(fila[4] || '—')}</td>
+                <td><span class="badge" style="background:${isInactive ? 'var(--muted)' : 'var(--c5b)'}; color:${isInactive ? 'var(--text)' : 'var(--c5)'}">${estado}</span></td>
                 <td>
                     <div class="row-actions">
-                        <button class="act-btn" title="Copiar nombre" onclick="copyToClipboard('${escHtml(fila[4] || '')}')">
-                            <span>⎘</span>
-                        </button>
                         <button class="act-btn" title="Editar" onclick="openEditModal(${state.historial.length - 1 - index})">
                             <span>✏️</span>
                         </button>
-                        <button class="act-btn danger" title="Eliminar" onclick="confirmDeleteRegistro(${state.historial.length - 1 - index}, '${escHtml(fila[1])}')">
-                            <span>✕</span>
+                        <button class="act-btn ${isInactive ? '' : 'danger'}" title="${isInactive ? 'Activar' : 'Desactivar'}" onclick="toggleEstadoRegistro(${state.historial.length - 1 - index}, '${isInactive ? 'Activo' : 'Inactivo'}')">
+                            <span>${isInactive ? '◎' : '⊘'}</span>
                         </button>
                     </div>
                 </td>
@@ -309,18 +309,22 @@ function filterProyectos() {
     }
     
     grid.innerHTML = filtered.map(nombre => {
-        const ultimoCap = state.progreso[nombre] || '—';
+        const caps = state.historial.filter(h => h[1] === nombre).map(h => parseFloat(h[2])).filter(n => !isNaN(n));
+        const minCap = caps.length ? Math.min(...caps) : 0;
+        const maxCap = caps.length ? Math.max(...caps) : 0;
+        const totalSubidas = caps.length;
+        
         return `
             <div class="project-card">
                 <div class="project-icon">📖</div>
                 <div class="project-name">${escHtml(nombre)}</div>
-                <div class="project-meta">
-                    <span style="color:var(--red-bright); font-weight:700">Hasta Cap. ${ultimoCap}</span>
-                    <span>☁ Drive</span>
+                <div class="project-meta" style="flex-direction:column; gap:4px">
+                    <div style="color:var(--red-bright); font-weight:700">Rango: Cap. ${minCap} → ${maxCap}</div>
+                    <div style="font-size:.7rem; color:var(--muted)">Secuencia: ${totalSubidas} capítulos registrados</div>
                 </div>
                 <div class="project-actions">
                     <button class="act-btn" onclick="window.open('index.php?proyecto=${encodeURIComponent(nombre)}', '_blank')">Buscador</button>
-                    <button class="act-btn danger" onclick="confirmDeleteProyecto('${escHtml(nombre)}')">Eliminar</button>
+                    <button class="act-btn" title="Gestionar estado">Activo</button>
                 </div>
             </div>
         `;
@@ -420,25 +424,20 @@ async function guardarEdicion() {
     }
 }
 
-function confirmDeleteRegistro(realIndex, manga) {
-    showConfirm(
-        '¿Eliminar registro?',
-        `¿Estás seguro de eliminar el registro de "${manga}"? Esta acción se reflejará en el historial de Google Sheets.`,
-        async () => {
-            const pass = sessionStorage.getItem(PASS_KEY);
-            const form = new FormData();
-            form.append('pass', pass);
-            form.append('fila', realIndex + 2);
+async function toggleEstadoRegistro(realIndex, nuevoEstado) {
+    const pass = sessionStorage.getItem(PASS_KEY);
+    const form = new FormData();
+    form.append('pass', pass);
+    form.append('fila', realIndex + 2);
+    form.append('estado', nuevoEstado);
 
-            const res = await apiFetch('eliminarRegistro', { method: 'POST', body: form });
-            if (res && res.exito) {
-                toast('Registro eliminado');
-                refrescarTodo();
-            } else {
-                toast(res?.mensaje || 'Error al eliminar', 'err');
-            }
-        }
-    );
+    const res = await apiFetch('cambiarEstado', { method: 'POST', body: form });
+    if (res && res.exito) {
+        toast(`Registro marcado como ${nuevoEstado}`);
+        refrescarTodo();
+    } else {
+        toast(res?.mensaje || 'Error al cambiar estado', 'err');
+    }
 }
 
 function confirmDeleteProyecto(nombre) {

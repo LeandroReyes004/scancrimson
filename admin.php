@@ -14,7 +14,7 @@
 <div class="bg-grid"></div>
 <div class="noise"></div>
 
-<!-- ─── LOGIN SCREEN ─── -->
+<!-- ─── LOGIN ─── -->
 <div id="login-screen" class="login-screen">
   <div class="login-card">
     <div class="login-logo">
@@ -29,8 +29,7 @@
     </div>
     <div id="login-error" class="error-msg hidden">Contraseña incorrecta.</div>
     <button class="btn-primary btn" style="width:100%; margin-top:1rem" onclick="verificarLogin()">
-      <span>Entrar al panel</span>
-      <span>→</span>
+      <span>Entrar al panel</span> <span>→</span>
     </button>
   </div>
 </div>
@@ -38,314 +37,209 @@
 <!-- ─── APP SHELL ─── -->
 <div id="app-shell" class="app-shell hidden">
 
-  <!-- SIDEBAR -->
-  <nav class="sidebar">
-    <div class="sidebar-logo">
-      <div class="sidebar-logo-icon">⚔</div>
-      <div class="sidebar-logo-text">CRIMSON <span>SCAN</span></div>
+  <!-- HEADER BAR -->
+  <header class="app-header">
+    <div class="header-brand">
+      <span class="header-icon">⚔</span>
+      <span class="header-name">CRIMSON <b>SCAN</b></span>
     </div>
 
-    <div class="nav-section-label">Panel</div>
-    <a class="nav-item active" href="#" onclick="switchTab('dashboard');return false;">
-      <span class="nav-icon">◈</span> Dashboard
-    </a>
-    <a class="nav-item" href="index.php">
-      <span class="nav-icon">⌕</span> Buscar
-    </a>
+    <nav class="header-tabs">
+      <button class="htab active" id="htab-dashboard" onclick="switchTab('dashboard')">◈ Dashboard</button>
+      <button class="htab" id="htab-proyectos" onclick="switchTab('proyectos')">◫ Proyectos</button>
+      <button class="htab" id="htab-nuevo" onclick="switchTab('nuevo')">⊕ Nuevo</button>
+      <button class="htab" id="htab-historial" onclick="switchTab('historial')">≡ Historial</button>
+      <a class="htab" href="subir.php">↑ Subir</a>
+    </nav>
 
-    <div class="nav-section-label">Gestión</div>
-    <a class="nav-item" href="#" onclick="switchTab('proyectos');return false;">
-      <span class="nav-icon">◫</span> Proyectos
-    </a>
-    <a class="nav-item" href="#" onclick="switchTab('nuevo');return false;">
-      <span class="nav-icon">⊕</span> Nuevo proyecto
-    </a>
-    <a class="nav-item" href="subir.php">
-      <span class="nav-icon">↑</span> Subir archivo
-      <span class="nav-badge" id="nav-badge-subidas"></span>
-    </a>
+    <div class="header-right">
+      <div class="header-search">
+        <span>⌕</span>
+        <input type="text" id="search-input" placeholder="Buscar…" oninput="handleSearch(this.value)">
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="refrescarTodo()">↺</button>
+      <button class="user-logout" onclick="cerrarSesion()" title="Cerrar sesión">⎋ Salir</button>
+    </div>
+  </header>
 
-    <div class="nav-section-label">Sistema</div>
-    <a class="nav-item" href="#" onclick="switchTab('historial');return false;">
-      <span class="nav-icon">≡</span> Historial
-    </a>
+  <!-- PAGE BODY -->
+  <div class="page-body">
 
-    <div class="sidebar-footer">
-      <div class="user-chip">
-        <div class="user-avatar">AD</div>
-        <div class="user-info">
-          <div class="user-name">Administrador</div>
-          <div class="user-role">Crimson Staff</div>
+    <!-- ══ TAB: DASHBOARD ══ -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Panel de control</p>
+          <h1 class="page-title">Crimson <span>Control</span></h1>
         </div>
-        <button class="user-logout" onclick="cerrarSesion()" title="Cerrar sesión">⎋</button>
-      </div>
-    </div>
-  </nav>
-
-  <!-- MAIN CONTENT -->
-  <div class="main-content">
-    <div class="top-bar">
-      <button class="btn-ghost btn" style="padding: 5px 10px; display: none;" onclick="toggleSidebar()" id="btn-mobile-menu">☰</button>
-      
-      <div class="top-bar-title">
-        <span>Crimson Scan</span>
-        <span class="top-bar-sep">/</span>
-        <span class="top-bar-page" id="topbar-page">Dashboard</span>
-      </div>
-
-      <div class="top-bar-search">
-        <i>⌕</i>
-        <input type="text" placeholder="Buscar en el panel..." oninput="handleSearch(this.value)">
-      </div>
-
-      <div class="top-bar-actions">
-        <button class="btn btn-ghost" onclick="refrescarTodo()">↺ Refrescar</button>
         <button class="btn btn-primary" onclick="switchTab('nuevo')">+ Nuevo proyecto</button>
       </div>
-    </div>
 
-    <div class="page-body">
-
-      <!-- ══ TAB: DASHBOARD ══ -->
-      <div id="tab-dashboard" class="tab-content active">
-        <div class="section-head">
-          <p>Admin · Panel de control</p>
-          <h1>Crimson <span>Control</span></h1>
+      <div class="stats-grid">
+        <div class="stat-card sc1">
+          <div class="stat-value" id="stat-proyectos">—</div>
+          <div class="stat-label">Proyectos</div>
+          <div class="stat-trend" id="stat-proyectos-sub">en Drive</div>
         </div>
-
-        <div class="stats-grid">
-          <div class="stat-card sc1">
-            <div class="stat-value" id="stat-proyectos">—</div>
-            <div class="stat-label">Proyectos activos</div>
-            <div class="stat-trend" id="stat-proyectos-sub">Cargando…</div>
-          </div>
-          <div class="stat-card sc2">
-            <div class="stat-value" id="stat-total">—</div>
-            <div class="stat-label">Total subidas</div>
-            <div class="stat-trend" id="stat-total-sub">Cargando…</div>
-          </div>
-          <div class="stat-card sc3">
-            <div class="stat-value" id="stat-hoy">—</div>
-            <div class="stat-label">Subidas hoy</div>
-            <div class="stat-trend" id="stat-hoy-sub">—</div>
-          </div>
-          <div class="stat-card sc4">
-            <div class="stat-value" id="stat-raws">—</div>
-            <div class="stat-label">RAWs registradas</div>
-            <div class="stat-trend" id="stat-raws-sub">—</div>
-          </div>
+        <div class="stat-card sc2">
+          <div class="stat-value" id="stat-total">—</div>
+          <div class="stat-label">Total subidas</div>
+          <div class="stat-trend" id="stat-total-sub">registros</div>
         </div>
-
-        <div style="display: grid; grid-template-columns: 340px 1fr; gap: 1.5rem;">
-          <!-- Left: Quick Actions & Activity -->
-          <div style="display: flex; flex-direction: column; gap: 1.5rem;">
-            <div class="panel">
-              <div class="panel-header">
-                <div class="panel-title"><span class="panel-title-icon">◫</span> Crear proyecto</div>
-              </div>
-              <div class="panel-body">
-                <div class="field-group">
-                  <label class="field-label">Nombre del manga</label>
-                  <input id="inp-proyecto-nuevo" type="text" class="field-input" placeholder="Ej: Solo Leveling">
-                </div>
-                <button id="btn-crear" class="btn btn-primary" style="width:100%" onclick="crearProyectoAction('inp-proyecto-nuevo', 'btn-crear', 'crear-resultado')">
-                  <span>Crear en Google Drive</span>
-                </button>
-                <div id="crear-resultado" style="margin-top:1rem"></div>
-              </div>
-            </div>
-
-            <div class="panel">
-              <div class="panel-header">
-                <div class="panel-title"><span class="panel-title-icon">◎</span> Actividad reciente</div>
-              </div>
-              <div class="panel-body" id="actividad-mini" style="padding-top:0.5rem">
-                <div class="empty-msg">Cargando…</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Right: Recent History -->
-          <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title"><span class="panel-title-icon">≡</span> Historial reciente</div>
-              <button class="btn btn-ghost" onclick="cargarHistorial()">↺ Refrescar</button>
-            </div>
-            <div class="table-scroll">
-              <table class="data-table">
-                <thead>
-                  <tr>
-                    <th>Manga</th>
-                    <th>Cap.</th>
-                    <th>Etapa</th>
-                    <th>Fecha</th>
-                    <th>Estado</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody id="historial-body">
-                  <tr><td colspan="6" style="text-align:center;padding:3rem"><span class="spinner"></span> Cargando…</td></tr>
-                </tbody>
-              </table>
-            </div>
-          </div>
+        <div class="stat-card sc3">
+          <div class="stat-value" id="stat-hoy">—</div>
+          <div class="stat-label">Subidas hoy</div>
+          <div class="stat-trend" id="stat-hoy-sub">hoy</div>
+        </div>
+        <div class="stat-card sc4">
+          <div class="stat-value" id="stat-raws">—</div>
+          <div class="stat-label">RAWs</div>
+          <div class="stat-trend" id="stat-raws-sub">registradas</div>
         </div>
       </div>
 
-      <!-- ══ TAB: PROYECTOS ══ -->
-      <div id="tab-proyectos" class="tab-content">
-        <div class="section-head">
-          <p>Gestión · Drive</p>
-          <h1>Mis <span>Proyectos</span></h1>
-        </div>
+      <div class="two-col">
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title"><span class="panel-title-icon">◫</span> Carpetas en Google Drive</div>
-            <button class="btn btn-ghost" onclick="cargarProyectos()">↺ Refrescar</button>
+            <div class="panel-title">◎ Actividad reciente</div>
+            <button class="btn btn-ghost btn-sm" onclick="refrescarTodo()">↺</button>
           </div>
-          <div class="panel-body">
-            <div id="projects-grid" class="projects-grid">
-              <div class="empty-msg">Cargando proyectos…</div>
-            </div>
+          <div class="panel-body" id="actividad-mini">
+            <div class="empty-msg">Cargando…</div>
           </div>
         </div>
-      </div>
 
-      <!-- ══ TAB: NUEVO PROYECTO ══ -->
-      <div id="tab-nuevo" class="tab-content">
-        <div class="section-head">
-          <p>Gestión · Crear</p>
-          <h1>Nuevo <span>Proyecto</span></h1>
-        </div>
-        
-        <div style="display: grid; grid-template-columns: 1fr 340px; gap: 1.5rem;">
-          <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title"><span class="panel-title-icon">⊕</span> Crear proyecto en Drive</div>
-            </div>
-            <div class="panel-body">
-              <p style="font-size:.9rem;color:var(--muted2);margin-bottom:1.5rem;line-height:1.6">
-                Se crearán automáticamente las 5 carpetas de etapa (RAWs, Traducción, Limpieza, Typos y QC) en la raíz de Google Drive.
-              </p>
-              <div class="field-group">
-                <label class="field-label">Nombre del manga</label>
-                <input id="inp-proyecto-nuevo2" type="text" class="field-input" placeholder="Ej: Solo Leveling">
-              </div>
-              <button id="btn-crear2" class="btn btn-primary" style="width:100%" onclick="crearProyectoAction('inp-proyecto-nuevo2', 'btn-crear2', 'crear-resultado2')">
-                <span>Crear en Google Drive</span>
-              </button>
-              <div id="crear-resultado2" style="margin-top:1rem"></div>
-            </div>
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <div class="panel-title"><span class="panel-title-icon">◉</span> Requisitos</div>
-            </div>
-            <div class="panel-body" style="display:flex; flex-direction:column; gap:1.25rem">
-              <div style="display:flex; gap:12px">
-                <span style="color:var(--c5)">✓</span>
-                <div>
-                  <div style="font-size:.9rem; font-weight:600">Apps Script activo</div>
-                  <div style="font-size:.8rem; color:var(--muted); margin-top:2px">La conexión con Drive está establecida.</div>
-                </div>
-              </div>
-              <div style="display:flex; gap:12px">
-                <span style="color:var(--c4)">⚠</span>
-                <div>
-                  <div style="font-size:.9rem; font-weight:600">Nombre único</div>
-                  <div style="font-size:.8rem; color:var(--muted); margin-top:2px">Evita duplicados para no confundir al sistema.</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ══ TAB: HISTORIAL ══ -->
-      <div id="tab-historial" class="tab-content">
-        <div class="section-head">
-          <p>Sistema · Registros</p>
-          <h1>Historial <span>Completo</span></h1>
-        </div>
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title"><span class="panel-title-icon">≡</span> Todos los registros de Google Sheets</div>
-            <button class="btn btn-ghost" onclick="cargarHistorialFull()">↺ Refrescar</button>
+            <div class="panel-title">≡ Últimas 10 subidas</div>
           </div>
           <div class="table-scroll">
             <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Manga</th>
-                  <th>Cap.</th>
-                  <th>Etapa</th>
-                  <th>Fecha</th>
-                  <th>Estado</th>
-                  <th>Acciones</th>
-                </tr>
-              </thead>
-              <tbody id="historial-full-body">
-                <tr><td colspan="6" style="text-align:center;padding:3rem"><span class="spinner"></span></td></tr>
+              <thead><tr><th>Manga</th><th>Cap.</th><th>Etapa</th><th>Estado</th><th>Acciones</th></tr></thead>
+              <tbody id="historial-body">
+                <tr><td colspan="5" class="loading-cell"><span class="spinner"></span></td></tr>
               </tbody>
             </table>
           </div>
         </div>
       </div>
+    </div>
 
-    </div><!-- /page-body -->
-  </div><!-- /main-content -->
+    <!-- ══ TAB: PROYECTOS ══ -->
+    <div id="tab-proyectos" class="tab-content">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Google Drive</p>
+          <h1 class="page-title">Mis <span>Proyectos</span></h1>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cargarProyectos()">↺ Refrescar</button>
+      </div>
+      <div id="projects-grid" class="projects-grid">
+        <div class="loading-cell" style="grid-column:1/-1; padding:4rem; text-align:center"><span class="spinner"></span></div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: NUEVO PROYECTO ══ -->
+    <div id="tab-nuevo" class="tab-content">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Gestión</p>
+          <h1 class="page-title">Nuevo <span>Proyecto</span></h1>
+        </div>
+      </div>
+
+      <div class="form-center">
+        <div class="panel" style="max-width:520px; width:100%">
+          <div class="panel-header">
+            <div class="panel-title">⊕ Crear carpetas en Drive</div>
+          </div>
+          <div class="panel-body">
+            <p style="font-size:.9rem;color:var(--muted2);margin-bottom:1.5rem;line-height:1.6">
+              Se crearán automáticamente las 5 carpetas de etapa (<b>RAWs, Traducción, Limpieza, Typos y QC</b>) dentro de la carpeta raíz de Google Drive.
+            </p>
+            <div class="field-group">
+              <label class="field-label">Nombre del manga</label>
+              <input id="inp-proyecto-nuevo2" type="text" class="field-input" placeholder="Ej: Solo Leveling"
+                     onkeydown="if(event.key==='Enter')crearProyectoAction('inp-proyecto-nuevo2','btn-crear2','crear-resultado2')">
+            </div>
+            <button id="btn-crear2" class="btn btn-primary" style="width:100%; margin-top:.5rem"
+                    onclick="crearProyectoAction('inp-proyecto-nuevo2','btn-crear2','crear-resultado2')">
+              Crear en Google Drive
+            </button>
+            <div id="crear-resultado2" style="margin-top:1rem"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB: HISTORIAL ══ -->
+    <div id="tab-historial" class="tab-content">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Google Sheets</p>
+          <h1 class="page-title">Historial <span>Completo</span></h1>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cargarHistorialFull()">↺ Refrescar</button>
+      </div>
+      <div class="panel">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Manga</th><th>Cap.</th><th>Etapa</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
+            <tbody id="historial-full-body">
+              <tr><td colspan="6" class="loading-cell"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /page-body -->
 </div><!-- /app-shell -->
 
-<!-- TOAST CONTAINER -->
+<!-- TOAST -->
 <div class="toast-container" id="toast-container"></div>
 
-<!-- EDIT MODAL -->
-<div id="edit-modal" class="overlay hidden">
-  <div class="dialog" style="max-width: 460px">
-    <div class="dialog-icon">✏️</div>
-    <h3>Editar Registro</h3>
-    <p>Modifica los datos del capítulo en el historial.</p>
-    
-    <div style="text-align: left; margin-bottom: 1.5rem">
-      <div class="field-group">
-        <label class="field-label">Manga</label>
-        <input id="edit-manga" type="text" class="field-input">
-      </div>
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem">
-        <div class="field-group">
-          <label class="field-label">Capítulo</label>
-          <input id="edit-cap" type="number" step="0.1" class="field-input">
-        </div>
-        <div class="field-group">
-          <label class="field-label">Etapa</label>
-          <select id="edit-etapa" class="field-input">
-            <option value="01. RAWs">01. RAWs</option>
-            <option value="02. Traducción">02. Traducción</option>
-            <option value="03. Limpieza y Redibujo">03. Limpieza y Redibujo</option>
-            <option value="04. Typos">04. Typos</option>
-            <option value="05. Control de Calidad">05. Control de Calidad</option>
-          </select>
-        </div>
-      </div>
+<!-- EDIT PANEL (drawer desde la derecha) -->
+<div id="edit-drawer-overlay" class="drawer-overlay hidden" onclick="closeEditModal()"></div>
+<div id="edit-drawer" class="edit-drawer hidden">
+  <div class="drawer-header">
+    <span>✏️ Editar Registro</span>
+    <button class="btn btn-ghost btn-sm" onclick="closeEditModal()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field-group">
+      <label class="field-label">Manga</label>
+      <input id="edit-manga" type="text" class="field-input">
     </div>
-
-    <div class="dialog-actions">
-      <button class="btn btn-ghost" style="flex:1" onclick="closeEditModal()">Cancelar</button>
-      <button class="btn btn-primary" style="flex:1" onclick="guardarEdicion()">Guardar Cambios</button>
+    <div class="field-group">
+      <label class="field-label">Capítulo</label>
+      <input id="edit-cap" type="number" step="0.1" class="field-input">
     </div>
+    <div class="field-group">
+      <label class="field-label">Etapa</label>
+      <select id="edit-etapa" class="field-input">
+        <option value="01. RAWs">01. RAWs</option>
+        <option value="02. Traducción">02. Traducción</option>
+        <option value="03. Limpieza y Redibujo">03. Limpieza y Redibujo</option>
+        <option value="04. Typos">04. Typos</option>
+        <option value="05. Control de Calidad">05. Control de Calidad</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="guardarEdicion()">
+      Guardar Cambios
+    </button>
   </div>
 </div>
 
 <!-- CONFIRM DIALOG -->
 <div id="confirm-overlay" class="overlay hidden">
   <div class="dialog">
-    <div class="dialog-icon">🗑</div>
-    <h3>¿Eliminar registro?</h3>
-    <p>Esta acción no se puede deshacer.</p>
+    <div class="dialog-icon">⚠️</div>
+    <h3>Confirmar acción</h3>
+    <p id="confirm-text">¿Estás seguro?</p>
     <div class="dialog-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="closeConfirm()">Cancelar</button>
-      <button class="btn btn-primary confirm" style="flex:1">Eliminar</button>
+      <button class="btn btn-primary confirm" style="flex:1">Confirmar</button>
     </div>
   </div>
 </div>

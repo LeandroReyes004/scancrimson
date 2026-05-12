@@ -48,27 +48,24 @@ function mostrarPanel() {
 
 /* ─── NAVIGATION ─── */
 function switchTab(id) {
+    // Ocultar todos los tabs
     TABS.forEach(t => {
-        const tabEl = document.getElementById('tab-' + t);
-        if (tabEl) tabEl.classList.remove('active');
+        const el = document.getElementById('tab-' + t);
+        if (el) el.classList.remove('active');
+        const btn = document.getElementById('htab-' + t);
+        if (btn) btn.classList.remove('active');
     });
-    
-    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
-    
-    const activeTab = document.getElementById('tab-' + id);
-    if (activeTab) activeTab.classList.add('active');
-    
-    // Marcar item en sidebar
-    const navItem = document.querySelector(`.nav-item[onclick*="'${id}'"]`);
-    if (navItem) navItem.classList.add('active');
-    
-    document.getElementById('topbar-page').textContent = TAB_LABELS[id] || id;
-    
+
+    // Mostrar el tab seleccionado
+    const tabEl = document.getElementById('tab-' + id);
+    if (tabEl) tabEl.classList.add('active');
+    const btnEl = document.getElementById('htab-' + id);
+    if (btnEl) btnEl.classList.add('active');
+
+    // Cargar datos solo cuando se necesitan
     if (id === 'proyectos') cargarProyectos();
-    if (id === 'historial') cargarHistorialFull();
-    
-    // Cerrar sidebar en móvil si está abierto
-    document.querySelector('.sidebar').classList.remove('open');
+    else if (id === 'historial') cargarHistorialFull();
+    // 'dashboard' y 'nuevo' no necesitan carga adicional
 }
 
 /* ─── UI COMPONENTS ─── */
@@ -378,17 +375,20 @@ let editIndex = -1;
 function openEditModal(realIndex) {
     const data = state.historial[realIndex];
     if (!data) return;
-    
+
     editIndex = realIndex;
     document.getElementById('edit-manga').value = data[1] || '';
-    document.getElementById('edit-cap').value = data[2] || '';
+    document.getElementById('edit-cap').value   = data[2] || '';
     document.getElementById('edit-etapa').value = data[3] || '01. RAWs';
-    
-    document.getElementById('edit-modal').classList.remove('hidden');
+
+    // Mostrar drawer lateral
+    document.getElementById('edit-drawer').classList.remove('hidden');
+    document.getElementById('edit-drawer-overlay').classList.remove('hidden');
 }
 
 function closeEditModal() {
-    document.getElementById('edit-modal').classList.add('hidden');
+    document.getElementById('edit-drawer').classList.add('hidden');
+    document.getElementById('edit-drawer-overlay').classList.add('hidden');
     editIndex = -1;
 }
 

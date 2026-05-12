@@ -253,73 +253,102 @@
 
 <script src="assets/admin.js?v=4"></script>
 <script>
-// ─── PARCHES INLINE v2: historial + proyectos con estadísticas ───────────────
+// ─── PARCHES INLINE v3: índices correctos de la hoja ─────────────────────────
+// Estructura de la hoja de cálculo:
+//   f[0] = Marca temporal (fecha)
+//   f[1] = Usuario
+//   f[2] = Proyecto (nombre del manga)
+//   f[3] = Etapa
+//   f[4] = Capítulo
+//   f[5] = URL del archivo en Drive
 (function() {
   var _historial = [];
 
-  // Cargar historial desde Apps Script y guardarlo en state
   async function fetchHistorial() {
     try {
       const r = await fetch('api.php?action=historial');
       const res = await r.json();
       if (res && res.exito && res.datos) {
         _historial = res.datos;
-        // Sincronizar con el state global si existe
         if (window.state) window.state.historial = res.datos;
+        // Actualizar stats del dashboard
+        _actualizarStats(res.datos);
         return res.datos;
       }
-    } catch(e) {}
+    } catch(e) { console.error('fetchHistorial:', e); }
     return [];
   }
 
-  // Estadísticas por manga del historial
+  function _actualizarStats(historial) {
+    const hoyStr = new Date().toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'});
+    const hoyCount = historial.filter(function(f){ return f[0] && f[0].toString().includes(hoyStr.substring(0,5)); }).length;
+    const rawsCount = historial.filter(function(f){ return f[3] && f[3].includes('RAWs'); }).length;
+    const el = function(id){ return document.getElementById(id); };
+    if(el('stat-total')) el('stat-total').textContent = historial.length;
+    if(el('stat-hoy'))   el('stat-hoy').textContent   = hoyCount;
+    if(el('stat-raws'))  el('stat-raws').textContent  = rawsCount;
+    // Actividad reciente en dashboard
+    _renderActividad(historial.slice(0, 8));
+  }
+
+  function _renderActividad(filas) {
+    var cont = document.getElementById('actividad-mini');
+    if (!cont) return;
+    if (!filas.length) { cont.innerHTML = '<div class="empty-msg">Sin actividad reciente</div>'; return; }
+    var colores = {'01':'#ef4444','02':'#3b82f6','03':'#8b5cf6','04':'#f59e0b','05':'#10b981'};
+    cont.innerHTML = filas.map(function(f) {
+      var etapaKey = (f[3] || '').substring(0, 2);
+      var color = colores[etapaKey] || 'var(--muted)';
+      return [
+        '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">',
+          '<div style="width:8px;height:8px;border-radius:50%;background:' + color + ';flex-shrink:0"></div>',
+          '<div style="flex:1;min-width:0">',
+            '<div style="font-size:.84rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">',
+              (f[2] || '—') + ' <span style="color:var(--red-bright)">cap. ' + (f[4] || '?') + '</span>',
+            '</div>',
+            '<div style="font-size:.7rem;color:var(--muted);margin-top:2px">' + (f[3] || '—') + ' · ' + (f[1] || '') + '</div>',
+          '</div>',
+          '<div style="font-size:.7rem;color:var(--muted);white-space:nowrap">' + (f[0] || '').toString().substring(0,10) + '</div>',
+        '</div>'
+      ].join('');
+    }).join('');
+    if (cont.lastElementChild) cont.lastElementChild.style.borderBottom = 'none';
+  }
+
+  // Estadísticas por manga — usando f[2]=proyecto, f[4]=cap
   function statsParaManga(nombre, historial) {
-    var filas = historial.filter(function(f) { return f[1] === nombre; });
-    var caps = filas.map(function(f) { return parseFloat(f[2]); }).filter(function(n) { return !isNaN(n); });
-    var etapas = {};
-    filas.forEach(function(f) { var e = (f[3] || '').substring(0, 2); etapas[e] = (etapas[e] || 0) + 1; });
+    var filas = historial.filter(function(f) { return f[2] === nombre; });
+    var caps = filas.map(function(f) { return parseFloat(f[4]); }).filter(function(n) { return !isNaN(n); });
     return {
       total: filas.length,
       minCap: caps.length ? Math.min.apply(null, caps) : '—',
       maxCap: caps.length ? Math.max.apply(null, caps) : '—',
-      etapas: etapas,
-      ultima: filas.length ? filas[0][0] : '—',
-      estado: filas.length && filas[0][5] ? filas[0][5] : 'Activo'
+      ultima: filas.length ? (filas[0][0] || '').toString().substring(0,10) : '—',
+      ultimoUsuario: filas.length ? (filas[0][1] || '') : ''
     };
   }
 
-  function colorEtapa(e) {
-    var c = {'01':'#ef4444','02':'#3b82f6','03':'#8b5cf6','04':'#f59e0b','05':'#10b981'};
-    return c[e] || '#888';
-  }
-
   function renderTarjeta(nombre, s) {
-    var estadoBadge = s.estado === 'Inactivo'
-      ? '<span style="background:rgba(239,68,68,.15);color:#ef4444;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600">Inactivo</span>'
-      : '<span style="background:rgba(16,185,129,.15);color:#10b981;padding:2px 8px;border-radius:20px;font-size:.7rem;font-weight:600">Activo</span>';
     var capRango = s.total > 0
       ? 'Cap. <b style="color:#dc2020">' + s.minCap + '</b> → <b style="color:#dc2020">' + s.maxCap + '</b>'
-      : '<span style="color:var(--muted)">Sin registros</span>';
+      : '<span style="color:var(--muted)">Sin registros aún</span>';
     return [
       '<div class="project-card" style="display:flex;flex-direction:column;gap:10px">',
-        '<div style="display:flex;align-items:center;justify-content:space-between">',
-          '<div style="display:flex;align-items:center;gap:10px">',
-            '<div class="project-icon">📖</div>',
-            '<div class="project-name" style="font-size:.9rem">' + nombre + '</div>',
-          '</div>',
-          estadoBadge,
+        '<div style="display:flex;align-items:center;gap:10px">',
+          '<div class="project-icon">📖</div>',
+          '<div class="project-name" style="font-size:.88rem;line-height:1.3">' + nombre + '</div>',
         '</div>',
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">',
           '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px">',
-            '<div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Rango caps.</div>',
-            '<div style="font-size:.85rem">' + capRango + '</div>',
+            '<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Rango caps.</div>',
+            '<div style="font-size:.82rem">' + capRango + '</div>',
           '</div>',
           '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px">',
-            '<div style="font-size:.62rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Total subidas</div>',
-            '<div style="font-size:.85rem;font-weight:700;color:var(--text)">' + s.total + '</div>',
+            '<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Subidas</div>',
+            '<div style="font-size:.82rem;font-weight:700">' + s.total + '</div>',
           '</div>',
         '</div>',
-        '<div style="font-size:.72rem;color:var(--muted)">Última: ' + s.ultima + '</div>',
+        s.ultima !== '—' ? '<div style="font-size:.7rem;color:var(--muted)">Última: ' + s.ultima + (s.ultimoUsuario ? ' · ' + s.ultimoUsuario : '') + '</div>' : '',
         '<div class="project-actions">',
           '<button class="act-btn" onclick="window.open(\'index.php?proyecto=' + encodeURIComponent(nombre) + '\',\'_blank\')">🔍 Buscador</button>',
         '</div>',
@@ -327,18 +356,19 @@
     ].join('');
   }
 
-  // Sobrescribir cargarProyectos con versión mejorada
   window.cargarProyectos = async function() {
     const grid = document.getElementById('projects-grid');
     if (!grid) return;
     grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem"><span class="spinner"></span> Cargando proyectos…</div>';
     try {
-      // Cargar historial y proyectos en paralelo
-      const [historial, resP] = await Promise.all([fetchHistorial(), fetch('api.php?action=proyectos').then(r => r.json())]);
+      const [historial, resP] = await Promise.all([
+        fetchHistorial(),
+        fetch('api.php?action=proyectos').then(function(r){ return r.json(); })
+      ]);
       if (resP && resP.exito && resP.datos && resP.datos.length) {
         if (window.state) window.state.proyectos = resP.datos;
-        const statEl = document.getElementById('stat-proyectos');
-        if (statEl) { statEl.textContent = resP.datos.length; }
+        var statEl = document.getElementById('stat-proyectos');
+        if (statEl) statEl.textContent = resP.datos.length;
         grid.innerHTML = resP.datos.map(function(nombre) {
           return renderTarjeta(nombre, statsParaManga(nombre, historial));
         }).join('');
@@ -350,26 +380,25 @@
     }
   };
 
-  // Sobrescribir cargarHistorialFull con versión que funciona aunque el JS del servidor sea viejo
   window.cargarHistorialFull = async function() {
     const tbody = document.getElementById('historial-full-body');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem"><span class="spinner"></span> Cargando historial…</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem"><span class="spinner"></span> Cargando…</td></tr>';
     const historial = await fetchHistorial();
     if (!historial || !historial.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No hay registros.</td></tr>';
       return;
     }
+    // Columnas: Manga | Cap | Etapa | Fecha | Usuario | Acciones
     tbody.innerHTML = historial.map(function(f, i) {
-      var estado = f[5] || 'Activo';
-      var estadoClass = estado === 'Inactivo' ? 'badge-inactive' : 'badge-active';
+      var urlArchivo = f[5] ? '<a href="' + f[5] + '" target="_blank" style="color:var(--red-bright);text-decoration:none" title="Ver archivo">🔗</a>' : '';
       return [
         '<tr id="hrow-' + i + '">',
-          '<td>' + (f[1] || '—') + '</td>',
-          '<td>' + (f[2] || '—') + '</td>',
+          '<td style="font-weight:600">' + (f[2] || '—') + '</td>',
+          '<td>' + (f[4] || '—') + '</td>',
           '<td>' + (f[3] || '—') + '</td>',
-          '<td>' + (f[0] || '—') + '</td>',
-          '<td><span class="status-badge ' + estadoClass + '">' + estado + '</span></td>',
+          '<td style="color:var(--muted)">' + (f[0] || '—').toString().substring(0,16) + '</td>',
+          '<td>' + (f[1] || '—') + ' ' + urlArchivo + '</td>',
           '<td class="actions-cell">',
             '<button class="act-btn" onclick="openEditModal(' + i + ')">✎ Editar</button>',
           '</td>',
@@ -380,5 +409,6 @@
 
 })();
 </script>
+
 </body>
 </html>

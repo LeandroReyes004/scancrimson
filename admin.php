@@ -251,6 +251,32 @@
   </div>
 </div>
 
-<script src="assets/admin.js"></script>
+<script src="assets/admin.js?v=4"></script>
+<script>
+// Parches inline - funciones críticas que garantizan que los tabs carguen
+window.addEventListener('DOMContentLoaded', function() {
+  // Sobrescribir cargarProyectos si no fue definida por admin.js
+  if (typeof cargarProyectos !== 'function') {
+    window.cargarProyectos = async function() {
+      const grid = document.getElementById('projects-grid');
+      if (!grid) return;
+      grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem"><span class="spinner"></span> Cargando...</div>';
+      try {
+        const r = await fetch('api.php?action=proyectos');
+        const res = await r.json();
+        if (res && res.exito && res.datos && res.datos.length) {
+          grid.innerHTML = res.datos.map(function(nombre) {
+            return '<div class="project-card"><div class="project-icon">📖</div><div class="project-name">' + nombre + '</div><div class="project-meta">' + nombre + '</div><div class="project-actions"><button class="act-btn" onclick="window.open(\'index.php?proyecto=' + encodeURIComponent(nombre) + '\',\'_blank\')">🔍 Ver</button></div></div>';
+          }).join('');
+        } else {
+          grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">No hay proyectos.</div>';
+        }
+      } catch(e) {
+        grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">Error: ' + e.message + '</div>';
+      }
+    };
+  }
+});
+</script>
 </body>
 </html>

@@ -3,20 +3,29 @@ require_once __DIR__ . '/config.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
-// ─── HTTP helper ────────────────────────────────────────────────────────────
-function httpGet(string $url): ?array {
+// ─── HTTP helper ───────────────────────────────────────────────────────────────────────
+function httpGet(string $url, int $timeout = 20): ?array {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_TIMEOUT        => 15,
+        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_FOLLOWLOCATION => true,   // <-- sigue las redirecciones de Apps Script
+        CURLOPT_MAXREDIRS      => 5,
+        CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+        CURLOPT_USERAGENT      => 'CrimsonScan/2.0',
     ]);
     $res  = curl_exec($ch);
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $err  = curl_error($ch);
     curl_close($ch);
-    if ($code !== 200 || !$res) return null;
-    return json_decode($res, true);
+    
+    if ($err) return ['__curl_error' => $err];
+    if ($code !== 200 || !$res) return ['__http_error' => "HTTP {$code}", '__body' => substr($res ?: '', 0, 300)];
+    $decoded = json_decode($res, true);
+    if ($decoded === null) return ['__json_error' => 'respuesta no es JSON válido', '__body' => substr($res, 0, 300)];
+    return $decoded;
 }
 
 function driveQ(string $q, string $fields = 'files(id,name)', int $limit = 100): array {
@@ -175,7 +184,17 @@ switch ($action) {
 
         $url = APPS_SCRIPT_URL . '?action=crearProyecto&nombre=' . urlencode($nombre);
         $res = httpGet($url);
-        echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
+        
+        // Devolver el error real si algo falla
+        if (isset($res['__curl_error'])) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Error de red: ' . $res['__curl_error']]);
+        } elseif (isset($res['__http_error'])) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Apps Script devolvio: ' . $res['__http_error'] . ' | ' . ($res['__body'] ?? '')]);
+        } elseif (isset($res['__json_error'])) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Respuesta invalida: ' . ($res['__body'] ?? '')]);
+        } else {
+            echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Sin respuesta.']);
+        }
         break;
 
     // Editar registro del historial (requiere soporte en Apps Script)

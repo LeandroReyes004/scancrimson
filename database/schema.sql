@@ -16,5 +16,5 @@ CREATE TABLE IF NOT EXISTS `usuarios` (
 -- Usuario administrador inicial (Contraseña: crimson2026)
 -- IMPORTANTE: Cambiar contraseña después del primer login
 INSERT IGNORE INTO `usuarios` (`usuario`, `password`, `rol`) 
-VALUES ('admin', '$2y$10$tZ/n0D/x459K5.E0Z.6mueM0u9E/g5h5h5h5h5h5h5h5h5h5h', 'admin');
+VALUES ('admin', 'crimson2026', 'admin');
 -- Nota: El hash de arriba es un ejemplo, el sistema genera uno válido automáticamente si la tabla está vacía.

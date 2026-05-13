@@ -187,6 +187,8 @@
           </table>
         </div>
       </div>
+    </div>
+
     <!-- ══ TAB: USUARIOS ══ -->
     <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
     <div id="tab-usuarios" class="tab-content">

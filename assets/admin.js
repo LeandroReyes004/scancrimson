@@ -1,48 +1,24 @@
 /* ─── CONFIG & STATE ─── */
 const PASS_KEY = 'cs_admin_auth';
-const TABS = ['dashboard', 'proyectos', 'nuevo', 'historial'];
+const TABS = ['dashboard', 'proyectos', 'nuevo', 'historial', 'usuarios'];
 const TAB_LABELS = { 
     dashboard: 'Dashboard', 
     proyectos: 'Proyectos', 
     nuevo: 'Nuevo proyecto', 
-    historial: 'Historial completo' 
+    historial: 'Historial completo',
+    usuarios: 'Gestión de usuarios'
 };
 
 let state = {
     historial: [],
     proyectos: [],
-    progreso: {}, // { 'Nombre Manga': MaxCap }
+    usuarios: [],
+    progreso: {},
     searchQuery: ''
 };
 
-/* ─── AUTH ─── */
-function verificarLogin() {
-    const inp = document.getElementById('inp-pass');
-    const pass = inp.value;
-    // Contraseña hardcoded según el código original
-    if (pass === 'crimson2026') {
-        sessionStorage.setItem(PASS_KEY, pass);
-        mostrarPanel();
-    } else {
-        const err = document.getElementById('login-error');
-        err.classList.remove('hidden');
-        inp.style.borderColor = 'var(--red)';
-        inp.focus();
-        setTimeout(() => {
-            err.classList.add('hidden');
-            inp.style.borderColor = '';
-        }, 3000);
-    }
-}
-
-function cerrarSesion() {
-    sessionStorage.removeItem(PASS_KEY);
-    location.reload();
-}
-
+/* ─── AUTH (Legacy removed, handled by PHP) ─── */
 function mostrarPanel() {
-    document.getElementById('login-screen').classList.add('hidden');
-    document.getElementById('app-shell').classList.remove('hidden');
     refrescarTodo();
 }
 
@@ -65,6 +41,7 @@ function switchTab(id) {
     // Cargar datos solo cuando se necesitan
     if (id === 'proyectos') cargarProyectos();
     else if (id === 'historial') cargarHistorialFull();
+    else if (id === 'usuarios') cargarUsuarios();
     // 'dashboard' y 'nuevo' no necesitan carga adicional
 }
 
@@ -114,8 +91,8 @@ async function apiFetch(action, options = {}) {
         const url = `api.php?action=${action}`;
         const res = await fetch(url, options);
         const data = await res.json();
-        if (!data.exito && data.mensaje === 'Contraseña incorrecta.') {
-            cerrarSesion();
+        if (!data.exito && data.mensaje.includes('Sesión expirada')) {
+            location.href = 'login.php';
             return null;
         }
         return data;
@@ -269,64 +246,106 @@ async function cargarProyectos() {
     }
 }
 
-/* ─── SEARCH & FILTER ─── */
-function handleSearch(query) {
-    state.searchQuery = query.toLowerCase();
+/* ─── USUARIOS ─── */
+async function cargarUsuarios() {
+    const body = document.getElementById('usuarios-body');
+    if (!body) return;
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:3rem"><span class="spinner"></span></td></tr>';
     
-    // Filtrar según la pestaña activa
-    const activeTab = TABS.find(t => document.getElementById('tab-' + t).classList.contains('active'));
-    
-    if (activeTab === 'dashboard') filterHistorial('historial-body', 20);
-    if (activeTab === 'historial') filterHistorial('historial-full-body');
-    if (activeTab === 'proyectos') filterProyectos();
+    const res = await apiFetch('listarUsuarios');
+    if (res && res.exito) {
+        state.usuarios = res.datos;
+        renderUsuarios();
+    }
 }
 
-function filterHistorial(targetId, limit = null) {
-    const container = document.getElementById(targetId);
-    if (!container) return;
-    
-    let filtered = state.historial.filter(f => {
-        const text = `${f[1]} ${f[2]} ${f[3]} ${f[4]}`.toLowerCase();
-        return text.includes(state.searchQuery);
-    });
-    
-    if (limit) filtered = filtered.slice(0, limit);
-    
-    container.innerHTML = buildHistorialRows(filtered);
-}
-
-function filterProyectos() {
-    const grid = document.getElementById('projects-grid');
-    if (!grid) return;
-    
-    const filtered = state.proyectos.filter(p => p.toLowerCase().includes(state.searchQuery));
-    
-    if (!filtered.length) {
-        grid.innerHTML = '<div class="project-empty"><span>📁</span> No se encontraron proyectos.</div>';
+function renderUsuarios() {
+    const body = document.getElementById('usuarios-body');
+    if (!body || !state.usuarios.length) {
+        body.innerHTML = '<tr><td colspan="5" class="empty-msg">No hay usuarios.</td></tr>';
         return;
     }
-    
-    grid.innerHTML = filtered.map(nombre => {
-        const caps = state.historial.filter(h => h[1] === nombre).map(h => parseFloat(h[2])).filter(n => !isNaN(n));
-        const minCap = caps.length ? Math.min(...caps) : 0;
-        const maxCap = caps.length ? Math.max(...caps) : 0;
-        const totalSubidas = caps.length;
-        
-        return `
-            <div class="project-card">
-                <div class="project-icon">📖</div>
-                <div class="project-name">${escHtml(nombre)}</div>
-                <div class="project-meta" style="flex-direction:column; gap:4px">
-                    <div style="color:var(--red-bright); font-weight:700">Rango: Cap. ${minCap} → ${maxCap}</div>
-                    <div style="font-size:.7rem; color:var(--muted)">Secuencia: ${totalSubidas} capítulos registrados</div>
+
+    body.innerHTML = state.usuarios.map(u => `
+        <tr>
+            <td style="font-weight:600">${escHtml(u.usuario)}</td>
+            <td><span class="badge ${u.rol === 'admin' ? 'badge-01' : 'badge-02'}">${u.rol.toUpperCase()}</span></td>
+            <td>
+                <span class="estado-badge" style="background:${u.activo ? 'var(--c5b)' : 'var(--muted)33'}; color:${u.activo ? 'var(--c5)' : 'var(--muted2)'}; border:1px solid ${u.activo ? 'var(--c5)' : 'var(--muted)'}">
+                    ${u.activo ? 'Activo' : 'Inactivo'}
+                </span>
+            </td>
+            <td style="color:var(--muted); font-size:0.8rem">${u.creado}</td>
+            <td>
+                <div class="row-actions">
+                    <button class="act-btn" onclick="toggleUsuario(${u.id}, ${u.activo ? 0 : 1})">
+                        ${u.activo ? 'Desactivar' : 'Activar'}
+                    </button>
+                    <button class="act-btn danger" onclick="confirmEliminarUsuario(${u.id}, '${u.usuario}')">Eliminar</button>
                 </div>
-                <div class="project-actions">
-                    <button class="act-btn" onclick="window.open('index.php?proyecto=${encodeURIComponent(nombre)}', '_blank')">Buscador</button>
-                    <button class="act-btn" title="Gestionar estado">Activo</button>
-                </div>
-            </div>
-        `;
-    }).join('');
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openNuevoUsuario() {
+    document.getElementById('user-modal').classList.remove('hidden');
+    document.getElementById('user-modal-overlay').classList.remove('hidden');
+}
+
+function closeUserModal() {
+    document.getElementById('user-modal').classList.add('hidden');
+    document.getElementById('user-modal-overlay').classList.add('hidden');
+}
+
+async function guardarNuevoUsuario() {
+    const user = document.getElementById('new-user-name').value.trim();
+    const pass = document.getElementById('new-user-pass').value;
+    const rol = document.getElementById('new-user-rol').value;
+
+    if (!user || !pass) { toast('Completa todos los campos', 'err'); return; }
+
+    const form = new FormData();
+    form.append('usuario', user);
+    form.append('password', pass);
+    form.append('rol', rol);
+
+    const res = await apiFetch('crearUsuario', { method: 'POST', body: form });
+    if (res && res.exito) {
+        toast(res.mensaje);
+        closeUserModal();
+        cargarUsuarios();
+    } else {
+        toast(res?.mensaje || 'Error al crear usuario', 'err');
+    }
+}
+
+async function toggleUsuario(id, activo) {
+    const form = new FormData();
+    form.append('id', id);
+    form.append('activo', activo);
+
+    const res = await apiFetch('toggleUsuario', { method: 'POST', body: form });
+    if (res && res.exito) {
+        toast(res.mensaje);
+        cargarUsuarios();
+    } else {
+        toast(res?.mensaje || 'Error', 'err');
+    }
+}
+
+function confirmEliminarUsuario(id, nombre) {
+    showConfirm('¿Eliminar usuario?', `¿Estás seguro de eliminar permanentemente a "${nombre}"?`, async () => {
+        const form = new FormData();
+        form.append('id', id);
+        const res = await apiFetch('eliminarUsuario', { method: 'POST', body: form });
+        if (res && res.exito) {
+            toast(res.mensaje);
+            cargarUsuarios();
+        } else {
+            toast(res?.mensaje || 'Error', 'err');
+        }
+    });
 }
 
 /* ─── ACTIONS ─── */
@@ -335,7 +354,7 @@ function crearProyectoAction(inputId, btnId, resultId) {
     const btn = document.getElementById(btnId);
     const resContainer = document.getElementById(resultId);
     const nombre = inp.value.trim();
-    const pass = sessionStorage.getItem(PASS_KEY);
+    const pass = ''; // Legacy removed
     
     if (!nombre) { toast('Escribe el nombre del manga', 'err'); return; }
 
@@ -345,7 +364,7 @@ function crearProyectoAction(inputId, btnId, resultId) {
     resContainer.innerHTML = '';
 
     const form = new FormData();
-    form.append('pass', pass);
+    // form.append('pass', pass); // Legacy removed
     form.append('nombre', nombre);
 
     fetch('api.php?action=crearProyecto', { method: 'POST', body: form })
@@ -414,7 +433,7 @@ async function guardarEdicion() {
     const manga = document.getElementById('edit-manga').value.trim();
     const cap = document.getElementById('edit-cap').value.trim();
     const etapa = document.getElementById('edit-etapa').value;
-    const pass = sessionStorage.getItem(PASS_KEY);
+    const pass = ''; // Legacy removed
 
     if (!manga || !cap) { toast('Completa los campos', 'err'); return; }
 
@@ -423,7 +442,7 @@ async function guardarEdicion() {
     btn.textContent = 'Guardando...';
 
     const form = new FormData();
-    form.append('pass', pass);
+    // form.append('pass', pass); // Legacy removed
     form.append('fila', editIndex + 2);
     form.append('manga', manga);
     form.append('cap', cap);
@@ -458,14 +477,14 @@ async function guardarEdicion() {
 
 async function toggleEstadoRegistro(realIndex, nuevoEstado, btnEl) {
     const isInactive = nuevoEstado === 'Inactivo'; // Si el nuevo estado es Inactivo, actualmente estaba Activo
-    const pass = sessionStorage.getItem(PASS_KEY);
+    const pass = ''; // Legacy removed
 
     // Feedback inmediato: deshabilitar botón
     btnEl.disabled = true;
     btnEl.textContent = '...';
 
     const form = new FormData();
-    form.append('pass', pass);
+    // form.append('pass', pass); // Legacy removed
     form.append('fila', realIndex + 2);
     form.append('estado', nuevoEstado);
 
@@ -530,7 +549,5 @@ function toggleSidebar() {
 
 /* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', () => {
-    if (sessionStorage.getItem(PASS_KEY)) {
-        mostrarPanel();
-    }
+    mostrarPanel();
 });

@@ -1,3 +1,4 @@
+<?php require_once 'auth.php'; ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -21,28 +22,10 @@
 <div class="bg-grid"></div>
 <div class="noise"></div>
 
-<!-- ─── LOGIN ─── -->
-<div id="login-screen" class="login-screen">
-  <div class="login-card">
-    <div class="login-logo">
-      <div class="login-logo-icon">⚔</div>
-      <div class="login-logo-text">CRIMSON <span>SCAN</span></div>
-    </div>
-    <div class="login-title">Acceso al panel</div>
-    <div class="field-group">
-      <label class="field-label">Contraseña</label>
-      <input id="inp-pass" type="password" class="field-input" placeholder="••••••••"
-             onkeydown="if(event.key==='Enter')verificarLogin()">
-    </div>
-    <div id="login-error" class="error-msg hidden">Contraseña incorrecta.</div>
-    <button class="btn-primary btn" style="width:100%; margin-top:1rem" onclick="verificarLogin()">
-      <span>Entrar al panel</span> <span>→</span>
-    </button>
-  </div>
-</div>
+
 
 <!-- ─── APP SHELL ─── -->
-<div id="app-shell" class="app-shell hidden">
+<div id="app-shell" class="app-shell">
 
   <!-- HEADER BAR -->
   <header class="app-header">
@@ -56,16 +39,22 @@
       <button class="htab" id="htab-proyectos" onclick="switchTab('proyectos')">◫ Proyectos</button>
       <button class="htab" id="htab-nuevo" onclick="switchTab('nuevo')">⊕ Nuevo</button>
       <button class="htab" id="htab-historial" onclick="switchTab('historial')">≡ Historial</button>
+      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+      <button class="htab" id="htab-usuarios" onclick="switchTab('usuarios')">👤 Usuarios</button>
+      <?php endif; ?>
       <a class="htab" href="subir.php">↑ Subir</a>
     </nav>
 
     <div class="header-right">
+      <div style="margin-right: 15px; font-size: 0.85rem; color: var(--muted);">
+        Hola, <b style="color: var(--text);"><?php echo htmlspecialchars($_SESSION['user']['usuario']); ?></b>
+      </div>
       <div class="header-search">
         <span>⌕</span>
         <input type="text" id="search-input" placeholder="Buscar…" oninput="handleSearch(this.value)">
       </div>
       <button class="btn btn-ghost btn-sm" onclick="refrescarTodo()">↺</button>
-      <button class="user-logout" onclick="cerrarSesion()" title="Cerrar sesión">⎋ Salir</button>
+      <a href="logout.php" class="user-logout" title="Cerrar sesión" style="text-decoration:none">⎋ Salir</a>
     </div>
   </header>
 
@@ -198,7 +187,29 @@
           </table>
         </div>
       </div>
+    <!-- ══ TAB: USUARIOS ══ -->
+    <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+    <div id="tab-usuarios" class="tab-content">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Staff</p>
+          <h1 class="page-title">Gestión de <span>Usuarios</span></h1>
+        </div>
+        <button class="btn btn-primary" onclick="openNuevoUsuario()">+ Nuevo usuario</button>
+      </div>
+
+      <div class="panel">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
+            <tbody id="usuarios-body">
+              <tr><td colspan="5" class="loading-cell"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
+    <?php endif; ?>
 
   </div><!-- /page-body -->
 </div><!-- /app-shell -->
@@ -248,6 +259,35 @@
       <button class="btn btn-ghost" style="flex:1" onclick="closeConfirm()">Cancelar</button>
       <button class="btn btn-primary confirm" style="flex:1">Confirmar</button>
     </div>
+  </div>
+</div>
+
+<!-- MODAL: NUEVO USUARIO -->
+<div id="user-modal-overlay" class="drawer-overlay hidden" onclick="closeUserModal()"></div>
+<div id="user-modal" class="edit-drawer hidden">
+  <div class="drawer-header">
+    <span>👤 Nuevo Usuario</span>
+    <button class="btn btn-ghost btn-sm" onclick="closeUserModal()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field-group">
+      <label class="field-label">Nombre de Usuario</label>
+      <input id="new-user-name" type="text" class="field-input" placeholder="ej: leandro">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Contraseña</label>
+      <input id="new-user-pass" type="password" class="field-input" placeholder="••••••••">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Rol</label>
+      <select id="new-user-rol" class="field-input">
+        <option value="staff">Staff (Solo subidas)</option>
+        <option value="admin">Admin (Todo el control)</option>
+      </select>
+    </div>
+    <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="guardarNuevoUsuario()">
+      Crear Usuario
+    </button>
   </div>
 </div>
 

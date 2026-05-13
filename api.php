@@ -1,16 +1,40 @@
 <?php
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/database/db.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
-// ─── HTTP helper ───────────────────────────────────────────────────────────────────────
+// ─── Auth helpers ────────────────────────────────────────────────────────────
+function isLoggedIn(): bool {
+    return isset($_SESSION['user']);
+}
+function isAdmin(): bool {
+    return isset($_SESSION['user']) && $_SESSION['user']['rol'] === 'admin';
+}
+function requireLogin(): void {
+    if (!isLoggedIn()) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Sesión expirada.']);
+        exit;
+    }
+}
+function requireAdmin(): void {
+    requireLogin();
+    if (!isAdmin()) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Acceso denegado. Se requiere rol admin.']);
+        exit;
+    }
+}
+
+// ─── HTTP helper ─────────────────────────────────────────────────────────────
 function httpGet(string $url, int $timeout = 20): ?array {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_SSL_VERIFYPEER => false,
         CURLOPT_SSL_VERIFYHOST => false,
-        CURLOPT_FOLLOWLOCATION => true,   // <-- sigue las redirecciones de Apps Script
+        CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 5,
         CURLOPT_TIMEOUT        => $timeout,
         CURLOPT_HTTPHEADER     => ['Accept: application/json'],
@@ -20,7 +44,7 @@ function httpGet(string $url, int $timeout = 20): ?array {
     $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     $err  = curl_error($ch);
     curl_close($ch);
-    
+
     if ($err) return ['__curl_error' => $err];
     if ($code !== 200 || !$res) return ['__http_error' => "HTTP {$code}", '__body' => substr($res ?: '', 0, 300)];
     $decoded = json_decode($res, true);
@@ -48,16 +72,14 @@ function downloadUrl(string $fileId): string {
     return "https://drive.google.com/uc?export=download&id={$fileId}";
 }
 
-// ─── ROUTER ─────────────────────────────────────────────────────────────────
+// ─── ROUTER ──────────────────────────────────────────────────────────────────
 $action = $_GET['action'] ?? '';
 
 switch ($action) {
 
-    // Lista todos los proyectos (carpetas en raíz)
+    // ── PÚBLICAS (no requieren sesión) ──────────────────────────────────────
+
     case 'proyectos':
-        $nombres = [];
-        
-        // 1. Intentar a través del Apps Script (tiene OAuth propio, no necesita carpetas públicas)
         if (APPS_SCRIPT_URL) {
             $res = httpGet(APPS_SCRIPT_URL . '?action=listarProyectos');
             if ($res && isset($res['exito']) && $res['exito'] && isset($res['datos'])) {
@@ -65,23 +87,16 @@ switch ($action) {
                 break;
             }
         }
-        
-        // 2. Fallback: API Key pública de Google Drive
-        $files = driveQ(
-            "'" . CARPETA_RAIZ_ID . "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
-            'files(id,name)',
-            200
-        );
+        $files   = driveQ("'" . CARPETA_RAIZ_ID . "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 200);
         $nombres = array_column($files, 'name');
         sort($nombres);
         echo json_encode(['exito' => true, 'datos' => $nombres]);
         break;
 
-    // Busca los enlaces de un capítulo en un proyecto
     case 'enlaces':
-        $proyecto      = trim($_GET['proyecto'] ?? '');
-        $capitulo      = intval($_GET['capitulo'] ?? 0);
-        $etapaBuscada  = trim($_GET['etapa'] ?? 'Todas');
+        $proyecto     = trim($_GET['proyecto'] ?? '');
+        $capitulo     = intval($_GET['capitulo'] ?? 0);
+        $etapaBuscada = trim($_GET['etapa'] ?? 'Todas');
 
         if (!$proyecto || !$capitulo) {
             echo json_encode(['exito' => false, 'mensaje' => 'Faltan parámetros.']);
@@ -94,29 +109,17 @@ switch ($action) {
             break;
         }
 
-        $todasEtapas = [
-            "01. RAWs",
-            "02. Traducción",
-            "03. Limpieza y Redibujo",
-            "04. Typos",
-            "05. Control de Calidad",
-        ];
-        $etapas = ($etapaBuscada && $etapaBuscada !== 'Todas') ? [$etapaBuscada] : $todasEtapas;
-
-        $resultados = [];
-        $capRegex   = '/cap[_\-\s]?0*' . $capitulo . '(\.|$|[^0-9])/i';
+        $todasEtapas = ["01. RAWs", "02. Traducción", "03. Limpieza y Redibujo", "04. Typos", "05. Control de Calidad"];
+        $etapas      = ($etapaBuscada && $etapaBuscada !== 'Todas') ? [$etapaBuscada] : $todasEtapas;
+        $resultados  = [];
+        $capRegex    = '/cap[_\-\s]?0*' . $capitulo . '(\.|$|[^0-9])/i';
 
         foreach ($etapas as $etapa) {
             $etapaId = folderIdByName($proyectoId, $etapa);
             if (!$etapaId) continue;
 
             if ($etapa === "01. RAWs") {
-                // 1️⃣ Buscar archivo directo (Cap_1.zip, Cap_1.rar, etc.)
-                $archivos = driveQ(
-                    "'{$etapaId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'",
-                    'files(id,name)',
-                    200
-                );
+                $archivos   = driveQ("'{$etapaId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 200);
                 $encontrado = false;
                 foreach ($archivos as $arc) {
                     if (preg_match($capRegex, $arc['name'])) {
@@ -125,36 +128,28 @@ switch ($action) {
                         break;
                     }
                 }
-
-                // 2️⃣ Si no, buscar subcarpeta "Capítulo X"
                 if (!$encontrado) {
                     $capId = folderIdByName($etapaId, "Capítulo {$capitulo}");
                     if ($capId) {
                         $capFiles = driveQ("'{$capId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 1);
-                        if ($capFiles) {
-                            $resultados[$etapa] = ['nombre' => $capFiles[0]['name'], 'url' => downloadUrl($capFiles[0]['id'])];
-                        }
+                        if ($capFiles) $resultados[$etapa] = ['nombre' => $capFiles[0]['name'], 'url' => downloadUrl($capFiles[0]['id'])];
                     }
                 }
-
             } else {
-                // Otras etapas: subcarpeta "Capítulo X"
                 $capId = folderIdByName($etapaId, "Capítulo {$capitulo}");
                 if ($capId) {
                     $capFiles = driveQ("'{$capId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 1);
-                    if ($capFiles) {
-                        $resultados[$etapa] = ['nombre' => $capFiles[0]['name'], 'url' => downloadUrl($capFiles[0]['id'])];
-                    }
+                    if ($capFiles) $resultados[$etapa] = ['nombre' => $capFiles[0]['name'], 'url' => downloadUrl($capFiles[0]['id'])];
                 }
             }
         }
-
         echo json_encode(['exito' => true, 'datos' => $resultados]);
         break;
 
-    // Historial desde Google Sheets
+    // ── PROTEGIDAS (requieren sesión) ────────────────────────────────────────
+
     case 'historial':
-        // 1. Intentar a través del Apps Script (tiene OAuth, no necesita hoja pública)
+        requireLogin();
         if (APPS_SCRIPT_URL) {
             $res = httpGet(APPS_SCRIPT_URL . '?action=historial');
             if ($res && isset($res['exito']) && $res['exito'] && isset($res['datos'])) {
@@ -162,11 +157,9 @@ switch ($action) {
                 break;
             }
         }
-        
-        // 2. Fallback: API Key pública de Google Sheets
-        $url  = SHEETS_API . '/' . HOJA_CALCULO_ID . '/values/A%3AZ?key=' . GOOGLE_API_KEY;
-        $data = httpGet($url);
-        $filas = isset($data['values']) ? $data['values'] : [];
+        $url   = SHEETS_API . '/' . HOJA_CALCULO_ID . '/values/A%3AZ?key=' . GOOGLE_API_KEY;
+        $data  = httpGet($url);
+        $filas = $data['values'] ?? [];
         if (count($filas) <= 1) { echo json_encode(['exito' => true, 'datos' => []]); break; }
         array_shift($filas);
         $filas = array_filter($filas, fn($f) => !empty(trim($f[0] ?? '')));
@@ -174,71 +167,139 @@ switch ($action) {
         echo json_encode(['exito' => true, 'datos' => $filas]);
         break;
 
-    // Crear proyecto (requiere APPS_SCRIPT_URL configurado)
+    // ── SOLO ADMIN ───────────────────────────────────────────────────────────
+
     case 'crearProyecto':
-        $pass    = $_POST['pass']    ?? '';
-        $nombre  = trim($_POST['nombre'] ?? '');
-        if ($pass !== CONTRASENA_ADMIN) { echo json_encode(['exito' => false, 'mensaje' => 'Contraseña incorrecta.']); break; }
-        if (!$nombre)                   { echo json_encode(['exito' => false, 'mensaje' => 'Nombre vacío.']); break; }
-        if (!APPS_SCRIPT_URL)           { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script URL no configurada en config.php']); break; }
+        requireAdmin();
+        $nombre = trim($_POST['nombre'] ?? '');
+        if (!$nombre) { echo json_encode(['exito' => false, 'mensaje' => 'Nombre vacío.']); break; }
+        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script URL no configurada.']); break; }
 
         $url = APPS_SCRIPT_URL . '?action=crearProyecto&nombre=' . urlencode($nombre);
         $res = httpGet($url);
-        
-        // Devolver el error real si algo falla
         if (isset($res['__curl_error'])) {
             echo json_encode(['exito' => false, 'mensaje' => 'Error de red: ' . $res['__curl_error']]);
         } elseif (isset($res['__http_error'])) {
-            echo json_encode(['exito' => false, 'mensaje' => 'Apps Script devolvio: ' . $res['__http_error'] . ' | ' . ($res['__body'] ?? '')]);
-        } elseif (isset($res['__json_error'])) {
-            echo json_encode(['exito' => false, 'mensaje' => 'Respuesta invalida: ' . ($res['__body'] ?? '')]);
+            echo json_encode(['exito' => false, 'mensaje' => 'Apps Script: ' . $res['__http_error']]);
         } else {
             echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Sin respuesta.']);
         }
         break;
 
-    // Editar registro del historial (requiere soporte en Apps Script)
     case 'editarRegistro':
-        $pass   = $_POST['pass']   ?? '';
-        $fila   = $_POST['fila']   ?? '';
-        $manga  = $_POST['manga']  ?? '';
-        $cap    = $_POST['cap']    ?? '';
-        $etapa  = $_POST['etapa']  ?? '';
-
-        if ($pass !== CONTRASENA_ADMIN) { echo json_encode(['exito' => false, 'mensaje' => 'No autorizado.']); break; }
+        requireAdmin();
+        $fila  = $_POST['fila']  ?? '';
+        $manga = $_POST['manga'] ?? '';
+        $cap   = $_POST['cap']   ?? '';
+        $etapa = $_POST['etapa'] ?? '';
         if (!$fila || !$manga) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
-        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
-
+        if (!APPS_SCRIPT_URL)  { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
         $url = APPS_SCRIPT_URL . '?action=editarRegistro&fila=' . urlencode($fila) . '&manga=' . urlencode($manga) . '&cap=' . urlencode($cap) . '&etapa=' . urlencode($etapa);
-        $res = httpGet($url);
-        echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
+        echo json_encode(httpGet($url) ?? ['exito' => false, 'mensaje' => 'Error.']);
         break;
 
-    // Cambiar estado (Activo/Inactivo)
     case 'cambiarEstado':
-        $pass   = $_POST['pass']   ?? '';
+        requireAdmin();
         $fila   = $_POST['fila']   ?? '';
         $estado = $_POST['estado'] ?? '';
-
-        if ($pass !== CONTRASENA_ADMIN) { echo json_encode(['exito' => false, 'mensaje' => 'No autorizado.']); break; }
         if (!$fila || !$estado) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
-        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
-
+        if (!APPS_SCRIPT_URL)   { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
         $url = APPS_SCRIPT_URL . '?action=cambiarEstado&fila=' . urlencode($fila) . '&estado=' . urlencode($estado);
-        $res = httpGet($url);
-        echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
+        echo json_encode(httpGet($url) ?? ['exito' => false, 'mensaje' => 'Error.']);
         break;
 
-    // Eliminar registro del historial (requiere soporte en Apps Script)
     case 'eliminarRegistro':
-        $pass  = $_POST['pass']  ?? '';
-        $fila  = $_POST['fila']  ?? ''; // Índice o identificador
-        if ($pass !== CONTRASENA_ADMIN) { echo json_encode(['exito' => false, 'mensaje' => 'No autorizado.']); break; }
+        requireAdmin();
+        $fila = $_POST['fila'] ?? '';
         if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
-        
         $url = APPS_SCRIPT_URL . '?action=eliminarRegistro&fila=' . urlencode($fila);
-        $res = httpGet($url);
-        echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Error al contactar Apps Script.']);
+        echo json_encode(httpGet($url) ?? ['exito' => false, 'mensaje' => 'Error.']);
+        break;
+
+    // ── GESTIÓN DE USUARIOS (solo admin) ────────────────────────────────────
+
+    case 'listarUsuarios':
+        requireAdmin();
+        $db    = getDB();
+        $users = $db->query("SELECT id, usuario, rol, activo, creado FROM usuarios ORDER BY creado DESC")->fetchAll();
+        echo json_encode(['exito' => true, 'datos' => $users]);
+        break;
+
+    case 'crearUsuario':
+        requireAdmin();
+        $nuevoUsuario = trim($_POST['usuario']  ?? '');
+        $nuevaPass    = $_POST['password'] ?? '';
+        $nuevoRol     = $_POST['rol']      ?? 'staff';
+
+        if (!$nuevoUsuario || !$nuevaPass) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Usuario y contraseña son requeridos.']);
+            break;
+        }
+        if (!in_array($nuevoRol, ['admin', 'staff'])) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Rol inválido.']);
+            break;
+        }
+        if (strlen($nuevaPass) < 6) {
+            echo json_encode(['exito' => false, 'mensaje' => 'La contraseña debe tener al menos 6 caracteres.']);
+            break;
+        }
+
+        try {
+            $db   = getDB();
+            $hash = password_hash($nuevaPass, PASSWORD_DEFAULT);
+            $db->prepare("INSERT INTO usuarios (usuario, password, rol) VALUES (?, ?, ?)")
+               ->execute([$nuevoUsuario, $hash, $nuevoRol]);
+            echo json_encode(['exito' => true, 'mensaje' => "Usuario '{$nuevoUsuario}' creado correctamente."]);
+        } catch (PDOException $e) {
+            $msg = str_contains($e->getMessage(), 'Duplicate') ? "El usuario '{$nuevoUsuario}' ya existe." : 'Error al crear usuario.';
+            echo json_encode(['exito' => false, 'mensaje' => $msg]);
+        }
+        break;
+
+    case 'toggleUsuario':
+        requireAdmin();
+        $uid     = intval($_POST['id']     ?? 0);
+        $activo  = intval($_POST['activo'] ?? 0);
+
+        // No permitir desactivarse a sí mismo
+        if ($uid === (int)$_SESSION['user']['id']) {
+            echo json_encode(['exito' => false, 'mensaje' => 'No puedes desactivar tu propia cuenta.']);
+            break;
+        }
+
+        $db = getDB();
+        $db->prepare("UPDATE usuarios SET activo = ? WHERE id = ?")->execute([$activo, $uid]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Estado actualizado.']);
+        break;
+
+    case 'eliminarUsuario':
+        requireAdmin();
+        $uid = intval($_POST['id'] ?? 0);
+
+        if ($uid === (int)$_SESSION['user']['id']) {
+            echo json_encode(['exito' => false, 'mensaje' => 'No puedes eliminar tu propia cuenta.']);
+            break;
+        }
+
+        $db = getDB();
+        $db->prepare("DELETE FROM usuarios WHERE id = ?")->execute([$uid]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Usuario eliminado.']);
+        break;
+
+    case 'cambiarPassword':
+        requireAdmin();
+        $uid      = intval($_POST['id']       ?? 0);
+        $newPass  = $_POST['password'] ?? '';
+
+        if (!$uid || strlen($newPass) < 6) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Contraseña debe tener al menos 6 caracteres.']);
+            break;
+        }
+
+        $db   = getDB();
+        $hash = password_hash($newPass, PASSWORD_DEFAULT);
+        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$hash, $uid]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada.']);
         break;
 
     default:

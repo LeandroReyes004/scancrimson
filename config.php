@@ -4,7 +4,12 @@ define('GOOGLE_API_KEY',     'AIzaSyB6p7MfwKvdtqShL64YOOiNcDvvSVEaRjM');
 define('CARPETA_RAIZ_ID',    '1MEkmLbc2xbvZ6KxL-Dqlhw4JgqAy5Lzp');
 define('HOJA_CALCULO_ID',    '15rsdxNP8gcyhwTyNWfI8oRSAb8ELehkxO5wu9kCIJZw');
 define('DISCORD_WEBHOOK',    'https://discordapp.com/api/webhooks/1481805598373707929/5RGhzp__my2SrASyDjKFY28WIL3T-uqaVOqqJbimX_hlalibEHZiNEWf4NGxWt3tlXW3');
-define('CONTRASENA_ADMIN',   'crimson2026');
+
+// --- BASE DE DATOS MySQL (Hostinger) ---
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'u687815389_crimson_scan');
+define('DB_USER', 'u687815389_Admin1025');
+define('DB_PASS', 'Apolo9090###');
 
 // URL de tu Apps Script desplegado (solo para crear proyectos desde admin)
 // Déjalo vacío si no lo necesitas

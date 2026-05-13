@@ -1,3 +1,4 @@
+<?php require_once 'auth.php'; ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -460,7 +461,8 @@
                 proyecto: selProyecto.value,
                 capitulo: inpCapitulo.value,
                 etapa: selEtapa.value,
-                filename: file.name
+                filename: file.name,
+                usuario: '<?php echo $_SESSION['user']['usuario']; ?>'
               })
             });
           } else {
@@ -486,7 +488,8 @@
                 proyecto: selProyecto.value,
                 capitulo: inpCapitulo.value,
                 etapa: selEtapa.value,
-                filename: file.name
+                filename: file.name,
+                usuario: '<?php echo $_SESSION['user']['usuario']; ?>'
               })
             });
           } else {

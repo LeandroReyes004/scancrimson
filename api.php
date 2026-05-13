@@ -245,10 +245,9 @@ switch ($action) {
         }
 
         try {
-            $db   = getDB();
-            $hash = password_hash($nuevaPass, PASSWORD_DEFAULT);
+            $db = getDB();
             $db->prepare("INSERT INTO usuarios (usuario, password, rol) VALUES (?, ?, ?)")
-               ->execute([$nuevoUsuario, $hash, $nuevoRol]);
+               ->execute([$nuevoUsuario, $nuevaPass, $nuevoRol]);
             echo json_encode(['exito' => true, 'mensaje' => "Usuario '{$nuevoUsuario}' creado correctamente."]);
         } catch (PDOException $e) {
             $msg = str_contains($e->getMessage(), 'Duplicate') ? "El usuario '{$nuevoUsuario}' ya existe." : 'Error al crear usuario.';
@@ -296,9 +295,8 @@ switch ($action) {
             break;
         }
 
-        $db   = getDB();
-        $hash = password_hash($newPass, PASSWORD_DEFAULT);
-        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$hash, $uid]);
+        $db = getDB();
+        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$newPass, $uid]);
         echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada.']);
         break;
 

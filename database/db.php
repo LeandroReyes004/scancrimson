@@ -27,9 +27,9 @@ function getDB(): PDO {
     // Seed: crear admin por defecto si la tabla está vacía
     $count = (int) $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
     if ($count === 0) {
-        $hash = password_hash('crimson2026', PASSWORD_DEFAULT);
+        $pass = 'crimson2026';
         $pdo->prepare("INSERT INTO usuarios (usuario, password, rol) VALUES (?, ?, 'admin')")
-            ->execute(['admin', $hash]);
+            ->execute(['admin', $pass]);
     }
 
     return $pdo;

@@ -37,7 +37,9 @@
     <nav class="header-tabs">
       <button class="htab active" id="htab-dashboard" onclick="switchTab('dashboard')">◈ Dashboard</button>
       <button class="htab" id="htab-proyectos" onclick="switchTab('proyectos')">◫ Proyectos</button>
+      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <button class="htab" id="htab-nuevo" onclick="switchTab('nuevo')">⊕ Nuevo</button>
+      <?php endif; ?>
       <button class="htab" id="htab-historial" onclick="switchTab('historial')">≡ Historial</button>
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <button class="htab" id="htab-usuarios" onclick="switchTab('usuarios')">👤 Usuarios</button>
@@ -136,6 +138,7 @@
     </div>
 
     <!-- ══ TAB: NUEVO PROYECTO ══ -->
+    <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
     <div id="tab-nuevo" class="tab-content">
       <div class="page-header">
         <div>
@@ -167,6 +170,7 @@
         </div>
       </div>
     </div>
+    <?php endif; ?>
 
     <!-- ══ TAB: HISTORIAL ══ -->
     <div id="tab-historial" class="tab-content">

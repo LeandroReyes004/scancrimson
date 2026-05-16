@@ -89,9 +89,26 @@ function closeConfirm() {
 async function apiFetch(action, options = {}) {
     try {
         const url = `api.php?action=${action}`;
+        
+        // Inyectar Token CSRF automáticamente para peticiones POST de escritura
+        if (options.method && options.method.toUpperCase() === 'POST') {
+            if (!options.headers) options.headers = {};
+            if (options.body instanceof FormData) {
+                options.body.append('csrf_token', window.csrfToken || '');
+            } else if (typeof options.body === 'string') {
+                try {
+                    const parsed = JSON.parse(options.body);
+                    parsed.csrf_token = window.csrfToken || '';
+                    options.body = JSON.stringify(parsed);
+                } catch(e) {}
+            } else {
+                options.headers['X-CSRF-Token'] = window.csrfToken || '';
+            }
+        }
+
         const res = await fetch(url, options);
         const data = await res.json();
-        if (!data.exito && data.mensaje.includes('Sesión expirada')) {
+        if (!data.exito && data.mensaje && data.mensaje.includes('Sesión expirada')) {
             location.href = 'login.php';
             return null;
         }
@@ -354,7 +371,6 @@ function crearProyectoAction(inputId, btnId, resultId) {
     const btn = document.getElementById(btnId);
     const resContainer = document.getElementById(resultId);
     const nombre = inp.value.trim();
-    const pass = ''; // Legacy removed
     
     if (!nombre) { toast('Escribe el nombre del manga', 'err'); return; }
 
@@ -364,28 +380,22 @@ function crearProyectoAction(inputId, btnId, resultId) {
     resContainer.innerHTML = '';
 
     const form = new FormData();
-    // form.append('pass', pass); // Legacy removed
     form.append('nombre', nombre);
 
-    fetch('api.php?action=crearProyecto', { method: 'POST', body: form })
-        .then(r => r.json())
+    apiFetch('crearProyecto', { method: 'POST', body: form })
         .then(data => {
             btn.disabled = false;
             btn.innerHTML = originalHtml;
-            if (data.exito) {
+            if (data && data.exito) {
                 resContainer.innerHTML = `<div class="success-msg">✓ Proyecto "${nombre}" creado correctamente.</div>`;
                 inp.value = '';
                 toast('Proyecto creado: ' + nombre, 'ok');
                 refrescarTodo();
             } else {
-                resContainer.innerHTML = `<div class="error-msg">✕ ${data.mensaje}</div>`;
-                toast(data.mensaje, 'err');
+                const msg = data?.mensaje || 'Error al crear proyecto';
+                resContainer.innerHTML = `<div class="error-msg">✕ ${msg}</div>`;
+                toast(msg, 'err');
             }
-        })
-        .catch(() => {
-            btn.disabled = false;
-            btn.innerHTML = originalHtml;
-            toast('Error de conexión', 'err');
         });
 }
 

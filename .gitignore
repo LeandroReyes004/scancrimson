@@ -1,0 +1,19 @@
+# Configuración y credenciales locales
+config.local.php
+.env
+credentials.json
+
+# Archivos de depuración y diagnósticos
+debug.php
+
+# Entorno de desarrollo de Visual Studio / VS Code
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vscode/
+
+# Logs del sistema y del servidor
+*.log
+error_log

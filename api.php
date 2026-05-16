@@ -1,10 +1,49 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Strict'
+    ]);
+    session_start();
+}
+
+// Inicializar el token CSRF para peticiones API
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database/db.php';
 
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
+
+// CORS Seguro dinámico limitado al host actual
+$allowed = [];
+$protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
+$host = $_SERVER['HTTP_HOST'] ?? '';
+if ($host) {
+    $allowed[] = rtrim($protocol . $host, '/');
+}
+
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+if ($origin) {
+    if (in_array($origin, $allowed, true)) {
+        header("Access-Control-Allow-Origin: $origin");
+        header('Access-Control-Allow-Credentials: true');
+    }
+}
+
+// Protección CSRF Global para peticiones POST de escritura
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    if (!$token || !isset($_SESSION['csrf_token']) || $token !== $_SESSION['csrf_token']) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Token CSRF inválido o ausente.']);
+        exit;
+    }
+}
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 function isLoggedIn(): bool {
@@ -32,8 +71,8 @@ function httpGet(string $url, int $timeout = 20): ?array {
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => false,
-        CURLOPT_SSL_VERIFYHOST => false,
+        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYHOST => 2,
         CURLOPT_FOLLOWLOCATION => true,
         CURLOPT_MAXREDIRS      => 5,
         CURLOPT_TIMEOUT        => $timeout,
@@ -246,8 +285,9 @@ switch ($action) {
 
         try {
             $db = getDB();
+            $hash = password_hash($nuevaPass, PASSWORD_BCRYPT);
             $db->prepare("INSERT INTO usuarios (usuario, password, rol) VALUES (?, ?, ?)")
-               ->execute([$nuevoUsuario, $nuevaPass, $nuevoRol]);
+               ->execute([$nuevoUsuario, $hash, $nuevoRol]);
             echo json_encode(['exito' => true, 'mensaje' => "Usuario '{$nuevoUsuario}' creado correctamente."]);
         } catch (PDOException $e) {
             $msg = str_contains($e->getMessage(), 'Duplicate') ? "El usuario '{$nuevoUsuario}' ya existe." : 'Error al crear usuario.';
@@ -296,7 +336,8 @@ switch ($action) {
         }
 
         $db = getDB();
-        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$newPass, $uid]);
+        $hash = password_hash($newPass, PASSWORD_BCRYPT);
+        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$hash, $uid]);
         echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada.']);
         break;
 

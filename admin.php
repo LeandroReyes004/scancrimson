@@ -297,6 +297,9 @@
   </div>
 </div>
 
+<script>
+  window.csrfToken = '<?= $_SESSION['csrf_token'] ?>';
+</script>
 <script src="assets/admin.js?v=4"></script>
 <script>
 // ─── PARCHES INLINE v3: índices correctos de la hoja ─────────────────────────

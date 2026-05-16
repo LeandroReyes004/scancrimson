@@ -398,23 +398,18 @@
       progressPercent.textContent = '0%';
 
       try {
-        // Paso A: Pedir URL de subida DIRECTAMENTE al Apps Script
-        // Usamos la URL que creaste para evitar bloqueos del servidor
-        const appsScriptUrl = 'https://script.google.com/macros/s/AKfycbw4ogD4Z4aU8HJ51X5Ia2U_SPxvd-8AgGaCH7qwa7ab3yhHY5Bt88IKQPmj_HzR1zMd/exec';
-        
-        const initRes = await fetch(appsScriptUrl, {
+        // Paso A: Pedir URL de subida al proxy local (upload_api.php) con Token CSRF
+        const initRes = await fetch('upload_api.php?action=initUpload', {
           method: 'POST',
-          mode: 'cors',
-          // Enviamos como text/plain para evitar problemas de CORS (Preflight)
-          // El Apps Script lo recibirá igual en e.postData.contents
-          headers: { 'Content-Type': 'text/plain' },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             proyecto: selProyecto.value,
             capitulo: inpCapitulo.value,
             etapa: selEtapa.value,
             filename: file.name,
             mimeType: file.type || 'application/octet-stream',
-            fileSize: file.size
+            fileSize: file.size,
+            csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
           })
         });
 
@@ -422,9 +417,6 @@
         
         if(!initData.exito) {
           let errorMsg = initData.mensaje || 'Error al conectar con Drive.';
-          if (initData.debug_response) {
-            errorMsg += ' Detalle: ' + initData.debug_response;
-          }
           throw new Error(errorMsg);
         }
 
@@ -451,20 +443,8 @@
             progressBar.style.background = '#4ade80'; // Verde
             successOverlay.style.display = 'flex';
             
-            // Registrar en Excel y Discord
-            fetch(appsScriptUrl, {
-              method: 'POST',
-              mode: 'no-cors', // Para evitar problemas de redirección en el registro
-              headers: { 'Content-Type': 'text/plain' },
-              body: JSON.stringify({
-                action: 'registrarSubida',
-                proyecto: selProyecto.value,
-                capitulo: inpCapitulo.value,
-                etapa: selEtapa.value,
-                filename: file.name,
-                usuario: '<?php echo $_SESSION['user']['usuario']; ?>'
-              })
-            });
+            // Registrar en Excel y Discord a través del proxy local
+            registrarSubida(file);
           } else {
             showStatus('Error al enviar archivo a Google. Código: ' + xhr.status, true);
             resetUI();
@@ -478,20 +458,8 @@
             progressBar.style.background = '#4ade80';
             successOverlay.style.display = 'flex';
 
-            // Registrar en Excel y Discord
-            fetch(appsScriptUrl, {
-              method: 'POST',
-              mode: 'no-cors',
-              headers: { 'Content-Type': 'text/plain' },
-              body: JSON.stringify({
-                action: 'registrarSubida',
-                proyecto: selProyecto.value,
-                capitulo: inpCapitulo.value,
-                etapa: selEtapa.value,
-                filename: file.name,
-                usuario: '<?php echo $_SESSION['user']['usuario']; ?>'
-              })
-            });
+            // Registrar en Excel y Discord a través del proxy local
+            registrarSubida(file);
           } else {
             showStatus('Error de red durante la subida.', true);
             resetUI();
@@ -504,6 +472,21 @@
         showStatus(err.message, true);
         resetUI();
       }
+    }
+
+    // Helper para registrar la subida de forma segura a través del proxy local
+    function registrarSubida(file) {
+      fetch('upload_api.php?action=registrarSubida', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          proyecto: selProyecto.value,
+          capitulo: inpCapitulo.value,
+          etapa: selEtapa.value,
+          filename: file.name,
+          csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
+        })
+      });
     }
 
     function resetUI() {

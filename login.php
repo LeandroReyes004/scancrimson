@@ -1,5 +1,20 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+        'httponly' => true,
+        'samesite' => 'Strict'
+    ]);
+    session_start();
+}
+
+// Inicializar el token CSRF para el inicio de sesión
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database/db.php';
 
@@ -12,33 +27,77 @@ if (isset($_SESSION['user'])) {
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $usuario  = trim($_POST['usuario']  ?? '');
-    $password = $_POST['password'] ?? '';
-
-    if ($usuario && $password) {
-        try {
-            $db   = getDB();
-            $stmt = $db->prepare("SELECT * FROM usuarios WHERE usuario = ? AND activo = 1 LIMIT 1");
-            $stmt->execute([$usuario]);
-            $user = $stmt->fetch();
-
-            if ($user && $password === $user['password']) {
-                session_regenerate_id(true);
-                $_SESSION['user'] = [
-                    'id'      => $user['id'],
-                    'usuario' => $user['usuario'],
-                    'rol'     => $user['rol'],
-                ];
-                header('Location: admin.php');
-                exit;
-            } else {
-                $error = 'Usuario o contraseña incorrectos.';
-            }
-        } catch (Exception $e) {
-            $error = 'Error de conexión con la base de datos.';
-        }
+    // Validar Token CSRF
+    $csrfToken = $_POST['csrf_token'] ?? '';
+    if (!$csrfToken || $csrfToken !== $_SESSION['csrf_token']) {
+        $error = 'Token de seguridad inválido. Por favor intenta de nuevo.';
     } else {
-        $error = 'Completa todos los campos.';
+        $usuario  = trim($_POST['usuario']  ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if ($usuario && $password) {
+            try {
+                $db = getDB();
+                $stmt = $db->prepare("SELECT * FROM usuarios WHERE usuario = ? LIMIT 1");
+                $stmt->execute([$usuario]);
+                $user = $stmt->fetch();
+
+                if ($user) {
+                    // Verificar bloqueo por intentos fallidos (Brute Force)
+                    if ($user['bloqueado_hasta'] && strtotime($user['bloqueado_hasta']) > time()) {
+                        $diff = strtotime($user['bloqueado_hasta']) - time();
+                        $mins = ceil($diff / 60);
+                        $error = "Tu cuenta está bloqueada temporalmente por exceso de intentos. Intenta de nuevo en {$mins} minutos.";
+                    } elseif ($user['activo'] != 1) {
+                        $error = 'Tu usuario se encuentra inactivo. Contacta a un administrador.';
+                    } else {
+                        $authenticated = false;
+                        
+                        // Validar con password_verify (seguro) o plain text (legacy con actualización automática)
+                        if (password_verify($password, $user['password'])) {
+                            $authenticated = true;
+                        } elseif ($password === $user['password']) {
+                            // Detectada contraseña en texto plano (Legacy). Hashearla automáticamente.
+                            $authenticated = true;
+                            $hash = password_hash($password, PASSWORD_BCRYPT);
+                            $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$hash, $user['id']]);
+                        }
+
+                        if ($authenticated) {
+                            // Limpiar intentos fallidos
+                            $db->prepare("UPDATE usuarios SET intentos = 0, bloqueado_hasta = NULL WHERE id = ?")->execute([$user['id']]);
+                            
+                            session_regenerate_id(true);
+                            $_SESSION['user'] = [
+                                'id'      => $user['id'],
+                                'usuario' => $user['usuario'],
+                                'rol'     => $user['rol'],
+                            ];
+                            header('Location: admin.php');
+                            exit;
+                        } else {
+                            // Incrementar intentos fallidos
+                            $intentos = $user['intentos'] + 1;
+                            $bloqueo = null;
+                            if ($intentos >= 5) {
+                                $bloqueo = date('Y-m-d H:i:s', time() + 900); // Bloqueo de 15 minutos
+                                $error = 'Has superado el límite de intentos de acceso. Cuenta bloqueada por 15 minutos.';
+                            } else {
+                                $error = 'Usuario o contraseña incorrectos.';
+                            }
+                            $db->prepare("UPDATE usuarios SET intentos = ?, bloqueado_hasta = ? WHERE id = ?")
+                               ->execute([$intentos, $bloqueo, $user['id']]);
+                        }
+                    }
+                } else {
+                    $error = 'Usuario o contraseña incorrectos.';
+                }
+            } catch (Exception $e) {
+                $error = 'Error de conexión con la base de datos.';
+            }
+        } else {
+            $error = 'Completa todos los campos.';
+        }
     }
 }
 ?>
@@ -299,6 +358,7 @@ body {
     <?php endif; ?>
 
     <form method="POST" id="loginForm" autocomplete="on">
+      <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
       <div class="field-group">
         <label class="field-label" for="usuario">Usuario</label>
         <input

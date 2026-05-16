@@ -14,9 +14,9 @@ if (!defined('DISCORD_WEBHOOK')) define('DISCORD_WEBHOOK', 'https://discordapp.c
 
 // --- BASE DE DATOS MySQL (Hostinger) ---
 if (!defined('DB_HOST')) define('DB_HOST', 'localhost');
-if (!defined('DB_NAME')) define('DB_NAME', 'u687815389_crimson_scan');
-if (!defined('DB_USER')) define('DB_USER', 'u687815389_Admin1025');
-if (!defined('DB_PASS')) define('DB_PASS', 'Apolo9090###');
+if (!defined('DB_NAME')) define('DB_NAME', 'tu_base_de_datos');
+if (!defined('DB_USER')) define('DB_USER', 'tu_usuario_db');
+if (!defined('DB_PASS')) define('DB_PASS', 'tu_contrasena_db');
 
 // URL de tu Apps Script desplegado (solo para crear proyectos desde admin)
 if (!defined('APPS_SCRIPT_URL')) define('APPS_SCRIPT_URL', '');

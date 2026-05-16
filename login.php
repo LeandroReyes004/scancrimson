@@ -46,8 +46,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // Verificar bloqueo por intentos fallidos (Brute Force)
                     if ($user['bloqueado_hasta'] && strtotime($user['bloqueado_hasta']) > time()) {
                         $diff = strtotime($user['bloqueado_hasta']) - time();
-                        $mins = ceil($diff / 60);
-                        $error = "Tu cuenta está bloqueada temporalmente por exceso de intentos. Intenta de nuevo en {$mins} minutos.";
+                        if ($diff < 60) {
+                            $error = "Tu cuenta está bloqueada temporalmente por exceso de intentos. Intenta de nuevo en {$diff} segundos.";
+                        } else {
+                            $mins = ceil($diff / 60);
+                            $error = "Tu cuenta está bloqueada temporalmente por exceso de intentos. Intenta de nuevo en {$mins} minutos.";
+                        }
                     } elseif ($user['activo'] != 1) {
                         $error = 'Tu usuario se encuentra inactivo. Contacta a un administrador.';
                     } else {
@@ -80,8 +84,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $intentos = $user['intentos'] + 1;
                             $bloqueo = null;
                             if ($intentos >= 5) {
-                                $bloqueo = date('Y-m-d H:i:s', time() + 900); // Bloqueo de 15 minutos
-                                $error = 'Has superado el límite de intentos de acceso. Cuenta bloqueada por 15 minutos.';
+                                $bloqueo = date('Y-m-d H:i:s', time() + 5); // Bloqueo de 5 segundos (según petición de prueba del usuario)
+                                $error = 'Has superado el límite de intentos de acceso. Cuenta bloqueada por 5 segundos.';
                             } else {
                                 $error = 'Usuario o contraseña incorrectos.';
                             }

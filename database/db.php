@@ -36,31 +36,35 @@ function getDB(): PDO {
         // Ignorar si las columnas ya existen
     }
 
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS proyectos (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            nombre VARCHAR(100) NOT NULL UNIQUE,
-            nombre_upper VARCHAR(100) NOT NULL UNIQUE,
-            estado VARCHAR(20) DEFAULT 'activo',
-            carpeta_drive_id VARCHAR(100) NULL,
-            creado DATETIME DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
+    try {
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS proyectos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                nombre VARCHAR(100) NOT NULL UNIQUE,
+                nombre_upper VARCHAR(100) NOT NULL UNIQUE,
+                estado VARCHAR(20) DEFAULT 'activo',
+                carpeta_drive_id VARCHAR(100) NULL,
+                creado DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
 
-    $pdo->exec("
-        CREATE TABLE IF NOT EXISTS capitulos (
-            id INT AUTO_INCREMENT PRIMARY KEY,
-            proyecto_id INT NOT NULL,
-            numero FLOAT NOT NULL,
-            estado_raw TINYINT(1) DEFAULT 0,
-            estado_trad TINYINT(1) DEFAULT 0,
-            estado_clean TINYINT(1) DEFAULT 0,
-            estado_type TINYINT(1) DEFAULT 0,
-            estado_proof TINYINT(1) DEFAULT 0,
-            estado_general ENUM('Pendiente', 'En proceso', 'Retrasado', 'Publicado') DEFAULT 'Pendiente',
-            UNIQUE KEY proj_cap (proyecto_id, numero)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
-    ");
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS capitulos (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                proyecto_id INT NOT NULL,
+                numero FLOAT NOT NULL,
+                estado_raw TINYINT(1) DEFAULT 0,
+                estado_trad TINYINT(1) DEFAULT 0,
+                estado_clean TINYINT(1) DEFAULT 0,
+                estado_type TINYINT(1) DEFAULT 0,
+                estado_proof TINYINT(1) DEFAULT 0,
+                estado_general ENUM('Pendiente', 'En proceso', 'Retrasado', 'Publicado') DEFAULT 'Pendiente',
+                UNIQUE KEY proj_cap (proyecto_id, numero)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+    } catch (PDOException $e) {
+        // Log error silently if user lacks privileges
+    }
 
     // Seed: crear admin por defecto si la tabla está vacía
     $count = (int) $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();

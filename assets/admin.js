@@ -127,31 +127,27 @@ function refrescarTodo() {
 }
 
 async function cargarStats() {
+    // Cargar historial desde MySQL
     const resH = await apiFetch('historial');
-    if (resH && resH.exito) {
+    if (resH?.exito && resH.datos) {
         state.historial = resH.datos;
-        calcularProgreso(); // Calcular métricas antes de mostrar
-        
-        document.getElementById('stat-total').textContent = state.historial.length;
+        const hoyStr = new Date().toISOString().slice(0, 10);
+        document.getElementById('stat-total').textContent = resH.datos.length;
         document.getElementById('stat-total-sub').textContent = 'registros en total';
-
-        const hoyStr = new Date().toLocaleDateString('es-ES', { day:'2-digit', month:'2-digit', year:'numeric' });
-        const hoyCount = state.historial.filter(f => f[0] && f[0].includes(hoyStr)).length;
+        const hoyCount = resH.datos.filter(f => f[0] && f[0].includes(hoyStr)).length;
         document.getElementById('stat-hoy').textContent = hoyCount;
         document.getElementById('stat-hoy-sub').textContent = 'subidas hoy';
-
-        const rawsCount = state.historial.filter(f => f[3] && f[3].includes('RAWs')).length;
+        const rawsCount = resH.datos.filter(f => f[3] && f[3].toLowerCase().includes('raws')).length;
         document.getElementById('stat-raws').textContent = rawsCount;
         document.getElementById('stat-raws-sub').textContent = 'de todos los tiempos';
-
-        renderActividad(state.historial.slice(0, 5));
+        renderActividad(resH.datos.slice(0, 5));
     }
-
+    // Cargar proyectos desde MySQL
     const resP = await apiFetch('proyectos');
-    if (resP && resP.exito) {
+    if (resP?.exito && resP.datos) {
         state.proyectos = resP.datos;
-        document.getElementById('stat-proyectos').textContent = state.proyectos.length;
-        document.getElementById('stat-proyectos-sub').textContent = `${state.proyectos.length} en Drive`;
+        document.getElementById('stat-proyectos').textContent = resP.datos.length;
+        document.getElementById('stat-proyectos-sub').textContent = `${resP.datos.length} en Drive`;
     }
 }
 

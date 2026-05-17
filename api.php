@@ -120,17 +120,13 @@ switch ($action) {
     // ── PÚBLICAS (no requieren sesión) ──────────────────────────────────────
 
     case 'proyectos':
-        if (APPS_SCRIPT_URL) {
-            $res = httpGet(APPS_SCRIPT_URL . '?action=listarProyectos');
-            if ($res && isset($res['exito']) && $res['exito'] && isset($res['datos'])) {
-                echo json_encode($res);
-                break;
-            }
-        }
-        $files   = driveQ("'" . CARPETA_RAIZ_ID . "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 200);
-        $nombres = array_column($files, 'name');
-        sort($nombres);
-        echo json_encode(['exito' => true, 'datos' => $nombres]);
+        $db   = getDB();
+        $rows = $db->query("SELECT id, nombre, estado, carpeta_drive_id FROM proyectos
+                            WHERE estado='activo' ORDER BY nombre")->fetchAll();
+        $datos = array_map(fn($r) => [
+            $r['nombre'], '', '', '', $r['estado'], $r['carpeta_drive_id'] ?? ''
+        ], $rows);
+        echo json_encode(['exito' => true, 'datos' => $datos]);
         break;
 
     case 'enlaces':
@@ -190,21 +186,19 @@ switch ($action) {
 
     case 'historial':
         requireLogin();
-        if (APPS_SCRIPT_URL) {
-            $res = httpGet(APPS_SCRIPT_URL . '?action=historial');
-            if ($res && isset($res['exito']) && $res['exito'] && isset($res['datos'])) {
-                echo json_encode($res);
-                break;
-            }
-        }
-        $url   = SHEETS_API . '/' . HOJA_CALCULO_ID . '/values/A%3AZ?key=' . GOOGLE_API_KEY;
-        $data  = httpGet($url);
-        $filas = $data['values'] ?? [];
-        if (count($filas) <= 1) { echo json_encode(['exito' => true, 'datos' => []]); break; }
-        array_shift($filas);
-        $filas = array_filter($filas, fn($f) => !empty(trim($f[0] ?? '')));
-        $filas = array_reverse(array_values($filas));
-        echo json_encode(['exito' => true, 'datos' => $filas]);
+        $db   = getDB();
+        $rows = $db->query("
+            SELECT t.id, t.obra, t.cap, t.rol, t.estado, t.limite, t.creado,
+                   sd.nombre_display
+            FROM tareas t
+            LEFT JOIN staff_discord sd ON sd.discord_id = t.discord_id
+            ORDER BY t.creado DESC LIMIT 200
+        ")->fetchAll();
+        $datos = array_map(fn($r) => [
+            $r['creado'], $r['obra'], $r['cap'], $r['rol'],
+            $r['nombre_display'] ?? 'Desconocido', $r['estado'], $r['limite']
+        ], $rows);
+        echo json_encode(['exito' => true, 'datos' => $datos]);
         break;
 
     // ── SOLO ADMIN ───────────────────────────────────────────────────────────
@@ -212,18 +206,19 @@ switch ($action) {
     case 'crearProyecto':
         requireAdmin();
         $nombre = trim($_POST['nombre'] ?? '');
-        if (!$nombre) { echo json_encode(['exito' => false, 'mensaje' => 'Nombre vacío.']); break; }
-        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script URL no configurada.']); break; }
-
-        $url = APPS_SCRIPT_URL . '?action=crearProyecto&nombre=' . urlencode($nombre);
-        $res = httpGet($url);
-        if (isset($res['__curl_error'])) {
-            echo json_encode(['exito' => false, 'mensaje' => 'Error de red: ' . $res['__curl_error']]);
-        } elseif (isset($res['__http_error'])) {
-            echo json_encode(['exito' => false, 'mensaje' => 'Apps Script: ' . $res['__http_error']]);
-        } else {
-            echo json_encode($res ?? ['exito' => false, 'mensaje' => 'Sin respuesta.']);
+        if (!$nombre) { echo json_encode(['exito' => false, 'mensaje' => 'Nombre requerido']); break; }
+        $db = getDB();
+        $db->prepare("INSERT IGNORE INTO proyectos (nombre, nombre_upper) VALUES (?,?)")
+           ->execute([$nombre, strtoupper($nombre)]);
+        // También crear carpeta en Drive si Apps Script está configurado
+        if (APPS_SCRIPT_URL) {
+            $res = httpGet(APPS_SCRIPT_URL . '?action=crearProyecto&nombre=' . urlencode($nombre));
+            if (!empty($res['carpetaId'])) {
+                $db->prepare("UPDATE proyectos SET carpeta_drive_id=? WHERE nombre_upper=?")
+                   ->execute([$res['carpetaId'], strtoupper($nombre)]);
+            }
         }
+        echo json_encode(['exito' => true]);
         break;
 
     case 'editarRegistro':
@@ -378,9 +373,18 @@ switch ($action) {
         echo json_encode(bridge_call('erroresStaff', $params));
         break;
 
-    // ── ESTADÍSTICAS GLOBALES (vía bridge) ───────────────────────────────
+    // ── ESTADÍSTICAS GLOBALES ─────────────────────────────────────────────
     case 'estadisticasGlobales':
-        echo json_encode(bridge_call('estadisticas'));
+        $db  = getDB();
+        $hoy = date('Y-m-d');
+        $s   = [];
+        $s['total_proyectos'] = $db->query("SELECT COUNT(*) FROM proyectos WHERE estado='activo'")->fetchColumn();
+        $s['total_tareas']    = $db->query("SELECT COUNT(*) FROM tareas")->fetchColumn();
+        $s['entregadas']      = $db->query("SELECT COUNT(*) FROM tareas WHERE estado='entregada'")->fetchColumn();
+        $s['activas']         = $db->query("SELECT COUNT(*) FROM tareas WHERE estado='activa'")->fetchColumn();
+        $s['total_staff']     = $db->query("SELECT COUNT(*) FROM staff_discord WHERE activo=1")->fetchColumn();
+        $s['subidas_hoy']     = $db->query("SELECT COUNT(*) FROM tareas WHERE DATE(creado)='$hoy'")->fetchColumn();
+        echo json_encode(['exito' => true, 'data' => $s]);
         break;
 
     default:

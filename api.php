@@ -251,6 +251,79 @@ switch ($action) {
         echo json_encode(httpGet($url) ?? ['exito' => false, 'mensaje' => 'Error.']);
         break;
 
+    // ── GESTIÓN DE PROYECTOS Y CAPÍTULOS (admin / staff) ───────────────────
+    case 'listarProyectosAdmin':
+        requireLogin();
+        $db = getDB();
+        $proys = $db->query("SELECT id, nombre, estado, carpeta_drive_id FROM proyectos ORDER BY nombre")->fetchAll();
+        echo json_encode(['exito' => true, 'datos' => $proys]);
+        break;
+    case 'listarCapitulos':
+        requireLogin();
+        $proyecto_id = intval($_GET['proyecto_id'] ?? 0);
+        if (!$proyecto_id) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Proyecto ID requerido']);
+            break;
+        }
+        $db = getDB();
+        $caps = $db->query("SELECT * FROM capitulos WHERE proyecto_id = $proyecto_id ORDER BY numero DESC")->fetchAll();
+        echo json_encode(['exito' => true, 'datos' => $caps]);
+        break;
+
+    case 'crearCapitulo':
+        requireAdmin();
+        $proyecto_id = intval($_POST['proyecto_id'] ?? 0);
+        $numero = floatval($_POST['numero'] ?? 0);
+        $db = getDB();
+        try {
+            $db->prepare("INSERT INTO capitulos (proyecto_id, numero) VALUES (?, ?)")->execute([$proyecto_id, $numero]);
+            echo json_encode(['exito' => true]);
+        } catch (PDOException $e) {
+            echo json_encode(['exito' => false, 'mensaje' => 'El capítulo ya existe o error en DB.']);
+        }
+        break;
+
+    case 'actualizarEstadoCapitulo':
+        requireAdmin();
+        $cap_id = intval($_POST['id'] ?? 0);
+        $campo = $_POST['campo'] ?? '';
+        $valor = intval($_POST['valor'] ?? 0);
+        
+        $campos_validos = ['estado_raw', 'estado_trad', 'estado_clean', 'estado_type', 'estado_proof'];
+        if (!in_array($campo, $campos_validos)) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Campo no válido']);
+            break;
+        }
+        
+        $db = getDB();
+        $db->prepare("UPDATE capitulos SET $campo = ? WHERE id = ?")->execute([$valor, $cap_id]);
+        
+        // Revisar si todo está listo
+        $cap = $db->query("SELECT * FROM capitulos WHERE id = $cap_id")->fetch();
+        if ($cap) {
+            $nuevo_estado = 'Pendiente';
+            $completados = $cap['estado_raw'] + $cap['estado_trad'] + $cap['estado_clean'] + $cap['estado_type'] + $cap['estado_proof'];
+            if ($completados == 5) {
+                // Sigue en proceso hasta que lo publiquen, o podemos poner un estado "Listo"
+            } elseif ($completados > 0) {
+                $nuevo_estado = 'En proceso';
+            }
+            if ($cap['estado_general'] !== 'Publicado') {
+                $db->prepare("UPDATE capitulos SET estado_general = ? WHERE id = ?")->execute([$nuevo_estado, $cap_id]);
+            }
+        }
+        
+        echo json_encode(['exito' => true]);
+        break;
+
+    case 'publicarCapitulo':
+        requireAdmin();
+        $cap_id = intval($_POST['id'] ?? 0);
+        $db = getDB();
+        $db->prepare("UPDATE capitulos SET estado_general = 'Publicado' WHERE id = ?")->execute([$cap_id]);
+        echo json_encode(['exito' => true]);
+        break;
+
     // ── GESTIÓN DE USUARIOS (solo admin) ────────────────────────────────────
 
     case 'listarUsuarios':

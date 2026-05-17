@@ -128,13 +128,40 @@
     <div id="tab-proyectos" class="tab-content">
       <div class="page-header">
         <div>
-          <p class="page-sub">Google Drive</p>
-          <h1 class="page-title">Mis <span>Proyectos</span></h1>
+          <p class="page-sub">Flujo de Producción</p>
+          <h1 class="page-title">Vista de <span>Proyectos</span></h1>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="cargarProyectos()">↺ Refrescar</button>
+        <div>
+          <select id="vp-proyecto-select" class="field-input" style="display:inline-block; width:200px; margin-right:10px;" onchange="cargarVistaCapitulos()">
+            <option value="">Cargando proyectos...</option>
+          </select>
+          <button class="btn btn-ghost btn-sm" onclick="cargarVistaCapitulos()">↺ Refrescar</button>
+        </div>
       </div>
-      <div id="projects-grid" class="projects-grid">
-        <div class="loading-cell" style="grid-column:1/-1; padding:4rem; text-align:center"><span class="spinner"></span></div>
+      <div class="panel">
+        <div class="panel-header" style="justify-content: space-between; display: flex;">
+          <div class="panel-title" id="vp-proyecto-titulo">◎ Selecciona un proyecto</div>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalNuevoCapitulo()">+ Añadir Capítulo</button>
+        </div>
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th style="width: 80px; text-align: center;">Cap.</th>
+                <th style="text-align: center;">RAW</th>
+                <th style="text-align: center;">Trad</th>
+                <th style="text-align: center;">Clean</th>
+                <th style="text-align: center;">Type</th>
+                <th style="text-align: center;">Proof</th>
+                <th style="text-align: center;">Estado</th>
+                <th style="text-align: center;">Acción</th>
+              </tr>
+            </thead>
+            <tbody id="vp-capitulos-body">
+              <tr><td colspan="8" class="empty-msg">Selecciona un proyecto para ver sus capítulos.</td></tr>
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -283,6 +310,24 @@
   </div>
 </div>
 
+<!-- MODAL: NUEVO CAPÍTULO -->
+<div id="cap-modal-overlay" class="drawer-overlay hidden" onclick="cerrarModalNuevoCapitulo()"></div>
+<div id="cap-modal" class="edit-drawer hidden">
+  <div class="drawer-header">
+    <span>📑 Añadir Capítulo</span>
+    <button class="btn btn-ghost btn-sm" onclick="cerrarModalNuevoCapitulo()">✕</button>
+  </div>
+  <div class="drawer-body">
+    <div class="field-group">
+      <label class="field-label">Número de Capítulo</label>
+      <input id="new-cap-num" type="number" step="0.1" class="field-input" placeholder="Ej: 15">
+    </div>
+    <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="guardarNuevoCapitulo()">
+      Añadir Capítulo
+    </button>
+  </div>
+</div>
+
 <!-- MODAL: NUEVO USUARIO -->
 <div id="user-modal-overlay" class="drawer-overlay hidden" onclick="closeUserModal()"></div>
 <div id="user-modal" class="edit-drawer hidden">
@@ -420,27 +465,148 @@
     ].join('');
   }
 
+  window.vpProyectosMap = {};
+
   window.cargarProyectos = async function() {
-    const grid = document.getElementById('projects-grid');
-    if (!grid) return;
-    grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem"><span class="spinner"></span> Cargando proyectos…</div>';
     try {
-      const [historial, resP] = await Promise.all([
-        fetchHistorial(),
-        fetch('api.php?action=proyectos').then(function(r){ return r.json(); })
-      ]);
-      if (resP && resP.exito && resP.datos && resP.datos.length) {
-        if (window.state) window.state.proyectos = resP.datos;
-        var statEl = document.getElementById('stat-proyectos');
-        if (statEl) statEl.textContent = resP.datos.length;
-        grid.innerHTML = resP.datos.map(function(nombre) {
-          return renderTarjeta(nombre, statsParaManga(nombre, historial));
-        }).join('');
-      } else {
-        grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">No hay proyectos.</div>';
+      // Usar un endpoint para obtener los proyectos en formato id, nombre
+      const req = await fetch('api.php?action=listarProyectosAdmin');
+      const res = await req.json();
+      if(res && res.exito) {
+        const sel = document.getElementById('vp-proyecto-select');
+        sel.innerHTML = '<option value="">— Seleccionar Proyecto —</option>';
+        res.datos.forEach(p => {
+          vpProyectosMap[p.id] = p.nombre;
+          const opt = document.createElement('option');
+          opt.value = p.id;
+          opt.textContent = p.nombre;
+          sel.appendChild(opt);
+        });
       }
     } catch(e) {
-      grid.innerHTML = '<div class="empty-msg" style="grid-column:1/-1">Error: ' + e.message + '</div>';
+      console.error(e);
+    }
+  };
+
+  window.cargarVistaCapitulos = async function() {
+    const pId = document.getElementById('vp-proyecto-select').value;
+    const tbody = document.getElementById('vp-capitulos-body');
+    const titulo = document.getElementById('vp-proyecto-titulo');
+    if(!pId) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Selecciona un proyecto.</td></tr>';
+      titulo.textContent = '◎ Selecciona un proyecto';
+      return;
+    }
+    titulo.textContent = '◎ Capítulos de ' + vpProyectosMap[pId];
+    tbody.innerHTML = '<tr><td colspan="8" class="loading-cell"><span class="spinner"></span></td></tr>';
+    
+    try {
+      const req = await fetch('api.php?action=listarCapitulos&proyecto_id=' + pId);
+      const res = await req.json();
+      if(res && res.exito) {
+        if(res.datos.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">No hay capítulos registrados para este proyecto.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = res.datos.map(c => {
+          const checkIcon = val => parseInt(val) === 1 ? '✅' : '⬜';
+          const badgeClass = c.estado_general === 'Publicado' ? 'success' : (c.estado_general === 'Retrasado' ? 'danger' : 'warning');
+          const isAllReady = parseInt(c.estado_raw) && parseInt(c.estado_trad) && parseInt(c.estado_clean) && parseInt(c.estado_type) && parseInt(c.estado_proof);
+          let btnHtml = '—';
+          if(c.estado_general !== 'Publicado' && isAllReady) {
+             btnHtml = `<button class="btn btn-primary btn-sm" onclick="publicarCapitulo(${c.id})">Publicar</button>`;
+          }
+          
+          return `
+            <tr>
+              <td style="font-weight: bold; text-align: center; font-size: 1.1rem">${c.numero}</td>
+              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_raw', ${c.estado_raw})">${checkIcon(c.estado_raw)}</td>
+              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_trad', ${c.estado_trad})">${checkIcon(c.estado_trad)}</td>
+              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_clean', ${c.estado_clean})">${checkIcon(c.estado_clean)}</td>
+              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_type', ${c.estado_type})">${checkIcon(c.estado_type)}</td>
+              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_proof', ${c.estado_proof})">${checkIcon(c.estado_proof)}</td>
+              <td style="text-align: center"><span class="badge ${badgeClass}">${c.estado_general}</span></td>
+              <td style="text-align: center">${btnHtml}</td>
+            </tr>
+          `;
+        }).join('');
+      } else {
+        tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Error cargando capítulos.</td></tr>';
+      }
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Error: ' + e.message + '</td></tr>';
+    }
+  };
+
+  window.toggleEstadoCap = async function(id, campo, valorActual) {
+    const nuevoValor = valorActual == 1 ? 0 : 1;
+    const fd = new FormData();
+    fd.append('id', id);
+    fd.append('campo', campo);
+    fd.append('valor', nuevoValor);
+    fd.append('csrf_token', window.csrfToken);
+    
+    try {
+      const r = await fetch('api.php?action=actualizarEstadoCapitulo', { method: 'POST', body: fd });
+      const res = await r.json();
+      if(res.exito) {
+         cargarVistaCapitulos();
+      } else {
+         alert(res.mensaje || 'Error al actualizar');
+      }
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
+  window.publicarCapitulo = async function(id) {
+    if(!confirm("¿Marcar como publicado?")) return;
+    const fd = new FormData();
+    fd.append('id', id);
+    fd.append('csrf_token', window.csrfToken);
+    try {
+      const r = await fetch('api.php?action=publicarCapitulo', { method: 'POST', body: fd });
+      const res = await r.json();
+      if(res.exito) cargarVistaCapitulos();
+    } catch(e) {
+      console.error(e);
+    }
+  };
+
+  window.abrirModalNuevoCapitulo = function() {
+    const pId = document.getElementById('vp-proyecto-select').value;
+    if(!pId) return alert('Selecciona un proyecto primero.');
+    document.getElementById('new-cap-num').value = '';
+    document.getElementById('cap-modal-overlay').classList.remove('hidden');
+    document.getElementById('cap-modal').classList.remove('hidden');
+  };
+
+  window.cerrarModalNuevoCapitulo = function() {
+    document.getElementById('cap-modal-overlay').classList.add('hidden');
+    document.getElementById('cap-modal').classList.add('hidden');
+  };
+
+  window.guardarNuevoCapitulo = async function() {
+    const pId = document.getElementById('vp-proyecto-select').value;
+    const num = document.getElementById('new-cap-num').value;
+    if(!pId || !num) return;
+    
+    const fd = new FormData();
+    fd.append('proyecto_id', pId);
+    fd.append('numero', num);
+    fd.append('csrf_token', window.csrfToken);
+    
+    try {
+      const r = await fetch('api.php?action=crearCapitulo', { method: 'POST', body: fd });
+      const res = await r.json();
+      if(res.exito) {
+        cerrarModalNuevoCapitulo();
+        cargarVistaCapitulos();
+      } else {
+        alert(res.mensaje || 'Error al crear.');
+      }
+    } catch(e) {
+      console.error(e);
     }
   };
 

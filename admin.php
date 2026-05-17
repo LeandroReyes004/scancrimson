@@ -43,6 +43,7 @@
       <button class="htab" id="htab-historial" onclick="switchTab('historial')">≡ Historial</button>
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <button class="htab" id="htab-usuarios" onclick="switchTab('usuarios')">👤 Usuarios</button>
+      <button class="htab" id="htab-staff" onclick="switchTab('staff')">⚔ Staff Discord</button>
       <?php endif; ?>
       <a class="htab" href="subir.php">↑ Subir</a>
     </nav>
@@ -192,6 +193,20 @@
         </div>
       </div>
     </div>
+
+    <!-- ══ TAB: STAFF DISCORD ══ -->
+    <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+    <div id="tab-staff" class="tab-content">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Bot Discord</p>
+          <h1 class="page-title">Staff <span>Discord</span></h1>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cargarStaff()">↺ Refrescar</button>
+      </div>
+      <iframe src="staff.php" id="staff-iframe" style="width:100%;border:none;min-height:700px;border-radius:12px;"></iframe>
+    </div>
+    <?php endif; ?>
 
     <!-- ══ TAB: USUARIOS ══ -->
     <?php if ($_SESSION['user']['rol'] === 'admin'): ?>

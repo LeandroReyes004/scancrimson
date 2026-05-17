@@ -5,7 +5,10 @@ function getDB(): PDO {
     static $pdo = null;
     if ($pdo !== null) return $pdo;
 
-    $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+    $port = defined('DB_PORT') ? DB_PORT : '3306';
+    $dsn  = 'mysql:host=' . DB_HOST . ';port=' . $port
+          . ';dbname=' . DB_NAME . ';charset=utf8mb4';
+
     $pdo = new PDO($dsn, DB_USER, DB_PASS, [
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
@@ -26,7 +29,7 @@ function getDB(): PDO {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
     ");
 
-    // Asegurar que las columnas para bloqueo de fuerza bruta existan (en caso de que la tabla ya existiera antes)
+    // Asegurar que las columnas para bloqueo de fuerza bruta existan
     try {
         $pdo->exec("ALTER TABLE usuarios ADD COLUMN intentos INT DEFAULT 0, ADD COLUMN bloqueado_hasta DATETIME NULL");
     } catch (PDOException $e) {

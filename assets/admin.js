@@ -1,6 +1,6 @@
 /* ─── CONFIG & STATE ─── */
 const PASS_KEY = 'cs_admin_auth';
-const TABS = ['dashboard', 'proyectos', 'nuevo', 'historial', 'usuarios'];
+const TABS = ['dashboard', 'proyectos', 'nuevo', 'historial', 'usuarios', 'staff'];
 const TAB_LABELS = { 
     dashboard: 'Dashboard', 
     proyectos: 'Proyectos', 
@@ -42,6 +42,7 @@ function switchTab(id) {
     if (id === 'proyectos') cargarProyectos();
     else if (id === 'historial') cargarHistorialFull();
     else if (id === 'usuarios') cargarUsuarios();
+    else if (id === 'staff') cargarStaff();
     // 'dashboard' y 'nuevo' no necesitan carga adicional
 }
 
@@ -557,7 +558,28 @@ function toggleSidebar() {
     document.querySelector('.sidebar').classList.toggle('open');
 }
 
+/* ─── STAFF DISCORD ─── */
+function cargarStaff() {
+    const iframe = document.getElementById('staff-iframe');
+    if (iframe) iframe.src = iframe.src; // Recargar iframe
+}
+
+/* ─── ESTADÍSTICAS GLOBALES DESDE MYSQL ─── */
+async function cargarResumenProyectos() {
+    const res = await apiFetch('estadisticasGlobales');
+    if (!res || !res.exito) return;
+
+    const s = res.data;
+    const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+    set('stat-proyectos',  s.total_proyectos);
+    set('stat-staff',      s.total_staff);
+    set('stat-capitulos',  s.total_capitulos);
+    set('stat-terminados', s.terminados);
+    set('stat-tasa',       s.tasa_entrega + '%');
+}
+
 /* ─── INIT ─── */
 document.addEventListener('DOMContentLoaded', () => {
     mostrarPanel();
+    cargarResumenProyectos();
 });

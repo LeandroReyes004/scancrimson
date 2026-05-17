@@ -330,7 +330,7 @@ function toast(msg, type = 'ok') {
 }
 
 async function api(action, params = {}) {
-  const url = '../api.php?action=' + action + (params.qs ? '&' + params.qs : '');
+  const url = 'api.php?action=' + action + (params.qs ? '&' + params.qs : '');
   const opts = { credentials: 'same-origin' };
   if (params.post) {
     const fd = new FormData();

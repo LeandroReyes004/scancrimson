@@ -62,6 +62,31 @@ function getDB(): PDO {
                 UNIQUE KEY proj_cap (proyecto_id, numero)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS staff_discord (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                discord_id VARCHAR(50) NOT NULL UNIQUE,
+                usuario_form VARCHAR(100) NULL,
+                nombre_display VARCHAR(100) NULL,
+                activo TINYINT(1) DEFAULT 1,
+                puntos_mes INT DEFAULT 0,
+                creado DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS tareas (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                discord_id VARCHAR(50) NOT NULL,
+                obra VARCHAR(100) NOT NULL,
+                cap VARCHAR(50) NOT NULL,
+                rol VARCHAR(50) NOT NULL,
+                estado VARCHAR(50) DEFAULT 'activa',
+                limite DATETIME NULL,
+                creado DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
     } catch (PDOException $e) {
         // Log error silently if user lacks privileges
     }

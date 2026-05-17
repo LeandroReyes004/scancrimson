@@ -17,6 +17,7 @@ if (empty($_SESSION['csrf_token'])) {
 
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database/db.php';
+require_once __DIR__ . '/bridge_client.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -341,128 +342,45 @@ switch ($action) {
         echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada.']);
         break;
 
-    // ── LISTAR STAFF DISCORD ──────────────────────────────────────────────
+    // ── LISTAR STAFF DISCORD (vía bridge) ────────────────────────────────
     case 'listarStaff':
         requireAdmin();
-        $db   = getDB();
-        $rows = $db->query("
-            SELECT
-                sd.discord_id,
-                sd.usuario_form,
-                sd.nombre_display,
-                sd.activo,
-                sd.creado,
-                COALESCE(e.puntos, 0) AS puntos_mes
-            FROM staff_discord sd
-            LEFT JOIN expedientes e
-                ON e.discord_id = sd.discord_id
-                AND e.mes  = MONTH(NOW())
-                AND e.anio = YEAR(NOW())
-            ORDER BY sd.nombre_display ASC
-        ")->fetchAll();
-        echo json_encode(['exito' => true, 'data' => $rows]);
+        echo json_encode(bridge_call('listarStaff'));
         break;
 
-    // ── TOGGLE ACTIVO STAFF DISCORD ───────────────────────────────────────
+    // ── TOGGLE ACTIVO STAFF DISCORD (vía bridge) ──────────────────────────
     case 'toggleStaff':
         requireAdmin();
-        $db     = getDB();
         $id     = $_POST['discord_id'] ?? '';
         $activo = intval($_POST['activo'] ?? 1);
         if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID requerido']); break; }
-        $db->prepare("UPDATE staff_discord SET activo=? WHERE discord_id=?")
-           ->execute([$activo, $id]);
-        echo json_encode(['exito' => true]);
+        echo json_encode(bridge_call('toggleStaff', ['discord_id' => $id, 'activo' => $activo], 'POST'));
         break;
 
-    // ── RANKING DEL MES ───────────────────────────────────────────────────
+    // ── RANKING DEL MES (vía bridge) ──────────────────────────────────────
     case 'rankingMes':
-        $db   = getDB();
         $mes  = intval($_GET['mes']  ?? date('n'));
         $anio = intval($_GET['anio'] ?? date('Y'));
-        $stmt = $db->prepare("
-            SELECT
-                sd.discord_id,
-                sd.nombre_display,
-                sd.usuario_form,
-                COALESCE(e.puntos, 0) AS puntos
-            FROM staff_discord sd
-            LEFT JOIN expedientes e
-                ON e.discord_id = sd.discord_id
-                AND e.mes = ? AND e.anio = ?
-            WHERE sd.activo = 1
-            ORDER BY puntos DESC
-            LIMIT 20
-        ");
-        $stmt->execute([$mes, $anio]);
-        echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
+        echo json_encode(bridge_call('rankingMes', ['mes' => $mes, 'anio' => $anio]));
         break;
 
-    // ── TAREAS ACTIVAS ────────────────────────────────────────────────────
+    // ── TAREAS ACTIVAS (vía bridge) ───────────────────────────────────────
     case 'tareasActivas':
         requireAdmin();
-        $db   = getDB();
-        $rows = $db->query("
-            SELECT
-                t.id,
-                t.obra,
-                t.cap,
-                t.rol,
-                t.limite,
-                t.estado,
-                sd.nombre_display,
-                sd.discord_id,
-                TIMESTAMPDIFF(HOUR, NOW(), t.limite) AS horas_restantes
-            FROM tareas t
-            JOIN staff_discord sd ON sd.discord_id = t.discord_id
-            WHERE t.estado = 'activa'
-            ORDER BY t.limite ASC
-        ")->fetchAll();
-        echo json_encode(['exito' => true, 'data' => $rows]);
+        echo json_encode(bridge_call('tareasActivas'));
         break;
 
-    // ── HISTORIAL ERRORES STAFF ───────────────────────────────────────────
+    // ── HISTORIAL ERRORES STAFF (vía bridge) ──────────────────────────────
     case 'erroresStaff':
         requireAdmin();
-        $db  = getDB();
-        $did = $_GET['discord_id'] ?? null;
-        if ($did) {
-            $stmt = $db->prepare("
-                SELECT e.*, sd.nombre_display
-                FROM errores_hist e
-                JOIN staff_discord sd ON sd.discord_id = e.discord_id
-                WHERE e.discord_id = ?
-                ORDER BY e.fecha DESC LIMIT 30
-            ");
-            $stmt->execute([$did]);
-        } else {
-            $stmt = $db->query("
-                SELECT e.*, sd.nombre_display
-                FROM errores_hist e
-                JOIN staff_discord sd ON sd.discord_id = e.discord_id
-                ORDER BY e.fecha DESC LIMIT 50
-            ");
-        }
-        echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
+        $params = [];
+        if (!empty($_GET['discord_id'])) $params['discord_id'] = $_GET['discord_id'];
+        echo json_encode(bridge_call('erroresStaff', $params));
         break;
 
-    // ── ESTADÍSTICAS GLOBALES ─────────────────────────────────────────────
+    // ── ESTADÍSTICAS GLOBALES (vía bridge) ───────────────────────────────
     case 'estadisticasGlobales':
-        $db    = getDB();
-        $stats = [];
-        $stats['total_tareas']    = $db->query("SELECT COUNT(*) FROM tareas")->fetchColumn();
-        $stats['entregadas']      = $db->query("SELECT COUNT(*) FROM tareas WHERE estado='entregada'")->fetchColumn();
-        $stats['activas']         = $db->query("SELECT COUNT(*) FROM tareas WHERE estado='activa'")->fetchColumn();
-        $stats['retrasadas']      = $db->query("SELECT COUNT(*) FROM tareas WHERE estado='activa' AND limite < NOW()")->fetchColumn();
-        $stats['total_proyectos'] = $db->query("SELECT COUNT(*) FROM proyectos WHERE estado='activo'")->fetchColumn();
-        $stats['total_staff']     = $db->query("SELECT COUNT(*) FROM staff_discord WHERE activo=1")->fetchColumn();
-        $stats['total_capitulos'] = $db->query("SELECT COUNT(*) FROM capitulos")->fetchColumn();
-        $stats['terminados']      = $db->query("SELECT COUNT(*) FROM capitulos WHERE estado='Terminado'")->fetchColumn();
-        $tasa = $stats['total_tareas'] > 0
-            ? round($stats['entregadas'] / $stats['total_tareas'] * 100, 1)
-            : 0;
-        $stats['tasa_entrega'] = $tasa;
-        echo json_encode(['exito' => true, 'data' => $stats]);
+        echo json_encode(bridge_call('estadisticas'));
         break;
 
     default:

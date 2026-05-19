@@ -69,11 +69,16 @@ function getDB(): PDO {
                 discord_id VARCHAR(50) NOT NULL UNIQUE,
                 usuario_form VARCHAR(100) NULL,
                 nombre_display VARCHAR(100) NULL,
+                rol VARCHAR(50) DEFAULT 'Staff',
                 activo TINYINT(1) DEFAULT 1,
                 puntos_mes INT DEFAULT 0,
                 creado DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+
+        try {
+            $pdo->exec("ALTER TABLE staff_discord ADD COLUMN rol VARCHAR(50) DEFAULT 'Staff'");
+        } catch (PDOException $e) { /* columna ya existe */ }
 
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS tareas (

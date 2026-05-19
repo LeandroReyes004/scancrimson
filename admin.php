@@ -147,18 +147,14 @@
           <table class="data-table">
             <thead>
               <tr>
-                <th style="width: 80px; text-align: center;">Cap.</th>
-                <th style="text-align: center;">RAW</th>
-                <th style="text-align: center;">Trad</th>
-                <th style="text-align: center;">Clean</th>
-                <th style="text-align: center;">Type</th>
-                <th style="text-align: center;">Proof</th>
-                <th style="text-align: center;">Estado</th>
-                <th style="text-align: center;">Acción</th>
+                <th style="width:70px;text-align:center;">Cap.</th>
+                <th>Progreso</th>
+                <th style="width:130px;text-align:center;">Estado</th>
+                <th style="width:160px;text-align:center;">Acciones</th>
               </tr>
             </thead>
             <tbody id="vp-capitulos-body">
-              <tr><td colspan="8" class="empty-msg">Selecciona un proyecto para ver sus capítulos.</td></tr>
+              <tr><td colspan="4" class="empty-msg">Selecciona un proyecto para ver sus capítulos.</td></tr>
             </tbody>
           </table>
         </div>
@@ -488,53 +484,136 @@
     }
   };
 
+  // ─── Vista de capítulos con barra de progreso ────────────────────────────
+  const ETAPAS_LABEL = { estado_raw:'RAW', estado_trad:'Trad', estado_clean:'Clean', estado_type:'Type', estado_proof:'Proof' };
+  const ETAPAS_KEYS  = Object.keys(ETAPAS_LABEL);
+
+  function calcProgreso(c) {
+    return ETAPAS_KEYS.reduce((s, k) => s + (parseInt(c[k]) ? 1 : 0), 0);
+  }
+
+  function renderBarra(hecho, total) {
+    const pct = Math.round((hecho / total) * 100);
+    let color;
+    if (pct === 100)      color = '#10b981';
+    else if (pct >= 60)   color = '#f59e0b';
+    else if (pct >= 20)   color = '#dc2020';
+    else                  color = '#6e6e82';
+    return `
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="flex:1;background:rgba(255,255,255,.08);border-radius:4px;height:8px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s"></div>
+        </div>
+        <span style="font-size:.78rem;font-weight:700;color:${color};min-width:38px">${hecho}/${total}</span>
+        <span style="font-size:.72rem;color:${pct===100?'#10b981':'var(--muted)'};min-width:36px">${pct}%</span>
+      </div>`;
+  }
+
+  function renderEtapasDetalle(c) {
+    return ETAPAS_KEYS.map(k => {
+      const ok  = parseInt(c[k]);
+      const lbl = ETAPAS_LABEL[k];
+      return `<span onclick="toggleEstadoCap(${c.id},'${k}',${c[k]})"
+        title="Click para cambiar"
+        style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
+               border-radius:6px;font-size:.78rem;font-weight:600;
+               background:${ok?'rgba(16,185,129,.15)':'rgba(255,255,255,.05)'};
+               border:1px solid ${ok?'#10b981':'rgba(255,255,255,.1)'};
+               color:${ok?'#10b981':'#6e6e82'}">
+        ${ok?'✓':'✗'} ${lbl}
+      </span>`;
+    }).join('');
+  }
+
   window.cargarVistaCapitulos = async function() {
-    const pId = document.getElementById('vp-proyecto-select').value;
+    const pId  = document.getElementById('vp-proyecto-select').value;
     const tbody = document.getElementById('vp-capitulos-body');
     const titulo = document.getElementById('vp-proyecto-titulo');
     if(!pId) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Selecciona un proyecto.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Selecciona un proyecto.</td></tr>';
       titulo.textContent = '◎ Selecciona un proyecto';
       return;
     }
     titulo.textContent = '◎ Capítulos de ' + vpProyectosMap[pId];
-    tbody.innerHTML = '<tr><td colspan="8" class="loading-cell"><span class="spinner"></span></td></tr>';
-    
+    tbody.innerHTML = '<tr><td colspan="4" class="loading-cell"><span class="spinner"></span></td></tr>';
     try {
       const req = await fetch('api.php?action=listarCapitulos&proyecto_id=' + pId);
       const res = await req.json();
-      if(res && res.exito) {
-        if(res.datos.length === 0) {
-          tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">No hay capítulos registrados para este proyecto.</td></tr>';
-          return;
-        }
-        tbody.innerHTML = res.datos.map(c => {
-          const checkIcon = val => parseInt(val) === 1 ? '✅' : '⬜';
-          const badgeClass = c.estado_general === 'Publicado' ? 'success' : (c.estado_general === 'Retrasado' ? 'danger' : 'warning');
-          const isAllReady = parseInt(c.estado_raw) && parseInt(c.estado_trad) && parseInt(c.estado_clean) && parseInt(c.estado_type) && parseInt(c.estado_proof);
-          let btnHtml = '—';
-          if(c.estado_general !== 'Publicado' && isAllReady) {
-             btnHtml = `<button class="btn btn-primary btn-sm" onclick="publicarCapitulo(${c.id})">Publicar</button>`;
-          }
-          
-          return `
-            <tr>
-              <td style="font-weight: bold; text-align: center; font-size: 1.1rem">${c.numero}</td>
-              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_raw', ${c.estado_raw})">${checkIcon(c.estado_raw)}</td>
-              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_trad', ${c.estado_trad})">${checkIcon(c.estado_trad)}</td>
-              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_clean', ${c.estado_clean})">${checkIcon(c.estado_clean)}</td>
-              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_type', ${c.estado_type})">${checkIcon(c.estado_type)}</td>
-              <td style="text-align: center; cursor: pointer" onclick="toggleEstadoCap(${c.id}, 'estado_proof', ${c.estado_proof})">${checkIcon(c.estado_proof)}</td>
-              <td style="text-align: center"><span class="badge ${badgeClass}">${c.estado_general}</span></td>
-              <td style="text-align: center">${btnHtml}</td>
-            </tr>
-          `;
-        }).join('');
-      } else {
-        tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Error cargando capítulos.</td></tr>';
+      if(!res || !res.exito) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Error cargando capítulos.</td></tr>';
+        return;
+      }
+      if(!res.datos.length) {
+        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">No hay capítulos registrados.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = res.datos.map(c => {
+        const hecho = calcProgreso(c);
+        const total = ETAPAS_KEYS.length;
+        const pct   = Math.round((hecho / total) * 100);
+        const badgeClass = c.estado_general === 'Publicado' ? 'success' : (c.estado_general === 'Retrasado' ? 'danger' : 'warning');
+        const isReady  = hecho === total && c.estado_general !== 'Publicado';
+        return `
+          <tr id="cap-row-${c.id}">
+            <td style="font-weight:bold;text-align:center;font-size:1.05rem">${c.numero}</td>
+            <td>${renderBarra(hecho, total)}</td>
+            <td style="text-align:center"><span class="badge ${badgeClass}">${c.estado_general}</span></td>
+            <td style="text-align:center;display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap">
+              <button class="btn btn-ghost btn-sm" onclick="toggleDetalle(${c.id}, ${pId}, ${c.numero})">◎ Detalle</button>
+              ${isReady ? `<button class="btn btn-primary btn-sm" onclick="publicarCapitulo(${c.id})">Publicar</button>` : ''}
+            </td>
+          </tr>
+          <tr id="cap-det-${c.id}" style="display:none">
+            <td colspan="4" style="padding:.75rem 1.25rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)">
+              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
+                ${renderEtapasDetalle(c)}
+                <button class="btn btn-ghost btn-sm" onclick="verificarDrive(${c.id},${pId},${c.numero})" id="btn-drive-${c.id}"
+                  style="margin-left:auto">🔍 Verificar Drive</button>
+              </div>
+              <div id="drive-result-${c.id}" style="margin-top:.6rem;font-size:.8rem"></div>
+            </td>
+          </tr>`;
+      }).join('');
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Error: ' + e.message + '</td></tr>';
+    }
+  };
+
+  window.toggleDetalle = function(id, pId, num) {
+    const det = document.getElementById('cap-det-' + id);
+    det.style.display = det.style.display === 'none' ? '' : 'none';
+  };
+
+  window.verificarDrive = async function(capId, proyId, capNum) {
+    const btn = document.getElementById('btn-drive-' + capId);
+    const res_div = document.getElementById('drive-result-' + capId);
+    btn.disabled = true;
+    btn.textContent = '🔍 Verificando…';
+    res_div.innerHTML = '<span style="color:var(--muted)">Consultando Drive…</span>';
+    try {
+      const req = await fetch(`api.php?action=verificarDriveCapitulo&proyecto_id=${proyId}&capitulo_num=${capNum}`);
+      const res = await req.json();
+      if(!res.exito) { res_div.innerHTML = `<span style="color:#dc2020">${res.mensaje}</span>`; }
+      else {
+        const etapasNombre = { raw:'RAW', trad:'Traducción', clean:'Limpieza', type:'Typos', proof:'QC' };
+        res_div.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
+          Object.entries(res.etapas).map(([k, v]) => {
+            const ok = v.encontrado;
+            const archivos = (v.archivos||[]).map(a=>a.name).join(', ');
+            return `<span title="${archivos||'Sin archivos'}"
+              style="padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:600;
+                     background:${ok?'rgba(16,185,129,.15)':'rgba(220,32,32,.12)'};
+                     border:1px solid ${ok?'#10b981':'#dc2020'};
+                     color:${ok?'#10b981':'#f87171'}">
+              ${ok?'✓':'✗'} ${etapasNombre[k]}
+            </span>`;
+          }).join('') + '</div>';
       }
     } catch(e) {
-      tbody.innerHTML = '<tr><td colspan="8" class="empty-msg">Error: ' + e.message + '</td></tr>';
+      res_div.innerHTML = `<span style="color:#dc2020">Error: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🔍 Verificar Drive';
     }
   };
 

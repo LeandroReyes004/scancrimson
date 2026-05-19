@@ -211,6 +211,7 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['rol'] !== 'admin') {
           <tr>
             <th>Nombre Discord</th>
             <th>Usuario Form</th>
+            <th>Rol</th>
             <th>Puntos (mes)</th>
             <th>Estado</th>
             <th>Registro</th>
@@ -218,7 +219,7 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['rol'] !== 'admin') {
           </tr>
         </thead>
         <tbody id="staff-body">
-          <tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>
+          <tr><td colspan="7" class="empty"><span class="spinner"></span></td></tr>
         </tbody>
       </table>
     </div>
@@ -349,20 +350,34 @@ async function cargarStats() {
   document.getElementById('gs-tasa').textContent      = s.tasa_entrega + '%';
 }
 
+const ROLES_STAFF = ['Staff', 'Traductor', 'Limpiador', 'Typesetter', 'QC', 'Admin'];
+const ROLES_COLOR = { Traductor:'#3b82f6', Limpiador:'#8b5cf6', Typesetter:'#f59e0b', QC:'#10b981', Admin:'#dc2020', Staff:'#6e6e82' };
+
 async function cargarStaff() {
   const tbody = document.getElementById('staff-body');
-  tbody.innerHTML = '<tr><td colspan="6" class="empty"><span class="spinner"></span></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="7" class="empty"><span class="spinner"></span></td></tr>';
   const res = await api('listarStaff');
   if (!res.exito || !res.data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">Sin miembros registrados.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin miembros registrados.</td></tr>';
     return;
   }
   tbody.innerHTML = res.data.map(m => {
-    const activo = parseInt(m.activo);
-    const fecha  = (m.creado || '').substring(0, 10);
+    const activo  = parseInt(m.activo);
+    const fecha   = (m.creado || '').substring(0, 10);
+    const rolActual = m.rol || 'Staff';
+    const rolColor  = ROLES_COLOR[rolActual] || '#6e6e82';
+    const optsRol   = ROLES_STAFF.map(r =>
+      `<option value="${r}" ${r === rolActual ? 'selected' : ''}>${r}</option>`
+    ).join('');
     return `<tr>
-      <td style="font-weight:600">${esc(m.nombre_display)}</td>
-      <td style="color:var(--muted2)">${esc(m.usuario_form)}</td>
+      <td style="font-weight:600">${esc(m.nombre_display) || '<span style="color:var(--muted);font-style:italic">sin registro</span>'}</td>
+      <td style="color:var(--muted2)">${esc(m.usuario_form) || '—'}</td>
+      <td>
+        <select class="rol-sel" data-id="${esc(m.discord_id)}" onchange="cambiarRol(this)"
+          style="background:rgba(255,255,255,.06);border:1px solid ${rolColor}44;border-radius:6px;color:${rolColor};padding:3px 8px;font-size:.78rem;cursor:pointer">
+          ${optsRol}
+        </select>
+      </td>
       <td style="color:var(--red-bright);font-weight:700">${m.puntos_mes}</td>
       <td><span class="badge ${activo ? 'badge-active' : 'badge-inactive'}">${activo ? 'Activo' : 'Inactivo'}</span></td>
       <td style="color:var(--muted);font-size:.8rem">${fecha}</td>
@@ -373,6 +388,22 @@ async function cargarStaff() {
       </td>
     </tr>`;
   }).join('');
+}
+
+async function cambiarRol(sel) {
+  const discordId = sel.dataset.id;
+  const nuevoRol  = sel.value;
+  sel.disabled = true;
+  const res = await api('actualizarRolStaff', { post: { discord_id: discordId, rol: nuevoRol } });
+  sel.disabled = false;
+  if (res.exito) {
+    const color = ROLES_COLOR[nuevoRol] || '#6e6e82';
+    sel.style.borderColor = color + '44';
+    sel.style.color = color;
+    toast('Rol actualizado');
+  } else {
+    toast(res.mensaje || 'Error al actualizar rol', 'err');
+  }
 }
 
 async function toggleStaff(discordId, nuevoActivo, btn) {

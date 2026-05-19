@@ -453,13 +453,73 @@ switch ($action) {
         $db  = getDB();
         $hoy = date('Y-m-d');
         $s   = [];
-        $s['total_proyectos'] = $db->query("SELECT COUNT(*) FROM proyectos WHERE estado='activo'")->fetchColumn();
-        $s['total_tareas']    = $db->query("SELECT COUNT(*) FROM tareas")->fetchColumn();
-        $s['entregadas']      = $db->query("SELECT COUNT(*) FROM tareas WHERE estado='entregada'")->fetchColumn();
-        $s['activas']         = $db->query("SELECT COUNT(*) FROM tareas WHERE estado='activa'")->fetchColumn();
-        $s['total_staff']     = $db->query("SELECT COUNT(*) FROM staff_discord WHERE activo=1")->fetchColumn();
-        $s['subidas_hoy']     = $db->query("SELECT COUNT(*) FROM tareas WHERE DATE(creado)='$hoy'")->fetchColumn();
+        $s['total_proyectos']  = (int)$db->query("SELECT COUNT(*) FROM proyectos WHERE estado='activo'")->fetchColumn();
+        $s['total_tareas']     = (int)$db->query("SELECT COUNT(*) FROM tareas")->fetchColumn();
+        $s['entregadas']       = (int)$db->query("SELECT COUNT(*) FROM tareas WHERE estado='entregada'")->fetchColumn();
+        $s['activas']          = (int)$db->query("SELECT COUNT(*) FROM tareas WHERE estado='activa'")->fetchColumn();
+        $s['total_staff']      = (int)$db->query("SELECT COUNT(*) FROM staff_discord WHERE activo=1")->fetchColumn();
+        $s['total_capitulos']  = (int)$db->query("SELECT COUNT(*) FROM capitulos")->fetchColumn();
+        $s['terminados']       = (int)$db->query("SELECT COUNT(*) FROM capitulos WHERE estado_general='Publicado'")->fetchColumn();
+        $s['tasa_entrega']     = $s['total_capitulos'] > 0
+            ? round(($s['terminados'] / $s['total_capitulos']) * 100)
+            : 0;
         echo json_encode(['exito' => true, 'data' => $s]);
+        break;
+
+    // ── ACTUALIZAR ROL STAFF DISCORD ─────────────────────────────────────
+    case 'actualizarRolStaff':
+        requireAdmin();
+        $discord_id = trim($_POST['discord_id'] ?? '');
+        $rol        = trim($_POST['rol']        ?? '');
+        $rolesValidos = ['Traductor', 'Limpiador', 'Typesetter', 'QC', 'Staff', 'Admin'];
+        if (!$discord_id || !in_array($rol, $rolesValidos, true)) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos']);
+            break;
+        }
+        $db = getDB();
+        $db->prepare("UPDATE staff_discord SET rol = ? WHERE discord_id = ?")->execute([$rol, $discord_id]);
+        echo json_encode(['exito' => true]);
+        break;
+
+    // ── VERIFICAR ARCHIVOS EN DRIVE POR CAPÍTULO ─────────────────────────
+    case 'verificarDriveCapitulo':
+        requireLogin();
+        $proyecto_id  = intval($_GET['proyecto_id']  ?? 0);
+        $capitulo_num = floatval($_GET['capitulo_num'] ?? 0);
+        if (!$proyecto_id || !$capitulo_num) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Faltan parámetros']);
+            break;
+        }
+        $db      = getDB();
+        $proyecto = $db->prepare("SELECT nombre, carpeta_drive_id FROM proyectos WHERE id = ?");
+        $proyecto->execute([$proyecto_id]);
+        $proy = $proyecto->fetch();
+        if (!$proy) { echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado']); break; }
+
+        $folderId = $proy['carpeta_drive_id'] ?: folderIdByName(CARPETA_RAIZ_ID, $proy['nombre']);
+        if (!$folderId) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta del proyecto no encontrada en Drive']); break; }
+
+        $etapas = [
+            'raw'   => '01. RAWs',
+            'trad'  => '02. Traducción',
+            'clean' => '03. Limpieza y Redibujo',
+            'type'  => '04. Typos',
+            'proof' => '05. Control de Calidad',
+        ];
+        $capStr = (floor($capitulo_num) == $capitulo_num)
+            ? (string)(int)$capitulo_num
+            : (string)$capitulo_num;
+        $resultado = [];
+        foreach ($etapas as $clave => $nombreEtapa) {
+            $etapaId = folderIdByName($folderId, $nombreEtapa);
+            if (!$etapaId) { $resultado[$clave] = ['encontrado' => false, 'archivos' => []]; continue; }
+            $q = "'{$etapaId}' in parents and trashed=false";
+            $archivos = driveQ($q, 'files(id,name)', 50);
+            $pattern  = '/cap[._\-\s]?0*' . preg_quote($capStr, '/') . '(\b|[^0-9])/i';
+            $match    = array_filter($archivos, fn($f) => preg_match($pattern, $f['name']));
+            $resultado[$clave] = ['encontrado' => !empty($match), 'archivos' => array_values($match)];
+        }
+        echo json_encode(['exito' => true, 'etapas' => $resultado]);
         break;
 
     // ── ENDPOINTS BOT DISCORD ────────────────────────────────────────────────

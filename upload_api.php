@@ -45,18 +45,18 @@ if ($action === 'initUpload') {
     // Redirigir la petición de inicialización al Apps Script (con SSL habilitado)
     $ch = curl_init(APPS_SCRIPT_URL);
     curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $payloadClean,
+        CURLOPT_POST           => true,
+        CURLOPT_POSTFIELDS     => $payloadClean,
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => true, // Activar verificación de certificado
+        CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_SSL_VERIFYHOST => 2,
         CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_POSTREDIR => 3,
-        CURLOPT_USERAGENT => 'CrimsonScan/2.0',
-        CURLOPT_HTTPHEADER => [
+        // Sin CURLOPT_POSTREDIR: el redirect de Apps Script echo se sigue como GET (correcto)
+        CURLOPT_USERAGENT      => 'CrimsonScan/2.0',
+        CURLOPT_HTTPHEADER     => [
             'Content-Type: application/json',
-            'Content-Length: ' . strlen($payloadClean)
-        ]
+            'Content-Length: ' . strlen($payloadClean),
+        ],
     ]);
     
     $curlErr     = curl_error($ch);

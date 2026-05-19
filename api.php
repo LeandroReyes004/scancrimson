@@ -186,19 +186,15 @@ switch ($action) {
 
     // ── PROTEGIDAS (requieren sesión) ────────────────────────────────────────
 
+    // ── HISTORIAL DE SUBIDAS (BD MySQL, ya no Google Sheets) ─────────────
     case 'historial':
         requireLogin();
         $db   = getDB();
-        $rows = $db->query("
-            SELECT t.id, t.obra, t.cap, t.rol, t.estado, t.limite, t.creado,
-                   sd.nombre_display
-            FROM tareas t
-            LEFT JOIN staff_discord sd ON sd.discord_id = t.discord_id
-            ORDER BY t.creado DESC LIMIT 200
-        ")->fetchAll();
+        $rows = $db->query("SELECT * FROM subidas ORDER BY creado DESC LIMIT 500")->fetchAll();
+        // Formato que espera el frontend: [fecha, usuario, proyecto, etapa, capitulo, archivo]
         $datos = array_map(fn($r) => [
-            $r['creado'], $r['obra'], $r['cap'], $r['rol'],
-            $r['nombre_display'] ?? 'Desconocido', $r['estado'], $r['limite']
+            $r['creado'], $r['usuario'], $r['proyecto'],
+            $r['etapa'],  $r['capitulo'], $r['archivo'],
         ], $rows);
         echo json_encode(['exito' => true, 'datos' => $datos]);
         break;
@@ -223,34 +219,37 @@ switch ($action) {
         echo json_encode(['exito' => true]);
         break;
 
+    // ── EDITAR / CAMBIAR ESTADO / ELIMINAR SUBIDA (BD MySQL) ─────────────
     case 'editarRegistro':
         requireAdmin();
-        $fila  = $_POST['fila']  ?? '';
-        $manga = $_POST['manga'] ?? '';
-        $cap   = $_POST['cap']   ?? '';
-        $etapa = $_POST['etapa'] ?? '';
-        if (!$fila || !$manga) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
-        if (!APPS_SCRIPT_URL)  { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
-        $url = APPS_SCRIPT_URL . '?action=editarRegistro&fila=' . urlencode($fila) . '&manga=' . urlencode($manga) . '&cap=' . urlencode($cap) . '&etapa=' . urlencode($etapa);
-        echo json_encode(httpGet($url) ?? ['exito' => false, 'mensaje' => 'Error.']);
+        $id    = intval($_POST['fila']  ?? 0); // 'fila' ahora es el ID de la tabla subidas
+        $manga = trim($_POST['manga'] ?? '');
+        $cap   = trim($_POST['cap']   ?? '');
+        $etapa = trim($_POST['etapa'] ?? '');
+        if (!$id || !$manga) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
+        $db = getDB();
+        $db->prepare("UPDATE subidas SET proyecto=?, capitulo=?, etapa=? WHERE id=?")
+           ->execute([$manga, $cap, $etapa, $id]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Registro actualizado.']);
         break;
 
     case 'cambiarEstado':
         requireAdmin();
-        $fila   = $_POST['fila']   ?? '';
-        $estado = $_POST['estado'] ?? '';
-        if (!$fila || !$estado) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
-        if (!APPS_SCRIPT_URL)   { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
-        $url = APPS_SCRIPT_URL . '?action=cambiarEstado&fila=' . urlencode($fila) . '&estado=' . urlencode($estado);
-        echo json_encode(httpGet($url) ?? ['exito' => false, 'mensaje' => 'Error.']);
+        $id     = intval($_POST['fila']   ?? 0);
+        $estado = trim($_POST['estado'] ?? '');
+        if (!$id || !$estado) { echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos.']); break; }
+        $db = getDB();
+        $db->prepare("UPDATE subidas SET estado=? WHERE id=?")->execute([$estado, $id]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Estado actualizado.']);
         break;
 
     case 'eliminarRegistro':
         requireAdmin();
-        $fila = $_POST['fila'] ?? '';
-        if (!APPS_SCRIPT_URL) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no configurado.']); break; }
-        $url = APPS_SCRIPT_URL . '?action=eliminarRegistro&fila=' . urlencode($fila);
-        echo json_encode(httpGet($url) ?? ['exito' => false, 'mensaje' => 'Error.']);
+        $id = intval($_POST['fila'] ?? 0);
+        if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID requerido.']); break; }
+        $db = getDB();
+        $db->prepare("DELETE FROM subidas WHERE id=?")->execute([$id]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Registro eliminado.']);
         break;
 
     // ── GESTIÓN DE PROYECTOS Y CAPÍTULOS (admin / staff) ───────────────────

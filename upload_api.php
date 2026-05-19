@@ -95,43 +95,68 @@ if ($action === 'initUpload') {
         exit;
     }
 
-    // 2. Inyectar de forma segura el usuario autenticado desde el JWT para auditoría
-    $data['action'] = 'registrarSubida';
-    $data['usuario'] = $_SESSION['user']['usuario'];
-    unset($data['csrf_token']);
-    
-    $payloadClean = json_encode($data);
-    
-    // Redirigir la petición de registro a Google Sheets / Discord (con SSL habilitado)
-    $ch = curl_init(APPS_SCRIPT_URL);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $payloadClean,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => true, // Activar verificación de certificado
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_FOLLOWLOCATION => true,
-        CURLOPT_POSTREDIR => 3,
-        CURLOPT_USERAGENT => 'CrimsonScan/2.0',
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'Content-Length: ' . strlen($payloadClean)
-        ]
-    ]);
-    
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
-    
-    if ($httpCode >= 200 && $httpCode < 400) {
-        echo json_encode(['exito' => true, 'mensaje' => 'Registro completado correctamente.']);
-    } else {
-        error_log("Apps Script error registrarSubida — HTTP $httpCode: $response");
-        echo json_encode([
-            'exito' => false, 
-            'mensaje' => 'Error al registrar la subida en la hoja de cálculo.'
-        ]);
+    // 2. Obtener usuario autenticado desde JWT
+    $usuario = $_SESSION['user']['usuario'] ?? '';
+    $proyecto  = trim($data['proyecto']  ?? '');
+    $capitulo  = trim($data['capitulo']  ?? '');
+    $etapa     = trim($data['etapa']     ?? '');
+    $filename  = trim($data['filename']  ?? '');
+
+    if (!$proyecto || !$capitulo || !$etapa || !$filename) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Faltan campos requeridos.']);
+        exit;
     }
+
+    // 3. Guardar en MySQL (tabla subidas)
+    try {
+        require_once __DIR__ . '/database/db.php';
+        $db = getDB();
+        $db->prepare("INSERT INTO subidas (proyecto, capitulo, etapa, archivo, usuario) VALUES (?, ?, ?, ?, ?)")
+           ->execute([$proyecto, $capitulo, $etapa, $filename, $usuario]);
+    } catch (PDOException $e) {
+        error_log("MySQL registrarSubida error: " . $e->getMessage());
+        echo json_encode(['exito' => false, 'mensaje' => 'Error al guardar en base de datos.']);
+        exit;
+    }
+
+    // 4. Notificar Discord directamente desde PHP
+    $webhook = defined('DISCORD_WEBHOOK') ? DISCORD_WEBHOOK : '';
+    if ($webhook) {
+        try {
+            $payload = json_encode([
+                'embeds' => [[
+                    'title'       => '📤 Nueva Subida — Crimson Scan',
+                    'description' => 'Archivo procesado desde el Panel Web.',
+                    'color'       => 15158332,
+                    'fields'      => [
+                        ['name' => 'Proyecto',   'value' => $proyecto,  'inline' => true],
+                        ['name' => 'Capítulo',   'value' => $capitulo,  'inline' => true],
+                        ['name' => 'Etapa',      'value' => $etapa,     'inline' => true],
+                        ['name' => 'Archivo',    'value' => $filename,  'inline' => false],
+                        ['name' => 'Subido por', 'value' => $usuario ?: 'Desconocido', 'inline' => true],
+                    ],
+                    'footer'    => ['text' => 'Crimson Scan'],
+                    'timestamp' => date('c'),
+                ]]
+            ]);
+            $ch = curl_init($webhook);
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $payload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+                CURLOPT_TIMEOUT        => 5,
+            ]);
+            curl_exec($ch);
+            curl_close($ch);
+        } catch (Exception $e) {
+            error_log("Discord webhook error: " . $e->getMessage());
+        }
+    }
+
+    echo json_encode(['exito' => true, 'mensaje' => 'Registro completado correctamente.']);
 } else {
     echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);
 }

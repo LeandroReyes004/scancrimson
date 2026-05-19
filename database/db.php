@@ -80,6 +80,20 @@ function getDB(): PDO {
             $pdo->exec("ALTER TABLE staff_discord ADD COLUMN rol VARCHAR(50) DEFAULT 'Staff'");
         } catch (PDOException $e) { /* columna ya existe */ }
 
+        // Tabla de historial de subidas (reemplaza Google Sheets)
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS subidas (
+                id         INT AUTO_INCREMENT PRIMARY KEY,
+                proyecto   VARCHAR(100) NOT NULL,
+                capitulo   VARCHAR(20)  NOT NULL,
+                etapa      VARCHAR(60)  NOT NULL,
+                archivo    VARCHAR(255) NOT NULL,
+                usuario    VARCHAR(100) NOT NULL DEFAULT '',
+                estado     VARCHAR(20)  NOT NULL DEFAULT 'Activo',
+                creado     DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
         // Migraciones para columnas de capitulos que pueden faltar en instancias antiguas
         foreach ([
             "ALTER TABLE capitulos ADD COLUMN estado_raw   TINYINT(1) DEFAULT 0",

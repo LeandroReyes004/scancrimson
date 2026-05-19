@@ -129,28 +129,10 @@ function initUpload(data) {
 }
 
 /**
- * Registra la subida en Google Sheets y notifica Discord.
- * Columnas: Fecha | Proyecto | Capítulo | Etapa | Archivo | Estado | Usuario
+ * Notifica Discord al registrar una subida.
+ * El guardado en base de datos lo hace upload_api.php directamente.
  */
 function registrarSubida(data) {
-  try {
-    // BUG FIX: usar HOJA_REGISTROS, no getSheets()[0]
-    var hoja  = SpreadsheetApp.openById(HOJA_CALCULO_ID).getSheetByName(HOJA_REGISTROS)
-                || SpreadsheetApp.openById(HOJA_CALCULO_ID).getSheets()[0];
-    var fecha = Utilities.formatDate(new Date(), 'GMT-4', 'dd/MM/yyyy HH:mm');
-    hoja.appendRow([
-      fecha,
-      data.proyecto  || '',
-      data.capitulo  || '',
-      data.etapa     || '',
-      data.filename  || '',
-      'Activo',
-      data.usuario   || ''   // columna G — usuario del panel
-    ]);
-  } catch(e) {
-    console.error('Error Sheets: ' + e.toString());
-  }
-
   if (DISCORD_WEBHOOK) {
     try {
       var payload = {

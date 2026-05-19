@@ -15,9 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 if ($action === 'initUpload') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
-    
+
     // 1. Validar Token CSRF
-    if (!isset($data['csrf_token']) || $data['csrf_token'] !== $_SESSION['csrf_token']) {
+    if (!csrf_token_verify($data['csrf_token'] ?? '')) {
         echo json_encode(['exito' => false, 'mensaje' => 'Token CSRF inválido o ausente.']);
         exit;
     }
@@ -77,14 +77,14 @@ if ($action === 'initUpload') {
 } elseif ($action === 'registrarSubida') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
-    
+
     // 1. Validar Token CSRF
-    if (!isset($data['csrf_token']) || $data['csrf_token'] !== $_SESSION['csrf_token']) {
+    if (!csrf_token_verify($data['csrf_token'] ?? '')) {
         echo json_encode(['exito' => false, 'mensaje' => 'Token CSRF inválido o ausente.']);
         exit;
     }
-    
-    // 2. Inyectar de forma segura el usuario autenticado desde la sesión para auditoría
+
+    // 2. Inyectar de forma segura el usuario autenticado desde el JWT para auditoría
     $data['action'] = 'registrarSubida';
     $data['usuario'] = $_SESSION['user']['usuario'];
     unset($data['csrf_token']);

@@ -1,35 +1,23 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path'     => '/',
-        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
-        'httponly' => true,
-        'samesite' => 'Strict'
-    ]);
-    session_start();
-}
-
-// Inicializar el token CSRF para el inicio de sesión
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
+define('AUTH_NO_GUARD', 1);
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database/db.php';
 
-// Si ya tiene sesión, ir al panel
-if (isset($_SESSION['user'])) {
+// Si ya está autenticado, ir al panel
+if (auth_get_user()) {
     header('Location: admin.php');
     exit;
 }
+
+$csrf_token = csrf_token_generate();
 
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Validar Token CSRF
     $csrfToken = $_POST['csrf_token'] ?? '';
-    if (!$csrfToken || $csrfToken !== $_SESSION['csrf_token']) {
+    if (!csrf_token_verify($csrfToken)) {
         $error = 'Token de seguridad inválido. Por favor intenta de nuevo.';
     } else {
         $usuario  = trim($_POST['usuario']  ?? '');
@@ -70,13 +58,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         if ($authenticated) {
                             // Limpiar intentos fallidos
                             $db->prepare("UPDATE usuarios SET intentos = 0, bloqueado_hasta = NULL WHERE id = ?")->execute([$user['id']]);
-                            
-                            session_regenerate_id(true);
-                            $_SESSION['user'] = [
+
+                            auth_set_cookie([
                                 'id'      => $user['id'],
                                 'usuario' => $user['usuario'],
                                 'rol'     => $user['rol'],
-                            ];
+                            ]);
                             header('Location: admin.php');
                             exit;
                         } else {
@@ -362,7 +349,7 @@ body {
     <?php endif; ?>
 
     <form method="POST" id="loginForm" autocomplete="on">
-      <input type="hidden" name="csrf_token" value="<?php echo $_SESSION['csrf_token']; ?>">
+      <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
       <div class="field-group">
         <label class="field-label" for="usuario">Usuario</label>
         <input

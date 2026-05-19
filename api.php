@@ -1,20 +1,6 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) {
-    session_set_cookie_params([
-        'lifetime' => 0,
-        'path'     => '/',
-        'secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
-        'httponly' => true,
-        'samesite' => 'Strict'
-    ]);
-    session_start();
-}
-
-// Inicializar el token CSRF para peticiones API
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
+define('AUTH_NO_GUARD', 1);
+require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database/db.php';
 require_once __DIR__ . '/bridge_client.php';
@@ -44,7 +30,7 @@ $accionesBot = ['botTareaCrear', 'botTareaCompletar', 'botCapituloObtener',
 // Protección CSRF Global para peticiones POST de escritura
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($_GET['action'] ?? '', $accionesBot)) {
     $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
-    if (!$token || !isset($_SESSION['csrf_token']) || $token !== $_SESSION['csrf_token']) {
+    if (!csrf_token_verify($token)) {
         echo json_encode(['exito' => false, 'mensaje' => 'Token CSRF inválido o ausente.']);
         exit;
     }
@@ -52,10 +38,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($_GET['action'] ?? '', $a
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 function isLoggedIn(): bool {
-    return isset($_SESSION['user']);
+    return auth_get_user() !== null;
 }
 function isAdmin(): bool {
-    return isset($_SESSION['user']) && $_SESSION['user']['rol'] === 'admin';
+    $u = auth_get_user();
+    return $u !== null && $u['rol'] === 'admin';
 }
 function requireLogin(): void {
     if (!isLoggedIn()) {

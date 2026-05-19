@@ -80,6 +80,18 @@ function getDB(): PDO {
             $pdo->exec("ALTER TABLE staff_discord ADD COLUMN rol VARCHAR(50) DEFAULT 'Staff'");
         } catch (PDOException $e) { /* columna ya existe */ }
 
+        // Migraciones para columnas de capitulos que pueden faltar en instancias antiguas
+        foreach ([
+            "ALTER TABLE capitulos ADD COLUMN estado_raw   TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN estado_trad  TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN estado_clean TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN estado_type  TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN estado_proof TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN estado_general ENUM('Pendiente','En proceso','Retrasado','Publicado') DEFAULT 'Pendiente'",
+        ] as $m) {
+            try { $pdo->exec($m); } catch (PDOException $e) { /* columna ya existe */ }
+        }
+
         $pdo->exec("
             CREATE TABLE IF NOT EXISTS tareas (
                 id INT AUTO_INCREMENT PRIMARY KEY,

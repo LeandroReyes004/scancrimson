@@ -500,12 +500,12 @@
     else if (pct >= 20)   color = '#dc2020';
     else                  color = '#6e6e82';
     return `
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="flex:1;background:rgba(255,255,255,.08);border-radius:4px;height:8px;overflow:hidden">
+      <div style="display:flex;align-items:center;gap:10px;max-width:380px">
+        <div style="flex:1;background:rgba(255,255,255,.08);border-radius:4px;height:8px;overflow:hidden;min-width:120px">
           <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s"></div>
         </div>
-        <span style="font-size:.78rem;font-weight:700;color:${color};min-width:38px">${hecho}/${total}</span>
-        <span style="font-size:.72rem;color:${pct===100?'#10b981':'var(--muted)'};min-width:36px">${pct}%</span>
+        <span style="font-size:.78rem;font-weight:700;color:${color};min-width:32px;white-space:nowrap">${hecho}/${total}</span>
+        <span style="font-size:.72rem;color:${pct===100?'#10b981':'var(--muted)'};min-width:32px;white-space:nowrap">${pct}%</span>
       </div>`;
   }
 
@@ -551,13 +551,14 @@
         const hecho = calcProgreso(c);
         const total = ETAPAS_KEYS.length;
         const pct   = Math.round((hecho / total) * 100);
-        const badgeClass = c.estado_general === 'Publicado' ? 'success' : (c.estado_general === 'Retrasado' ? 'danger' : 'warning');
-        const isReady  = hecho === total && c.estado_general !== 'Publicado';
+        const estadoGen  = c.estado_general || 'Pendiente';
+        const badgeClass = estadoGen === 'Publicado' ? 'success' : (estadoGen === 'Retrasado' ? 'danger' : 'warning');
+        const isReady    = hecho === total && estadoGen !== 'Publicado';
         return `
           <tr id="cap-row-${c.id}">
             <td style="font-weight:bold;text-align:center;font-size:1.05rem">${c.numero}</td>
             <td>${renderBarra(hecho, total)}</td>
-            <td style="text-align:center"><span class="badge ${badgeClass}">${c.estado_general}</span></td>
+            <td style="text-align:center"><span class="badge ${badgeClass}">${estadoGen}</span></td>
             <td style="text-align:center;display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap">
               <button class="btn btn-ghost btn-sm" onclick="toggleDetalle(${c.id}, ${pId}, ${c.numero})">◎ Detalle</button>
               ${isReady ? `<button class="btn btn-primary btn-sm" onclick="publicarCapitulo(${c.id})">Publicar</button>` : ''}

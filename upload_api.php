@@ -59,9 +59,10 @@ if ($action === 'initUpload') {
         ]
     ]);
     
-    $curlErr  = curl_error($ch);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $curlErr     = curl_error($ch);
+    $response    = curl_exec($ch);
+    $httpCode    = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
     curl_close($ch);
 
     if ($curlErr) {
@@ -69,19 +70,18 @@ if ($action === 'initUpload') {
     } elseif ($httpCode >= 200 && $httpCode < 400 && $response) {
         echo $response;
     } else {
-        // Devolver diagnóstico útil en lugar de mensaje genérico
-        $preview = substr($response ?: '', 0, 300);
-        $detalleHttp = "HTTP $httpCode";
+        $preview = substr($response ?: '', 0, 200);
+        // Diagnóstico detallado: incluye la URL final para detectar redirecciones incorrectas
         if ($httpCode === 401 || $httpCode === 403) {
-            $detalle = "El Apps Script requiere autenticación. En Google Apps Script: Implementar → Administrar implementaciones → Editar → Acceso: Cualquier persona.";
-        } elseif ($httpCode === 302 || $httpCode === 301) {
-            $detalle = "Redirect inesperado ($httpCode). Verifica que la URL del Apps Script sea la versión /exec, no /dev.";
+            $detalle = "El Apps Script requiere autenticación (HTTP $httpCode). Ve a Apps Script → Implementar → Editar → Acceso: 'Cualquier persona (sin cuenta Google)'.";
+        } elseif ($httpCode === 405) {
+            $detalle = "HTTP 405 — La URL configurada no es una URL de Apps Script válida. URL usada: $effectiveUrl — Verifica APPS_SCRIPT_URL en Vercel (debe terminar en /exec).";
         } elseif ($httpCode === 0) {
-            $detalle = "Sin respuesta del servidor. Verifica que APP_SCRIPT_URL sea la URL correcta del deploy actual.";
+            $detalle = "Sin respuesta. URL configurada: " . APPS_SCRIPT_URL . " — Verifica que APPS_SCRIPT_URL esté configurada en Vercel.";
         } else {
-            $detalle = "$detalleHttp — " . ($preview ?: 'sin respuesta');
+            $detalle = "HTTP $httpCode — URL final: $effectiveUrl — Respuesta: " . ($preview ?: 'vacía');
         }
-        error_log("Apps Script initUpload — HTTP $httpCode: $preview");
+        error_log("Apps Script initUpload — HTTP $httpCode — URL: $effectiveUrl — Respuesta: $preview");
         echo json_encode(['exito' => false, 'mensaje' => $detalle]);
     }
     

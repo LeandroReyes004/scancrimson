@@ -59,19 +59,30 @@ if ($action === 'initUpload') {
         ]
     ]);
     
+    $curlErr  = curl_error($ch);
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
     curl_close($ch);
-    
-    if ($httpCode >= 200 && $httpCode < 400 && $response) {
-        // Devolvemos la respuesta del Apps Script al frontend
+
+    if ($curlErr) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Error de red: ' . $curlErr]);
+    } elseif ($httpCode >= 200 && $httpCode < 400 && $response) {
         echo $response;
     } else {
-        error_log("Apps Script error initUpload — HTTP $httpCode: $response");
-        echo json_encode([
-            'exito' => false, 
-            'mensaje' => 'Error al contactar con el servidor de subidas de Google.'
-        ]);
+        // Devolver diagnóstico útil en lugar de mensaje genérico
+        $preview = substr($response ?: '', 0, 300);
+        $detalleHttp = "HTTP $httpCode";
+        if ($httpCode === 401 || $httpCode === 403) {
+            $detalle = "El Apps Script requiere autenticación. En Google Apps Script: Implementar → Administrar implementaciones → Editar → Acceso: Cualquier persona.";
+        } elseif ($httpCode === 302 || $httpCode === 301) {
+            $detalle = "Redirect inesperado ($httpCode). Verifica que la URL del Apps Script sea la versión /exec, no /dev.";
+        } elseif ($httpCode === 0) {
+            $detalle = "Sin respuesta del servidor. Verifica que APP_SCRIPT_URL sea la URL correcta del deploy actual.";
+        } else {
+            $detalle = "$detalleHttp — " . ($preview ?: 'sin respuesta');
+        }
+        error_log("Apps Script initUpload — HTTP $httpCode: $preview");
+        echo json_encode(['exito' => false, 'mensaje' => $detalle]);
     }
     
 } elseif ($action === 'registrarSubida') {

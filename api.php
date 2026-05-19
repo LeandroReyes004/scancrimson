@@ -481,45 +481,77 @@ switch ($action) {
         echo json_encode(['exito' => true]);
         break;
 
-    // ── VERIFICAR ARCHIVOS EN DRIVE POR CAPÍTULO ─────────────────────────
+    // ── VERIFICAR DRIVE Y SINCRONIZAR ESTADOS EN BD ───────────────────────
+    // Estructura real en Drive: Proyecto / "0X. Etapa" / "Capítulo N" (carpeta)
     case 'verificarDriveCapitulo':
         requireLogin();
         $proyecto_id  = intval($_GET['proyecto_id']  ?? 0);
+        $capitulo_id  = intval($_GET['capitulo_id']  ?? 0);
         $capitulo_num = floatval($_GET['capitulo_num'] ?? 0);
+        $sincronizar  = ($_GET['sync'] ?? '0') === '1';
         if (!$proyecto_id || !$capitulo_num) {
             echo json_encode(['exito' => false, 'mensaje' => 'Faltan parámetros']);
             break;
         }
-        $db      = getDB();
-        $proyecto = $db->prepare("SELECT nombre, carpeta_drive_id FROM proyectos WHERE id = ?");
-        $proyecto->execute([$proyecto_id]);
-        $proy = $proyecto->fetch();
+        $db = getDB();
+        $stmt = $db->prepare("SELECT nombre, carpeta_drive_id FROM proyectos WHERE id = ?");
+        $stmt->execute([$proyecto_id]);
+        $proy = $stmt->fetch();
         if (!$proy) { echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado']); break; }
 
         $folderId = $proy['carpeta_drive_id'] ?: folderIdByName(CARPETA_RAIZ_ID, $proy['nombre']);
-        if (!$folderId) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta del proyecto no encontrada en Drive']); break; }
+        if (!$folderId) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta "' . $proy['nombre'] . '" no encontrada en Drive']); break; }
+
+        // Nombre de carpeta tal como aparece en Drive: "Capítulo 6"
+        $capNum = (floor($capitulo_num) == $capitulo_num) ? (int)$capitulo_num : $capitulo_num;
+        $capNombreExacto  = 'Capítulo ' . $capNum;
+        $capNombreAlt     = 'Capitulo ' . $capNum;   // sin tilde, por si acaso
 
         $etapas = [
-            'raw'   => '01. RAWs',
-            'trad'  => '02. Traducción',
-            'clean' => '03. Limpieza y Redibujo',
-            'type'  => '04. Typos',
-            'proof' => '05. Control de Calidad',
+            'raw'   => ['db' => 'estado_raw',   'drive' => '01. RAWs'],
+            'trad'  => ['db' => 'estado_trad',  'drive' => '02. Traducción'],
+            'clean' => ['db' => 'estado_clean', 'drive' => '03. Limpieza y Redibujo'],
+            'type'  => ['db' => 'estado_type',  'drive' => '04. Typos'],
+            'proof' => ['db' => 'estado_proof', 'drive' => '05. Control de Calidad'],
         ];
-        $capStr = (floor($capitulo_num) == $capitulo_num)
-            ? (string)(int)$capitulo_num
-            : (string)$capitulo_num;
-        $resultado = [];
-        foreach ($etapas as $clave => $nombreEtapa) {
-            $etapaId = folderIdByName($folderId, $nombreEtapa);
-            if (!$etapaId) { $resultado[$clave] = ['encontrado' => false, 'archivos' => []]; continue; }
-            $q = "'{$etapaId}' in parents and trashed=false";
-            $archivos = driveQ($q, 'files(id,name)', 50);
-            $pattern  = '/cap[._\-\s]?0*' . preg_quote($capStr, '/') . '(\b|[^0-9])/i';
-            $match    = array_filter($archivos, fn($f) => preg_match($pattern, $f['name']));
-            $resultado[$clave] = ['encontrado' => !empty($match), 'archivos' => array_values($match)];
+
+        $resultado   = [];
+        $dbActualizar = [];
+
+        foreach ($etapas as $clave => $info) {
+            $etapaId = folderIdByName($folderId, $info['drive']);
+            if (!$etapaId) {
+                $resultado[$clave] = ['encontrado' => false, 'nombre' => null];
+                continue;
+            }
+            // Buscar subcarpeta "Capítulo N" dentro de la carpeta de etapa
+            $q = "'{$etapaId}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'";
+            $carpetas = driveQ($q, 'files(id,name)', 100);
+            $match = null;
+            foreach ($carpetas as $f) {
+                $n = $f['name'];
+                if (strcasecmp($n, $capNombreExacto) === 0 || strcasecmp($n, $capNombreAlt) === 0
+                    || preg_match('/\b' . preg_quote((string)$capNum, '/') . '\b/', $n)) {
+                    $match = $f;
+                    break;
+                }
+            }
+            $encontrado = ($match !== null);
+            $resultado[$clave] = ['encontrado' => $encontrado, 'nombre' => $match['name'] ?? null];
+            if ($encontrado) $dbActualizar[$info['db']] = 1;
         }
-        echo json_encode(['exito' => true, 'etapas' => $resultado]);
+
+        // Si se pide sincronizar y hay capítulo ID, actualizar la BD
+        $actualizados = 0;
+        if ($sincronizar && $capitulo_id && !empty($dbActualizar)) {
+            $sets = implode(', ', array_map(fn($col) => "$col = ?", array_keys($dbActualizar)));
+            $vals = array_values($dbActualizar);
+            $vals[] = $capitulo_id;
+            $db->prepare("UPDATE capitulos SET $sets WHERE id = ?")->execute($vals);
+            $actualizados = count($dbActualizar);
+        }
+
+        echo json_encode(['exito' => true, 'etapas' => $resultado, 'actualizados' => $actualizados]);
         break;
 
     // ── ENDPOINTS BOT DISCORD ────────────────────────────────────────────────

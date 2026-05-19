@@ -569,7 +569,7 @@
               <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
                 ${renderEtapasDetalle(c)}
                 <button class="btn btn-ghost btn-sm" onclick="verificarDrive(${c.id},${pId},${c.numero})" id="btn-drive-${c.id}"
-                  style="margin-left:auto">🔍 Verificar Drive</button>
+                  style="margin-left:auto" title="Busca carpetas 'Capítulo N' en Drive y actualiza los estados automáticamente">⚡ Sync Drive</button>
               </div>
               <div id="drive-result-${c.id}" style="margin-top:.6rem;font-size:.8rem"></div>
             </td>
@@ -586,35 +586,41 @@
   };
 
   window.verificarDrive = async function(capId, proyId, capNum) {
-    const btn = document.getElementById('btn-drive-' + capId);
+    const btn     = document.getElementById('btn-drive-' + capId);
     const res_div = document.getElementById('drive-result-' + capId);
-    btn.disabled = true;
-    btn.textContent = '🔍 Verificando…';
-    res_div.innerHTML = '<span style="color:var(--muted)">Consultando Drive…</span>';
+    btn.disabled  = true;
+    btn.textContent = '⏳ Sincronizando…';
+    res_div.innerHTML = '<span style="color:var(--muted);font-size:.8rem">Buscando carpetas en Drive…</span>';
     try {
-      const req = await fetch(`api.php?action=verificarDriveCapitulo&proyecto_id=${proyId}&capitulo_num=${capNum}`);
+      const url = `api.php?action=verificarDriveCapitulo&proyecto_id=${proyId}&capitulo_id=${capId}&capitulo_num=${capNum}&sync=1`;
+      const req = await fetch(url);
       const res = await req.json();
-      if(!res.exito) { res_div.innerHTML = `<span style="color:#dc2020">${res.mensaje}</span>`; }
-      else {
-        const etapasNombre = { raw:'RAW', trad:'Traducción', clean:'Limpieza', type:'Typos', proof:'QC' };
-        res_div.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px">' +
-          Object.entries(res.etapas).map(([k, v]) => {
-            const ok = v.encontrado;
-            const archivos = (v.archivos||[]).map(a=>a.name).join(', ');
-            return `<span title="${archivos||'Sin archivos'}"
-              style="padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:600;
-                     background:${ok?'rgba(16,185,129,.15)':'rgba(220,32,32,.12)'};
-                     border:1px solid ${ok?'#10b981':'#dc2020'};
-                     color:${ok?'#10b981':'#f87171'}">
-              ${ok?'✓':'✗'} ${etapasNombre[k]}
-            </span>`;
-          }).join('') + '</div>';
+      if(!res.exito) {
+        res_div.innerHTML = `<span style="color:#dc2020;font-size:.8rem">⚠ ${res.mensaje}</span>`;
+        return;
       }
+      const etapasNombre = { raw:'RAW', trad:'Traducción', clean:'Limpieza', type:'Typos', proof:'QC' };
+      const chips = Object.entries(res.etapas).map(([k, v]) => {
+        const ok = v.encontrado;
+        return `<span title="${v.nombre || 'No encontrado'}"
+          style="padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:600;
+                 background:${ok?'rgba(16,185,129,.15)':'rgba(220,32,32,.12)'};
+                 border:1px solid ${ok?'#10b981':'#dc2020'};
+                 color:${ok?'#10b981':'#f87171'}">
+          ${ok?'✓':'✗'} ${etapasNombre[k]}
+        </span>`;
+      }).join('');
+      const syncMsg = res.actualizados > 0
+        ? `<span style="color:#10b981;font-size:.75rem;margin-left:8px">✓ ${res.actualizados} etapa(s) actualizadas en BD</span>`
+        : `<span style="color:var(--muted);font-size:.75rem;margin-left:8px">Sin cambios nuevos</span>`;
+      res_div.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${chips}${syncMsg}</div>`;
+      // Recargar la tabla para que las barras reflejen los nuevos estados
+      if(res.actualizados > 0) setTimeout(() => cargarVistaCapitulos(), 600);
     } catch(e) {
-      res_div.innerHTML = `<span style="color:#dc2020">Error: ${e.message}</span>`;
+      res_div.innerHTML = `<span style="color:#dc2020;font-size:.8rem">Error: ${e.message}</span>`;
     } finally {
-      btn.disabled = false;
-      btn.textContent = '🔍 Verificar Drive';
+      btn.disabled    = false;
+      btn.textContent = '⚡ Sync Drive';
     }
   };
 

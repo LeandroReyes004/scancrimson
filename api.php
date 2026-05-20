@@ -408,19 +408,23 @@ switch ($action) {
         echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada.']);
         break;
 
-    // ── LISTAR STAFF DISCORD (vía bridge) ────────────────────────────────
+    // ── LISTAR STAFF DISCORD (directo BD) ────────────────────────────────
     case 'listarStaff':
         requireAdmin();
-        echo json_encode(bridge_call('listarStaff'));
+        $db   = getDB();
+        $rows = $db->query("SELECT * FROM staff_discord ORDER BY activo DESC, nombre_display ASC")->fetchAll();
+        echo json_encode(['exito' => true, 'data' => $rows]);
         break;
 
-    // ── TOGGLE ACTIVO STAFF DISCORD (vía bridge) ──────────────────────────
+    // ── TOGGLE ACTIVO STAFF DISCORD (directo BD) ──────────────────────────
     case 'toggleStaff':
         requireAdmin();
-        $id     = $_POST['discord_id'] ?? '';
+        $id     = trim($_POST['discord_id'] ?? '');
         $activo = intval($_POST['activo'] ?? 1);
         if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID requerido']); break; }
-        echo json_encode(bridge_call('toggleStaff', ['discord_id' => $id, 'activo' => $activo], 'POST'));
+        $db = getDB();
+        $db->prepare("UPDATE staff_discord SET activo = ? WHERE discord_id = ?")->execute([$activo, $id]);
+        echo json_encode(['exito' => true]);
         break;
 
     // ── RANKING DEL MES (vía bridge) ──────────────────────────────────────
@@ -467,7 +471,7 @@ switch ($action) {
         requireAdmin();
         $discord_id = trim($_POST['discord_id'] ?? '');
         $rol        = trim($_POST['rol']        ?? '');
-        $rolesValidos = ['Traductor', 'Limpiador', 'Typesetter', 'QC', 'Staff', 'Admin'];
+        $rolesValidos = ['Traductor', 'Limpiador', 'Typesetter', 'QC', 'Staff', 'Lider', 'Supervisor'];
         if (!$discord_id || !in_array($rol, $rolesValidos, true)) {
             echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos']);
             break;

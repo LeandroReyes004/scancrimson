@@ -42,46 +42,74 @@ if ($action === 'initUpload') {
         exit;
     }
     
-    // Redirigir la petición de inicialización al Apps Script (con SSL habilitado)
+    // Paso 1: POST a Apps Script sin seguir redirects para preservar la URL exacta del echo
     $ch = curl_init(APPS_SCRIPT_URL);
     curl_setopt_array($ch, [
-        CURLOPT_POST           => true,
-        CURLOPT_POSTFIELDS     => $payloadClean,
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_FOLLOWLOCATION => true,
-        // Sin CURLOPT_POSTREDIR: el redirect de Apps Script echo se sigue como GET (correcto)
-        CURLOPT_USERAGENT      => 'CrimsonScan/2.0',
-        CURLOPT_HTTPHEADER     => [
+        CURLOPT_POST            => true,
+        CURLOPT_POSTFIELDS      => $payloadClean,
+        CURLOPT_RETURNTRANSFER  => true,
+        CURLOPT_SSL_VERIFYPEER  => true,
+        CURLOPT_SSL_VERIFYHOST  => 2,
+        CURLOPT_FOLLOWLOCATION  => false,
+        CURLOPT_HEADER          => true,
+        CURLOPT_TIMEOUT         => 30,
+        CURLOPT_CONNECTTIMEOUT  => 10,
+        CURLOPT_USERAGENT       => 'CrimsonScan/2.0',
+        CURLOPT_HTTPHEADER      => [
             'Content-Type: application/json',
             'Content-Length: ' . strlen($payloadClean),
         ],
     ]);
-    
-    $curlErr     = curl_error($ch);
-    $response    = curl_exec($ch);
-    $httpCode    = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $effectiveUrl = curl_getinfo($ch, CURLINFO_EFFECTIVE_URL);
+    $raw      = curl_exec($ch);
+    $curlErr  = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $hdrSize  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
     curl_close($ch);
 
     if ($curlErr) {
         echo json_encode(['exito' => false, 'mensaje' => 'Error de red: ' . $curlErr]);
-    } elseif ($httpCode >= 200 && $httpCode < 400 && $response) {
+        exit;
+    }
+
+    // Paso 2: Si Apps Script devuelve un redirect, seguirlo manualmente como GET
+    if ($httpCode >= 300 && $httpCode < 400) {
+        $responseHeaders = substr($raw, 0, $hdrSize);
+        preg_match('/^Location:\s*(.+)$/mi', $responseHeaders, $m);
+        $locationUrl = trim($m[1] ?? '');
+
+        if (!$locationUrl) {
+            echo json_encode(['exito' => false, 'mensaje' => "Redirect HTTP $httpCode sin Location header."]);
+            exit;
+        }
+
+        $ch2 = curl_init($locationUrl);
+        curl_setopt_array($ch2, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_USERAGENT      => 'CrimsonScan/2.0',
+        ]);
+        $response = curl_exec($ch2);
+        $httpCode = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+        curl_close($ch2);
+    } else {
+        $response = substr($raw, $hdrSize);
+    }
+
+    if ($httpCode === 200 && $response) {
         echo $response;
     } else {
-        $preview = substr($response ?: '', 0, 200);
-        // Diagnóstico detallado: incluye la URL final para detectar redirecciones incorrectas
+        $preview = substr($response ?: '', 0, 300);
         if ($httpCode === 401 || $httpCode === 403) {
-            $detalle = "El Apps Script requiere autenticación (HTTP $httpCode). Ve a Apps Script → Implementar → Editar → Acceso: 'Cualquier persona (sin cuenta Google)'.";
-        } elseif ($httpCode === 405) {
-            $detalle = "HTTP 405 — La URL configurada no es una URL de Apps Script válida. URL usada: $effectiveUrl — Verifica APPS_SCRIPT_URL en Vercel (debe terminar en /exec).";
+            $detalle = "Apps Script requiere autenticación (HTTP $httpCode). Ve a Apps Script → Implementar → Editar → Acceso: 'Cualquier persona'.";
         } elseif ($httpCode === 0) {
-            $detalle = "Sin respuesta. URL configurada: " . APPS_SCRIPT_URL . " — Verifica que APPS_SCRIPT_URL esté configurada en Vercel.";
+            $detalle = "Sin respuesta del servidor. Verifica que APPS_SCRIPT_URL esté configurada en Vercel.";
         } else {
-            $detalle = "HTTP $httpCode — URL final: $effectiveUrl — Respuesta: " . ($preview ?: 'vacía');
+            $detalle = "HTTP $httpCode — " . ($preview ?: 'respuesta vacía');
         }
-        error_log("Apps Script initUpload — HTTP $httpCode — URL: $effectiveUrl — Respuesta: $preview");
+        error_log("Apps Script initUpload — HTTP $httpCode: $preview");
         echo json_encode(['exito' => false, 'mensaje' => $detalle]);
     }
     

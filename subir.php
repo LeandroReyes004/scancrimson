@@ -377,8 +377,9 @@
       statusMessage.style.display = 'none';
 
       const ext = file.name.split('.').pop().toLowerCase();
-      if(ext !== 'zip' && ext !== 'rar') {
-        return showStatus('Solo se permiten archivos .zip o .rar', true);
+      const extsPermitidas = ['zip', 'rar', 'cbz', 'pdf', 'jpg', 'png', 'webp'];
+      if(!extsPermitidas.includes(ext)) {
+        return showStatus('Tipo de archivo no permitido. Se permiten: zip, rar, cbz, pdf, jpg, png, webp', true);
       }
 
       if(!selProyecto.value || !inpCapitulo.value) {

@@ -122,12 +122,9 @@ switch ($action) {
     // ── PÚBLICAS (no requieren sesión) ──────────────────────────────────────
 
     case 'proyectos':
-        $db   = getDB();
-        $rows = $db->query("SELECT id, nombre, estado, carpeta_drive_id FROM proyectos
-                            WHERE estado='activo' ORDER BY nombre")->fetchAll();
-        $datos = array_map(fn($r) => [
-            $r['nombre'], '', '', '', $r['estado'], $r['carpeta_drive_id'] ?? ''
-        ], $rows);
+        $db    = getDB();
+        $rows  = $db->query("SELECT nombre FROM proyectos WHERE estado='activo' ORDER BY nombre")->fetchAll();
+        $datos = array_column($rows, 'nombre');
         echo json_encode(['exito' => true, 'datos' => $datos]);
         break;
 

@@ -203,7 +203,12 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['rol'] !== 'admin') {
 
 <!-- Tabla de miembros -->
 <div class="section">
-  <h2>Miembros de <span>Staff Discord</span></h2>
+  <h2 style="display:flex;align-items:center;justify-content:space-between">
+    Miembros de <span>Staff Discord</span>
+    <button class="act-btn" id="btn-toggle-inactivos" onclick="toggleInactivos()" style="font-size:.75rem;margin-left:auto">
+      Mostrar inactivos
+    </button>
+  </h2>
   <div class="panel">
     <div class="table-scroll">
       <table>
@@ -350,26 +355,38 @@ async function cargarStats() {
   document.getElementById('gs-tasa').textContent      = s.tasa_entrega + '%';
 }
 
-const ROLES_STAFF = ['Staff', 'Traductor', 'Limpiador', 'Typesetter', 'QC', 'Admin'];
-const ROLES_COLOR = { Traductor:'#3b82f6', Limpiador:'#8b5cf6', Typesetter:'#f59e0b', QC:'#10b981', Admin:'#dc2020', Staff:'#6e6e82' };
+const ROLES_STAFF = ['Staff', 'Traductor', 'Limpiador', 'Typesetter', 'QC', 'Lider', 'Supervisor'];
+const ROLES_COLOR = {
+  Traductor: '#3b82f6', Limpiador: '#8b5cf6', Typesetter: '#f59e0b',
+  QC: '#10b981', Lider: '#f97316', Supervisor: '#dc2020', Staff: '#6e6e82'
+};
 
-async function cargarStaff() {
+let staffData       = [];
+let mostrarInactivos = false;
+
+function toggleInactivos() {
+  mostrarInactivos = !mostrarInactivos;
+  document.getElementById('btn-toggle-inactivos').textContent =
+    mostrarInactivos ? 'Ocultar inactivos' : 'Mostrar inactivos';
+  renderStaff();
+}
+
+function renderStaff() {
   const tbody = document.getElementById('staff-body');
-  tbody.innerHTML = '<tr><td colspan="7" class="empty"><span class="spinner"></span></td></tr>';
-  const res = await api('listarStaff');
-  if (!res.exito || !res.data.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="empty">Sin miembros registrados.</td></tr>';
+  const lista  = mostrarInactivos ? staffData : staffData.filter(m => parseInt(m.activo) === 1);
+  if (!lista.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty">${mostrarInactivos ? 'Sin miembros.' : 'Sin miembros activos.'}</td></tr>`;
     return;
   }
-  tbody.innerHTML = res.data.map(m => {
-    const activo  = parseInt(m.activo);
-    const fecha   = (m.creado || '').substring(0, 10);
+  tbody.innerHTML = lista.map(m => {
+    const activo    = parseInt(m.activo);
+    const fecha     = (m.creado || '').substring(0, 10);
     const rolActual = m.rol || 'Staff';
     const rolColor  = ROLES_COLOR[rolActual] || '#6e6e82';
     const optsRol   = ROLES_STAFF.map(r =>
       `<option value="${r}" ${r === rolActual ? 'selected' : ''}>${r}</option>`
     ).join('');
-    return `<tr>
+    return `<tr data-discord-id="${esc(m.discord_id)}">
       <td style="font-weight:600">${esc(m.nombre_display) || '<span style="color:var(--muted);font-style:italic">sin registro</span>'}</td>
       <td style="color:var(--muted2)">${esc(m.usuario_form) || '—'}</td>
       <td>
@@ -388,6 +405,18 @@ async function cargarStaff() {
       </td>
     </tr>`;
   }).join('');
+}
+
+async function cargarStaff() {
+  const tbody = document.getElementById('staff-body');
+  tbody.innerHTML = '<tr><td colspan="7" class="empty"><span class="spinner"></span></td></tr>';
+  const res = await api('listarStaff');
+  if (!res.exito) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty">Error al cargar staff.</td></tr>';
+    return;
+  }
+  staffData = res.data || [];
+  renderStaff();
 }
 
 async function cambiarRol(sel) {
@@ -410,8 +439,11 @@ async function toggleStaff(discordId, nuevoActivo, btn) {
   btn.disabled = true;
   const res = await api('toggleStaff', { post: { discord_id: discordId, activo: nuevoActivo } });
   if (res.exito) {
+    // Actualizar en el array local y rerenderizar (oculta inactivos sin recargar)
+    const m = staffData.find(s => s.discord_id === discordId);
+    if (m) m.activo = nuevoActivo;
     toast(nuevoActivo ? 'Miembro activado' : 'Miembro desactivado');
-    cargarStaff();
+    renderStaff();
   } else {
     toast(res.mensaje || 'Error', 'err');
     btn.disabled = false;

@@ -207,6 +207,62 @@ switch ($action) {
         echo json_encode(['exito'=>true]);
         break;
 
+    // Comando /cd <usuario_panel>
+    // El bot envía: discord_id, nombre_display, usuario_form, roles (JSON array de roles Discord)
+    // Registra o actualiza al miembro mapeando sus roles de Discord al rol del sistema
+    case 'botConfigurarse':
+        $discord_id     = $_POST['discord_id']     ?? '';
+        $nombre_display = $_POST['nombre_display'] ?? '';
+        $usuario_form   = trim($_POST['usuario_form'] ?? '');
+        $roles_json     = $_POST['roles']          ?? '[]';
+
+        if (!$discord_id || !$usuario_form) {
+            echo json_encode(['exito'=>false, 'mensaje'=>'Falta discord_id o usuario_form']);
+            break;
+        }
+
+        $roles = json_decode($roles_json, true) ?: [];
+
+        // Mapa de roles Discord → rol del sistema (case-insensitive)
+        $mapa = [
+            'lider'      => 'Lider',   'líder'   => 'Lider',
+            'supervisor' => 'Supervisor',
+            'qc'         => 'QC',      'quality control' => 'QC',
+            'typesetter' => 'Typesetter', 'typer' => 'Typesetter',
+            'limpiador'  => 'Limpiador',  'cleaner' => 'Limpiador',
+            'traductor'  => 'Traductor',  'translator' => 'Traductor',
+        ];
+        // Prioridad: Lider > Supervisor > QC > Typesetter > Limpiador > Traductor > Staff
+        $prioridad  = ['Lider', 'Supervisor', 'QC', 'Typesetter', 'Limpiador', 'Traductor', 'Staff'];
+        $rolFinal   = 'Staff';
+        $priIdx     = count($prioridad);
+        foreach ($roles as $r) {
+            $key  = strtolower(trim($r));
+            $norm = $mapa[$key] ?? null;
+            if ($norm) {
+                $idx = array_search($norm, $prioridad);
+                if ($idx !== false && $idx < $priIdx) { $priIdx = $idx; $rolFinal = $norm; }
+            }
+        }
+
+        $db = getDB();
+        $db->prepare("
+            INSERT INTO staff_discord (discord_id, nombre_display, usuario_form, rol, activo)
+            VALUES (?, ?, ?, ?, 1)
+            ON DUPLICATE KEY UPDATE
+              nombre_display = VALUES(nombre_display),
+              usuario_form   = VALUES(usuario_form),
+              rol            = VALUES(rol),
+              activo         = 1
+        ")->execute([$discord_id, $nombre_display, $usuario_form, $rolFinal]);
+
+        echo json_encode([
+            'exito'        => true,
+            'rol_asignado' => $rolFinal,
+            'mensaje'      => "✅ ¡Registrado como **{$rolFinal}**! Nombre: {$nombre_display} | Usuario panel: {$usuario_form}",
+        ]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito'=>false, 'mensaje'=>'Acción no válida']);

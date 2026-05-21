@@ -57,6 +57,9 @@
         <input type="text" id="search-input" placeholder="Buscar…" oninput="handleSearch(this.value)">
       </div>
       <button class="btn btn-ghost btn-sm" onclick="refrescarTodo()">↺</button>
+      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+      <a href="settings.php" class="btn btn-ghost btn-sm" title="Configuración" style="text-decoration:none">⚙</a>
+      <?php endif; ?>
       <a href="logout.php" class="user-logout" title="Cerrar sesión" style="text-decoration:none">⎋ Salir</a>
     </div>
   </header>

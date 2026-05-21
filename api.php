@@ -744,6 +744,90 @@ switch ($action) {
         echo json_encode(['exito'=>true]);
         break;
 
+    // ── STAFF: mis tareas activas ─────────────────────────────────────────
+    case 'misTareas':
+        requireLogin();
+        $u  = auth_get_user();
+        $db = getDB();
+        $sd = $db->prepare("SELECT discord_id FROM staff_discord WHERE usuario_form = ?");
+        $sd->execute([$u['usuario']]);
+        $staff = $sd->fetch();
+        if (!$staff) { echo json_encode(['exito' => true, 'data' => []]); break; }
+        $rows = $db->prepare("SELECT * FROM tareas WHERE discord_id = ? AND estado = 'activa' ORDER BY limite ASC");
+        $rows->execute([$staff['discord_id']]);
+        echo json_encode(['exito' => true, 'data' => $rows->fetchAll()]);
+        break;
+
+    // ── STAFF: marcar tarea entregada ────────────────────────────────────
+    case 'entregarTarea':
+        requireLogin();
+        $u = auth_get_user();
+        $tarea_id = trim($_POST['tarea_id'] ?? '');
+        if (!$tarea_id) { echo json_encode(['exito' => false, 'mensaje' => 'ID requerido']); break; }
+        $db = getDB();
+        $sd = $db->prepare("SELECT discord_id FROM staff_discord WHERE usuario_form = ?");
+        $sd->execute([$u['usuario']]);
+        $staff = $sd->fetch();
+        if (!$staff) { echo json_encode(['exito' => false, 'mensaje' => 'Staff no encontrado']); break; }
+        $tarea = $db->prepare("SELECT * FROM tareas WHERE id = ? AND discord_id = ? AND estado = 'activa'");
+        $tarea->execute([$tarea_id, $staff['discord_id']]);
+        if (!$tarea->fetch()) { echo json_encode(['exito' => false, 'mensaje' => 'Tarea no encontrada o no te pertenece']); break; }
+        $db->prepare("UPDATE tareas SET estado = 'entregada' WHERE id = ?")->execute([$tarea_id]);
+        // Sumar punto al expediente
+        $ahora = new DateTime();
+        $db->prepare("INSERT INTO expedientes (discord_id, puntos, mes, anio) VALUES (?,1,?,?)
+                      ON DUPLICATE KEY UPDATE puntos = puntos + 1")
+           ->execute([$staff['discord_id'], $ahora->format('n'), $ahora->format('Y')]);
+        echo json_encode(['exito' => true]);
+        break;
+
+    // ── STAFF: mi ranking del mes ────────────────────────────────────────
+    case 'miRanking':
+        requireLogin();
+        $u    = auth_get_user();
+        $mes  = intval($_GET['mes']  ?? date('n'));
+        $anio = intval($_GET['anio'] ?? date('Y'));
+        $db   = getDB();
+        $sd   = $db->prepare("SELECT discord_id FROM staff_discord WHERE usuario_form = ?");
+        $sd->execute([$u['usuario']]);
+        $staff = $sd->fetch();
+        if (!$staff) { echo json_encode(['exito' => true, 'puntos' => 0, 'posicion' => null]); break; }
+        $pts  = $db->prepare("SELECT puntos FROM expedientes WHERE discord_id = ? AND mes = ? AND anio = ?");
+        $pts->execute([$staff['discord_id'], $mes, $anio]);
+        $prow   = $pts->fetch();
+        $puntos = $prow ? (int)$prow['puntos'] : 0;
+        $pos    = $db->prepare("SELECT COUNT(*) + 1 AS pos FROM expedientes WHERE mes = ? AND anio = ? AND puntos > ?");
+        $pos->execute([$mes, $anio, $puntos]);
+        $posicion = (int)($pos->fetch()['pos'] ?? 1);
+        $top = $db->prepare("SELECT sd.nombre_display, COALESCE(e.puntos,0) AS puntos
+                             FROM staff_discord sd
+                             LEFT JOIN expedientes e ON e.discord_id = sd.discord_id AND e.mes = ? AND e.anio = ?
+                             WHERE sd.activo = 1 ORDER BY puntos DESC LIMIT 5");
+        $top->execute([$mes, $anio]);
+        echo json_encode(['exito' => true, 'puntos' => $puntos, 'posicion' => $posicion, 'top5' => $top->fetchAll()]);
+        break;
+
+    // ── ADMIN: configuración del sistema (webhook, etc.) ─────────────────
+    case 'getConfigSistema':
+        requireAdmin();
+        $db     = getDB();
+        $rows   = $db->query("SELECT clave, valor FROM config_bot")->fetchAll();
+        $config = [];
+        foreach ($rows as $r) $config[$r['clave']] = $r['valor'];
+        echo json_encode(['exito' => true, 'config' => $config]);
+        break;
+
+    case 'setConfigSistema':
+        requireAdmin();
+        $clave = trim($_POST['clave'] ?? '');
+        $valor = $_POST['valor'] ?? '';
+        if (!$clave) { echo json_encode(['exito' => false, 'mensaje' => 'Clave requerida']); break; }
+        $db = getDB();
+        $db->prepare("INSERT INTO config_bot (clave, valor) VALUES (?,?) ON DUPLICATE KEY UPDATE valor=?")
+           ->execute([$clave, $valor, $valor]);
+        echo json_encode(['exito' => true]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);

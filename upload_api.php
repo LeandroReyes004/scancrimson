@@ -148,7 +148,15 @@ if ($action === 'initUpload') {
     }
 
     // 4. Notificar Discord directamente desde PHP
-    $webhook = defined('DISCORD_WEBHOOK') ? DISCORD_WEBHOOK : '';
+    // Webhook: primero buscar en BD (configurable desde panel), fallback a config.php
+    $webhook = '';
+    try {
+        $wrow = $db->prepare("SELECT valor FROM config_bot WHERE clave = 'discord_webhook_subidas'");
+        $wrow->execute();
+        $wval = $wrow->fetch();
+        if ($wval && $wval['valor']) $webhook = $wval['valor'];
+    } catch (Exception $e) { }
+    if (!$webhook) $webhook = defined('DISCORD_WEBHOOK') ? DISCORD_WEBHOOK : '';
     if ($webhook) {
         try {
             $payload = json_encode([

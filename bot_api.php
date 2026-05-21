@@ -225,11 +225,13 @@ switch ($action) {
 
         // Mapa de roles Discord → rol del sistema (case-insensitive)
         $mapa = [
+            'admin'      => 'Lider',   'administrator' => 'Lider',
+            'rey'        => 'Lider',   'leader'  => 'Lider',
             'lider'      => 'Lider',   'líder'   => 'Lider',
             'supervisor' => 'Supervisor',
             'qc'         => 'QC',      'quality control' => 'QC',
             'typesetter' => 'Typesetter', 'typer' => 'Typesetter',
-            'limpiador'  => 'Limpiador',  'cleaner' => 'Limpiador',
+            'limpiador'  => 'Limpiador',  'cleaner' => 'Limpiador', 'redrawer' => 'Limpiador',
             'traductor'  => 'Traductor',  'translator' => 'Traductor',
         ];
         // Prioridad: Lider > Supervisor > QC > Typesetter > Limpiador > Traductor > Staff

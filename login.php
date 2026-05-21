@@ -4,9 +4,9 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database/db.php';
 
-// Si ya está autenticado, ir al panel
-if (auth_get_user()) {
-    header('Location: admin.php');
+// Si ya está autenticado, redirigir según rol
+if ($u = auth_get_user()) {
+    header('Location: ' . ($u['rol'] === 'admin' ? 'admin.php' : 'panel_staff.php'));
     exit;
 }
 
@@ -64,7 +64,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                 'usuario' => $user['usuario'],
                                 'rol'     => $user['rol'],
                             ]);
-                            header('Location: admin.php');
+                            $destino = ($user['rol'] === 'admin') ? 'admin.php' : 'panel_staff.php';
+                            header('Location: ' . $destino);
                             exit;
                         } else {
                             // Incrementar intentos fallidos

@@ -76,9 +76,12 @@ function getDB(): PDO {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
-        try {
-            $pdo->exec("ALTER TABLE staff_discord ADD COLUMN rol VARCHAR(50) DEFAULT 'Staff'");
-        } catch (PDOException $e) { /* columna ya existe */ }
+        foreach ([
+            "ALTER TABLE staff_discord ADD COLUMN rol       VARCHAR(50) DEFAULT 'Staff'",
+            "ALTER TABLE staff_discord ADD COLUMN puntos_mes INT DEFAULT 0",
+        ] as $m) {
+            try { $pdo->exec($m); } catch (PDOException $e) { }
+        }
 
         // Tabla de historial de subidas (reemplaza Google Sheets)
         $pdo->exec("
@@ -118,6 +121,71 @@ function getDB(): PDO {
                 creado DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+
+        // Columnas del bot en capitulos
+        foreach ([
+            "ALTER TABLE capitulos ADD COLUMN trad_discord_id  VARCHAR(50) NULL",
+            "ALTER TABLE capitulos ADD COLUMN clean_discord_id VARCHAR(50) NULL",
+            "ALTER TABLE capitulos ADD COLUMN type_discord_id  VARCHAR(50) NULL",
+            "ALTER TABLE capitulos ADD COLUMN proof_discord_id VARCHAR(50) NULL",
+            "ALTER TABLE capitulos ADD COLUMN traduccion TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN limpieza   TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN typer      TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN proof      TINYINT(1) DEFAULT 0",
+            "ALTER TABLE capitulos ADD COLUMN trad_fecha  DATETIME NULL",
+            "ALTER TABLE capitulos ADD COLUMN clean_fecha DATETIME NULL",
+            "ALTER TABLE capitulos ADD COLUMN type_fecha  DATETIME NULL",
+            "ALTER TABLE capitulos ADD COLUMN proof_fecha DATETIME NULL",
+            "ALTER TABLE capitulos ADD COLUMN estado      VARCHAR(30) DEFAULT 'Pendiente'",
+        ] as $m) {
+            try { $pdo->exec($m); } catch (PDOException $e) { }
+        }
+
+        // Columnas del bot en tareas
+        foreach ([
+            "ALTER TABLE tareas ADD COLUMN capitulo_id INT NULL",
+            "ALTER TABLE tareas ADD COLUMN canal_id    BIGINT NULL",
+        ] as $m) {
+            try { $pdo->exec($m); } catch (PDOException $e) { }
+        }
+
+        // Tablas que solo usa el bot
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS expedientes (
+                id         INT AUTO_INCREMENT PRIMARY KEY,
+                discord_id VARCHAR(50) NOT NULL,
+                puntos     INT DEFAULT 0,
+                mes        INT NOT NULL,
+                anio       INT NOT NULL,
+                UNIQUE KEY discord_mes_anio (discord_id, mes, anio)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS formularios_procesados (
+                id             INT AUTO_INCREMENT PRIMARY KEY,
+                timestamp_form VARCHAR(100) NOT NULL UNIQUE,
+                creado         DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS errores_hist (
+                id            INT AUTO_INCREMENT PRIMARY KEY,
+                discord_id    VARCHAR(50) NOT NULL,
+                error         TEXT NOT NULL,
+                reportado_por VARCHAR(50) NULL,
+                fecha         DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS config_bot (
+                clave VARCHAR(100) NOT NULL PRIMARY KEY,
+                valor TEXT
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
     } catch (PDOException $e) {
         // Log error silently if user lacks privileges
     }

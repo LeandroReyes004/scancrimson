@@ -256,6 +256,28 @@ switch ($action) {
         $proys = $db->query("SELECT id, nombre, estado, carpeta_drive_id FROM proyectos ORDER BY nombre")->fetchAll();
         echo json_encode(['exito' => true, 'datos' => $proys]);
         break;
+
+    case 'toggleEstadoProyecto':
+        requireAdmin();
+        requireCsrf();
+        $id = intval($_POST['id'] ?? 0);
+        if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID inválido']); break; }
+        $db = getDB();
+        $db->prepare("UPDATE proyectos SET estado = CASE WHEN estado='activo' THEN 'inactivo' ELSE 'activo' END WHERE id = ?")->execute([$id]);
+        $row = $db->prepare("SELECT estado FROM proyectos WHERE id = ?"); $row->execute([$id]);
+        echo json_encode(['exito' => true, 'estado' => $row->fetch()['estado']]);
+        break;
+
+    case 'setProyectoDriveId':
+        requireAdmin();
+        requireCsrf();
+        $id  = intval($_POST['id'] ?? 0);
+        $did = trim($_POST['drive_id'] ?? '');
+        if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID inválido']); break; }
+        $db = getDB();
+        $db->prepare("UPDATE proyectos SET carpeta_drive_id = ? WHERE id = ?")->execute([$did ?: null, $id]);
+        echo json_encode(['exito' => true]);
+        break;
     case 'listarCapitulos':
         requireLogin();
         $proyecto_id = intval($_GET['proyecto_id'] ?? 0);

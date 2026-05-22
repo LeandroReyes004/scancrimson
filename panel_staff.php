@@ -213,7 +213,7 @@ $csrf_token = csrf_token_generate();
 </header>
 
 <!-- MODAL cambiar contraseña -->
-<div id="modal-pass" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:1rem">
+<div id="modal-pass" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:1rem">
   <div style="background:#13131f;border:1px solid var(--border);border-radius:16px;padding:1.5rem;width:100%;max-width:340px">
     <div style="font-weight:700;margin-bottom:1.2rem">🔑 Cambiar contraseña</div>
     <div class="field-group">
@@ -620,6 +620,7 @@ function abrirCambiarPass() {
   document.getElementById('pass-nueva').value  = '';
   document.getElementById('pass-nueva2').value = '';
   document.getElementById('pass-msg').textContent = '';
+  modal.style.cssText = modal.style.cssText.replace('display:none','display:flex');
   modal.style.display = 'flex';
 }
 function cerrarCambiarPass() { modal.style.display = 'none'; }

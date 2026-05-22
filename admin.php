@@ -508,44 +508,51 @@
     const body = document.getElementById('gestion-proyectos-body');
     if(!body) return;
     body.innerHTML = todosProyectos.map(p => {
-      const activo = p.estado === 'activo';
+      const activo  = p.estado === 'activo';
       const driveId = vpProyectosDriveMap[p.id] || '';
-      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.5rem 0;border-bottom:1px solid var(--border);flex-wrap:wrap" id="prow-${p.id}">
-        <span style="flex:1;min-width:120px;font-size:.88rem;${activo?'':'color:var(--muted);text-decoration:line-through'}">${p.nombre}</span>
+      const driveBtn = driveId
+        ? `<a href="https://drive.google.com/drive/folders/${driveId}" target="_blank" class="btn btn-ghost btn-sm" title="Abrir en Drive">📂</a>`
+        : `<button class="btn btn-ghost btn-sm" onclick="autoDetectarDrive(${p.id},this)" title="Buscar carpeta en Drive automáticamente">🔍 Auto</button>`;
+      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.55rem 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
+        <span style="flex:1;min-width:140px;font-size:.88rem;${activo?'':'color:var(--muted);text-decoration:line-through'}">${p.nombre}</span>
         <span style="font-size:.72rem;padding:2px 8px;border-radius:6px;background:${activo?'rgba(16,185,129,.15)':'rgba(220,32,32,.1)'};color:${activo?'#10b981':'#ff5555'}">${activo?'Activo':'Inactivo'}</span>
-        <button class="btn btn-ghost btn-sm" onclick="toggleProyecto(${p.id})">${activo?'Desactivar':'Activar'}</button>
-        <div style="display:flex;gap:.4rem;align-items:center">
-          <input id="drive-inp-${p.id}" type="text" placeholder="Drive folder ID" value="${driveId}"
-            style="background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:3px 8px;font-size:.78rem;width:210px;font-family:monospace">
-          <button class="btn btn-ghost btn-sm" onclick="guardarDriveId(${p.id})" title="Guardar ID de carpeta Drive">💾</button>
-          ${driveId ? `<a href="https://drive.google.com/drive/folders/${driveId}" target="_blank" style="font-size:.75rem;color:var(--muted2)" title="Abrir en Drive">📂</a>` : ''}
-        </div>
+        <button class="btn btn-ghost btn-sm" onclick="toggleProyecto(${p.id},this)">${activo?'Desactivar':'Activar'}</button>
+        <span id="drive-status-${p.id}" style="font-size:.75rem;color:${driveId?'#10b981':'var(--muted)'}">${driveId?'✓ Drive vinculado':'Sin Drive'}</span>
+        ${driveBtn}
       </div>`;
     }).join('') || '<p style="color:var(--muted)">No hay proyectos.</p>';
   };
 
-  window.toggleProyecto = async function(id) {
+  window.toggleProyecto = async function(id, btn) {
+    btn.disabled = true; btn.textContent = '…';
     const fd = new FormData();
     fd.append('csrf_token', window.csrfToken);
     fd.append('id', id);
     const res = await fetch('api.php?action=toggleEstadoProyecto', { method:'POST', body:fd }).then(r=>r.json());
     if(res.exito) {
       const p = todosProyectos.find(x => x.id == id);
-      if(p) p.estado = res.estado;
+      if(p) { p.estado = res.estado; vpProyectosMap[id] = p.nombre; }
       await cargarProyectos();
+    } else {
+      btn.disabled = false; btn.textContent = 'Error';
     }
   };
 
-  window.guardarDriveId = async function(id) {
-    const val = document.getElementById('drive-inp-' + id).value.trim();
-    const fd  = new FormData();
+  window.autoDetectarDrive = async function(id, btn) {
+    btn.disabled = true; btn.textContent = '⏳';
+    const fd = new FormData();
     fd.append('csrf_token', window.csrfToken);
     fd.append('id', id);
-    fd.append('drive_id', val);
-    const res = await fetch('api.php?action=setProyectoDriveId', { method:'POST', body:fd }).then(r=>r.json());
+    const res = await fetch('api.php?action=autoDetectarDriveId', { method:'POST', body:fd }).then(r=>r.json());
     if(res.exito) {
-      vpProyectosDriveMap[id] = val;
-      await cargarProyectos();
+      vpProyectosDriveMap[id] = res.drive_id;
+      const p = todosProyectos.find(x => x.id == id);
+      if(p) p.carpeta_drive_id = res.drive_id;
+      renderGestionProyectos();
+    } else {
+      btn.disabled = false; btn.textContent = '🔍 Auto';
+      document.getElementById('drive-status-' + id).textContent = '✗ ' + (res.mensaje || 'No encontrado');
+      document.getElementById('drive-status-' + id).style.color = '#ff5555';
     }
   };
 

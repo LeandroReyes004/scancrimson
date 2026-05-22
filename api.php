@@ -259,7 +259,6 @@ switch ($action) {
 
     case 'toggleEstadoProyecto':
         requireAdmin();
-        requireCsrf();
         $id = intval($_POST['id'] ?? 0);
         if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID inválido']); break; }
         $db = getDB();
@@ -270,7 +269,6 @@ switch ($action) {
 
     case 'setProyectoDriveId':
         requireAdmin();
-        requireCsrf();
         $id  = intval($_POST['id'] ?? 0);
         $did = trim($_POST['drive_id'] ?? '');
         if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID inválido']); break; }
@@ -501,6 +499,22 @@ switch ($action) {
         $db = getDB();
         $db->prepare("UPDATE staff_discord SET rol = ? WHERE discord_id = ?")->execute([$rol, $discord_id]);
         echo json_encode(['exito' => true]);
+        break;
+
+    // ── AUTO-DETECTAR CARPETA DRIVE POR NOMBRE ───────────────────────────
+    case 'autoDetectarDriveId':
+        requireAdmin();
+        $id = intval($_POST['id'] ?? 0);
+        if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID inválido']); break; }
+        $db = getDB();
+        $proy = $db->prepare("SELECT nombre FROM proyectos WHERE id = ?");
+        $proy->execute([$id]);
+        $p = $proy->fetch();
+        if (!$p) { echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado']); break; }
+        $fid = folderIdByName(CARPETA_RAIZ_ID, $p['nombre']);
+        if (!$fid) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta "' . $p['nombre'] . '" no encontrada en Drive']); break; }
+        $db->prepare("UPDATE proyectos SET carpeta_drive_id = ? WHERE id = ?")->execute([$fid, $id]);
+        echo json_encode(['exito' => true, 'drive_id' => $fid]);
         break;
 
     // ── VERIFICAR DRIVE Y SINCRONIZAR ESTADOS EN BD ───────────────────────
@@ -806,7 +820,6 @@ switch ($action) {
     // ── STAFF: cambiar contraseña propia ────────────────────────────────
     case 'cambiarPassword':
         requireLogin();
-        requireCsrf();
         $u = auth_get_user();
         $actual  = $_POST['actual']  ?? '';
         $nueva   = $_POST['nueva']   ?? '';

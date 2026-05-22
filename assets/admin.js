@@ -72,7 +72,7 @@ function showConfirm(title, text, onConfirm) {
     overlay.classList.remove('hidden');
     
     // Limpiar eventos previos
-    const btnConfirm = overlay.querySelector('.btn-dialog.confirm');
+    const btnConfirm = overlay.querySelector('button.confirm');
     const newConfirm = btnConfirm.cloneNode(true);
     btnConfirm.parentNode.replaceChild(newConfirm, btnConfirm);
     
@@ -291,11 +291,17 @@ function renderUsuarios() {
             </td>
             <td style="color:var(--muted); font-size:0.8rem">${u.creado}</td>
             <td>
-                <div class="row-actions">
+                <div class="row-actions" style="flex-wrap:wrap;gap:4px">
                     <button class="act-btn" onclick="toggleUsuario(${u.id}, ${u.activo ? 0 : 1})">
                         ${u.activo ? 'Desactivar' : 'Activar'}
                     </button>
+                    <button class="act-btn" onclick="toggleResetPass(${u.id})">🔑 Pass</button>
                     <button class="act-btn danger" onclick="confirmEliminarUsuario(${u.id}, '${u.usuario}')">Eliminar</button>
+                </div>
+                <div id="reset-pass-${u.id}" style="display:none;margin-top:6px;display:none">
+                    <input type="password" id="rp-inp-${u.id}" placeholder="Nueva contraseña" class="field-input" style="font-size:.8rem;padding:5px 8px;margin-bottom:4px">
+                    <button class="act-btn" style="font-size:.75rem" onclick="guardarResetPass(${u.id})">✓ Guardar</button>
+                    <button class="act-btn" style="font-size:.75rem" onclick="toggleResetPass(${u.id})">✕</button>
                 </div>
             </td>
         </tr>
@@ -338,13 +344,40 @@ async function toggleUsuario(id, activo) {
     const form = new FormData();
     form.append('id', id);
     form.append('activo', activo);
+    try {
+        const res = await apiFetch('toggleUsuario', { method: 'POST', body: form });
+        if (res && res.exito) {
+            toast(res.mensaje || 'Estado actualizado.');
+            await cargarUsuarios();
+        } else {
+            toast(res?.mensaje || 'No se pudo cambiar el estado', 'err');
+        }
+    } catch(e) {
+        toast('Error de conexión', 'err');
+    }
+}
 
-    const res = await apiFetch('toggleUsuario', { method: 'POST', body: form });
+function toggleResetPass(id) {
+    const el = document.getElementById('reset-pass-' + id);
+    if (!el) return;
+    el.style.display = el.style.display === 'none' ? '' : 'none';
+    if (el.style.display !== 'none') document.getElementById('rp-inp-' + id)?.focus();
+}
+
+async function guardarResetPass(id) {
+    const inp = document.getElementById('rp-inp-' + id);
+    const pass = inp?.value?.trim();
+    if (!pass || pass.length < 4) { toast('Contraseña muy corta (mínimo 4 caracteres)', 'err'); return; }
+    const form = new FormData();
+    form.append('id', id);
+    form.append('password', pass);
+    const res = await apiFetch('adminResetPassword', { method: 'POST', body: form });
     if (res && res.exito) {
         toast(res.mensaje);
-        cargarUsuarios();
+        toggleResetPass(id);
+        if (inp) inp.value = '';
     } else {
-        toast(res?.mensaje || 'Error', 'err');
+        toast(res?.mensaje || 'Error al cambiar contraseña', 'err');
     }
 }
 

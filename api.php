@@ -424,11 +424,24 @@ switch ($action) {
         echo json_encode(['exito' => true, 'mensaje' => 'Estado actualizado.']);
         break;
 
+    case 'adminResetPassword':
+        requireAdmin();
+        $uid  = intval($_POST['id'] ?? 0);
+        $pass = trim($_POST['password'] ?? '');
+        if (!$uid || strlen($pass) < 4) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Contraseña muy corta (mínimo 4 caracteres)']); break;
+        }
+        $db = getDB();
+        $hash = password_hash($pass, PASSWORD_BCRYPT);
+        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$hash, $uid]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada.']);
+        break;
+
     case 'eliminarUsuario':
         requireAdmin();
         $uid = intval($_POST['id'] ?? 0);
 
-        if ($uid === (int)$_SESSION['user']['id']) {
+        if ($uid === (int)(auth_get_user()['id'] ?? 0)) {
             echo json_encode(['exito' => false, 'mensaje' => 'No puedes eliminar tu propia cuenta.']);
             break;
         }

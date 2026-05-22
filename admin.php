@@ -132,45 +132,16 @@
       <div class="page-header">
         <div>
           <p class="page-sub">Flujo de Producción</p>
-          <h1 class="page-title">Vista de <span>Proyectos</span></h1>
+          <h1 class="page-title">Gestión de <span>Proyectos</span></h1>
         </div>
-        <div>
-          <select id="vp-proyecto-select" class="field-input" style="display:inline-block; width:200px; margin-right:10px;" onchange="cargarVistaCapitulos()">
-            <option value="">Cargando proyectos...</option>
-          </select>
-          <button class="btn btn-ghost btn-sm" onclick="cargarVistaCapitulos()" style="margin-right:6px">↺ Refrescar</button>
-          <button class="btn btn-ghost btn-sm" id="btn-sync-all" onclick="syncTodosCapitulos()" title="Sincroniza todas las barras de progreso con Drive">⚡ Sync All</button>
-        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cargarProyectos()">↺ Refrescar</button>
       </div>
       <div class="panel">
-        <div class="panel-header" style="justify-content: space-between; display: flex;">
-          <div class="panel-title" id="vp-proyecto-titulo">◎ Selecciona un proyecto</div>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalNuevoCapitulo()">+ Añadir Capítulo</button>
-        </div>
-        <div class="table-scroll">
-          <table class="data-table">
-            <thead>
-              <tr>
-                <th style="width:70px;text-align:center;">Cap.</th>
-                <th>Progreso</th>
-                <th style="width:130px;text-align:center;">Estado</th>
-                <th style="width:160px;text-align:center;">Acciones</th>
-              </tr>
-            </thead>
-            <tbody id="vp-capitulos-body">
-              <tr><td colspan="4" class="empty-msg">Selecciona un proyecto para ver sus capítulos.</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- Gestión de proyectos -->
-      <div class="panel" style="margin-top:1.5rem">
         <div class="panel-header">
-          <div class="panel-title">⚙ Gestión de Proyectos</div>
+          <div class="panel-title">◎ Proyectos</div>
         </div>
-        <div class="panel-body" id="gestion-proyectos-body">
-          <p style="color:var(--muted);font-size:.85rem">Cargando...</p>
+        <div id="acordeon-proyectos" style="padding:0 .25rem">
+          <div style="text-align:center;padding:2rem;color:var(--muted)"><span class="spinner"></span></div>
         </div>
       </div>
     </div>
@@ -324,17 +295,41 @@
 <div id="cap-modal-overlay" class="drawer-overlay hidden" onclick="cerrarModalNuevoCapitulo()"></div>
 <div id="cap-modal" class="edit-drawer hidden">
   <div class="drawer-header">
-    <span>📑 Añadir Capítulo</span>
+    <span>📑 Añadir Capítulo(s)</span>
     <button class="btn btn-ghost btn-sm" onclick="cerrarModalNuevoCapitulo()">✕</button>
   </div>
   <div class="drawer-body">
-    <div class="field-group">
-      <label class="field-label">Número de Capítulo</label>
-      <input id="new-cap-num" type="number" step="0.1" class="field-input" placeholder="Ej: 15">
+    <input type="hidden" id="cap-modal-proy-id">
+    <div style="display:flex;gap:4px;margin-bottom:1rem;background:rgba(255,255,255,.06);border-radius:8px;padding:4px">
+      <button id="cap-modo-uno" class="btn btn-primary btn-sm" style="flex:1" onclick="setCapModo('uno')">Un capítulo</button>
+      <button id="cap-modo-rango" class="btn btn-ghost btn-sm" style="flex:1" onclick="setCapModo('rango')">Rango</button>
     </div>
+    <div id="cap-form-uno">
+      <div class="field-group">
+        <label class="field-label">Número de Capítulo</label>
+        <input id="new-cap-num" type="number" step="0.1" class="field-input" placeholder="Ej: 15">
+      </div>
+    </div>
+    <div id="cap-form-rango" style="display:none">
+      <div style="display:flex;gap:8px">
+        <div class="field-group" style="flex:1">
+          <label class="field-label">Desde</label>
+          <input id="new-cap-desde" type="number" min="1" class="field-input" placeholder="1">
+        </div>
+        <div class="field-group" style="flex:1">
+          <label class="field-label">Hasta</label>
+          <input id="new-cap-hasta" type="number" min="1" class="field-input" placeholder="15">
+        </div>
+      </div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;font-size:.83rem;color:var(--muted2);margin-top:.75rem;cursor:pointer">
+      <input type="checkbox" id="cap-auto-sync" checked style="accent-color:#dc2020">
+      Sincronizar con Drive al agregar
+    </label>
     <button class="btn btn-primary" style="width:100%; margin-top:1rem" onclick="guardarNuevoCapitulo()">
-      Añadir Capítulo
+      Añadir
     </button>
+    <div id="cap-modal-resultado" style="margin-top:.75rem;font-size:.83rem;text-align:center"></div>
   </div>
 </div>
 
@@ -485,43 +480,142 @@
       const res = await req.json();
       if(res && res.exito) {
         todosProyectos = res.datos;
-        const sel = document.getElementById('vp-proyecto-select');
-        sel.innerHTML = '<option value="">— Seleccionar Proyecto —</option>';
         res.datos.forEach(p => {
           vpProyectosMap[p.id] = p.nombre;
           vpProyectosDriveMap[p.id] = p.carpeta_drive_id || '';
-          if(p.estado === 'activo') {
-            const opt = document.createElement('option');
-            opt.value = p.id;
-            opt.textContent = p.nombre;
-            sel.appendChild(opt);
-          }
         });
-        renderGestionProyectos();
+        renderAcordeonProyectos();
       }
     } catch(e) {
       console.error(e);
     }
   };
 
-  // ─── Gestión de proyectos (activar/desactivar, vincular Drive) ──────────
-  window.renderGestionProyectos = function() {
-    const body = document.getElementById('gestion-proyectos-body');
-    if(!body) return;
+  // ─── Acordeón de proyectos ───────────────────────────────────────────────
+  const ETAPAS_LABEL = { estado_raw:'RAW', estado_trad:'Trad', estado_clean:'Clean', estado_type:'Type', estado_proof:'Proof' };
+  const ETAPAS_KEYS  = Object.keys(ETAPAS_LABEL);
+
+  function calcProgreso(c) {
+    return ETAPAS_KEYS.reduce((s, k) => s + (parseInt(c[k]) ? 1 : 0), 0);
+  }
+
+  function renderBarra(hecho, total) {
+    const pct = Math.round((hecho / total) * 100);
+    const color = pct === 100 ? '#10b981' : pct >= 60 ? '#f59e0b' : pct >= 20 ? '#dc2020' : '#6e6e82';
+    return `<div style="display:flex;align-items:center;gap:8px;min-width:180px">
+      <div style="flex:1;background:rgba(255,255,255,.08);border-radius:4px;height:7px;overflow:hidden;min-width:80px">
+        <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s"></div>
+      </div>
+      <span style="font-size:.76rem;font-weight:700;color:${color};white-space:nowrap">${hecho}/${total}</span>
+      <span style="font-size:.72rem;color:${pct===100?'#10b981':'var(--muted)'};white-space:nowrap">${pct}%</span>
+    </div>`;
+  }
+
+  function renderEtapasChips(c, pId) {
+    return ETAPAS_KEYS.map(k => {
+      const ok = parseInt(c[k]);
+      const lbl = ETAPAS_LABEL[k];
+      return `<span onclick="toggleEstadoCap(${c.id},'${k}',${c[k]},${pId})" title="Click para cambiar"
+        style="cursor:pointer;display:inline-flex;align-items:center;gap:3px;padding:2px 8px;
+               border-radius:6px;font-size:.72rem;font-weight:600;
+               background:${ok?'rgba(16,185,129,.15)':'rgba(255,255,255,.05)'};
+               border:1px solid ${ok?'#10b981':'rgba(255,255,255,.1)'};
+               color:${ok?'#10b981':'#6e6e82'}">${ok?'✓':'✗'} ${lbl}</span>`;
+    }).join('');
+  }
+
+  window.renderAcordeonProyectos = function() {
+    const body = document.getElementById('acordeon-proyectos');
+    if (!body) return;
+    if (!todosProyectos.length) {
+      body.innerHTML = '<p style="color:var(--muted);padding:1.5rem">No hay proyectos.</p>';
+      return;
+    }
     body.innerHTML = todosProyectos.map(p => {
       const activo  = p.estado === 'activo';
       const driveId = vpProyectosDriveMap[p.id] || '';
       const driveBtn = driveId
         ? `<a href="https://drive.google.com/drive/folders/${driveId}" target="_blank" class="btn btn-ghost btn-sm" title="Abrir en Drive">📂</a>`
-        : `<button class="btn btn-ghost btn-sm" onclick="autoDetectarDrive(${p.id},this)" title="Buscar carpeta en Drive automáticamente">🔍 Auto</button>`;
-      return `<div style="display:flex;align-items:center;gap:.75rem;padding:.55rem 0;border-bottom:1px solid var(--border);flex-wrap:wrap">
-        <span style="flex:1;min-width:140px;font-size:.88rem;${activo?'':'color:var(--muted);text-decoration:line-through'}">${p.nombre}</span>
-        <span style="font-size:.72rem;padding:2px 8px;border-radius:6px;background:${activo?'rgba(16,185,129,.15)':'rgba(220,32,32,.1)'};color:${activo?'#10b981':'#ff5555'}">${activo?'Activo':'Inactivo'}</span>
-        <button class="btn btn-ghost btn-sm" onclick="toggleProyecto(${p.id},this)">${activo?'Desactivar':'Activar'}</button>
-        <span id="drive-status-${p.id}" style="font-size:.75rem;color:${driveId?'#10b981':'var(--muted)'}">${driveId?'✓ Drive vinculado':'Sin Drive'}</span>
-        ${driveBtn}
-      </div>`;
-    }).join('') || '<p style="color:var(--muted)">No hay proyectos.</p>';
+        : `<button class="btn btn-ghost btn-sm" onclick="autoDetectarDrive(${p.id},this)" title="Buscar carpeta en Drive">🔍 Auto</button>`;
+      return `
+        <div style="border-bottom:1px solid var(--border)">
+          <div onclick="toggleAcordeon(${p.id})" style="display:flex;align-items:center;gap:.6rem;padding:.8rem .75rem;cursor:pointer;user-select:none">
+            <span id="proy-arrow-${p.id}" style="font-size:.65rem;color:var(--muted);transition:transform .2s;display:inline-block;width:10px">▶</span>
+            <span style="flex:1;font-weight:700;font-size:.92rem;${activo?'':'color:var(--muted);text-decoration:line-through'}">${p.nombre}</span>
+            <span style="font-size:.7rem;padding:2px 8px;border-radius:6px;background:${activo?'rgba(16,185,129,.15)':'rgba(220,32,32,.1)'};color:${activo?'#10b981':'#ff5555'}">${activo?'Activo':'Inactivo'}</span>
+            <span id="drive-status-${p.id}" style="font-size:.72rem;color:${driveId?'#10b981':'var(--muted)'}">${driveId?'✓ Drive':'Sin Drive'}</span>
+            <div onclick="event.stopPropagation()" style="display:flex;gap:4px">
+              ${driveBtn}
+              <button class="btn btn-ghost btn-sm" id="btn-sync-proy-${p.id}" onclick="syncTodosProyecto(${p.id},this)" title="Sync Drive todos los capítulos">⚡</button>
+              <button class="btn btn-primary btn-sm" onclick="abrirModalNuevoCapitulo(${p.id})">+</button>
+              <button class="btn btn-ghost btn-sm" onclick="toggleProyecto(${p.id},this)">${activo?'Off':'On'}</button>
+            </div>
+          </div>
+          <div id="proy-body-${p.id}" style="display:none;background:rgba(255,255,255,.02)">
+            <p style="color:var(--muted);padding:1rem;font-size:.83rem">Cargando…</p>
+          </div>
+        </div>`;
+    }).join('');
+  };
+
+  window.toggleAcordeon = async function(id) {
+    const body  = document.getElementById('proy-body-' + id);
+    const arrow = document.getElementById('proy-arrow-' + id);
+    if (!body) return;
+    if (body.style.display === 'none') {
+      body.style.display = '';
+      arrow.style.transform = 'rotate(90deg)';
+      await cargarCapitulosProyecto(id);
+    } else {
+      body.style.display = 'none';
+      arrow.style.transform = '';
+    }
+  };
+
+  window.cargarCapitulosProyecto = async function(pId) {
+    const body = document.getElementById('proy-body-' + pId);
+    if (!body) return;
+    body.innerHTML = '<p style="color:var(--muted);padding:1rem;font-size:.83rem"><span class="spinner"></span></p>';
+    try {
+      const r   = await fetch('api.php?action=listarCapitulos&proyecto_id=' + pId);
+      const res = await r.json();
+      if (!res.exito || !res.datos.length) {
+        body.innerHTML = '<p style="color:var(--muted);padding:.75rem 1rem;font-size:.83rem">Sin capítulos. Usa + para agregar.</p>';
+        return;
+      }
+      body.innerHTML = `<div style="overflow-x:auto"><table class="data-table" style="margin:0;font-size:.83rem">
+        <thead><tr>
+          <th style="width:55px;text-align:center">Cap.</th>
+          <th style="min-width:200px">Progreso</th>
+          <th>Etapas</th>
+          <th style="width:90px;text-align:center">Estado</th>
+          <th style="width:70px;text-align:center">Sync</th>
+        </tr></thead>
+        <tbody>
+        ${res.datos.map(c => {
+          const hecho = calcProgreso(c);
+          const total = ETAPAS_KEYS.length;
+          const estadoGen  = c.estado_general || 'Pendiente';
+          const badgeClass = estadoGen === 'Publicado' ? 'success' : estadoGen === 'Retrasado' ? 'danger' : 'warning';
+          const isReady    = hecho === total && estadoGen !== 'Publicado';
+          return `<tr>
+            <td style="font-weight:bold;text-align:center">${c.numero}${isReady?` <button class="btn btn-primary" style="font-size:.65rem;padding:2px 6px;margin-top:3px" onclick="publicarCapitulo(${c.id},${pId})">Pub.</button>`:''}</td>
+            <td>${renderBarra(hecho, total)}</td>
+            <td style="white-space:nowrap">${renderEtapasChips(c, pId)}</td>
+            <td style="text-align:center"><span class="badge ${badgeClass}" style="font-size:.68rem">${estadoGen}</span></td>
+            <td style="text-align:center">
+              <button class="btn btn-ghost btn-sm" id="btn-drive-${c.id}" onclick="verificarDriveAcordeon(${c.id},${pId},${c.numero})" title="Sync Drive este capítulo">⚡</button>
+            </td>
+          </tr>
+          <tr id="drive-result-row-${c.id}" style="display:none">
+            <td></td><td colspan="4"><div id="drive-result-${c.id}" style="font-size:.75rem;padding:.3rem 0"></div></td>
+          </tr>`;
+        }).join('')}
+        </tbody>
+      </table></div>`;
+    } catch(e) {
+      body.innerHTML = `<p style="color:#ff5555;padding:.75rem 1rem;font-size:.83rem">Error: ${e.message}</p>`;
+    }
   };
 
   window.toggleProyecto = async function(id, btn) {
@@ -530,10 +624,10 @@
     fd.append('csrf_token', window.csrfToken);
     fd.append('id', id);
     const res = await fetch('api.php?action=toggleEstadoProyecto', { method:'POST', body:fd }).then(r=>r.json());
-    if(res.exito) {
+    if (res.exito) {
       const p = todosProyectos.find(x => x.id == id);
-      if(p) { p.estado = res.estado; vpProyectosMap[id] = p.nombre; }
-      await cargarProyectos();
+      if (p) p.estado = res.estado;
+      renderAcordeonProyectos();
     } else {
       btn.disabled = false; btn.textContent = 'Error';
     }
@@ -545,243 +639,108 @@
     fd.append('csrf_token', window.csrfToken);
     fd.append('id', id);
     const res = await fetch('api.php?action=autoDetectarDriveId', { method:'POST', body:fd }).then(r=>r.json());
-    if(res.exito) {
+    if (res.exito) {
       vpProyectosDriveMap[id] = res.drive_id;
       const p = todosProyectos.find(x => x.id == id);
-      if(p) p.carpeta_drive_id = res.drive_id;
-      renderGestionProyectos();
+      if (p) p.carpeta_drive_id = res.drive_id;
+      renderAcordeonProyectos();
     } else {
       btn.disabled = false; btn.textContent = '🔍 Auto';
-      document.getElementById('drive-status-' + id).textContent = '✗ ' + (res.mensaje || 'No encontrado');
-      document.getElementById('drive-status-' + id).style.color = '#ff5555';
+      const st = document.getElementById('drive-status-' + id);
+      if (st) { st.textContent = '✗ No encontrado'; st.style.color = '#ff5555'; }
     }
   };
 
-  // ─── Vista de capítulos con barra de progreso ────────────────────────────
-  const ETAPAS_LABEL = { estado_raw:'RAW', estado_trad:'Trad', estado_clean:'Clean', estado_type:'Type', estado_proof:'Proof' };
-  const ETAPAS_KEYS  = Object.keys(ETAPAS_LABEL);
-
-  function calcProgreso(c) {
-    return ETAPAS_KEYS.reduce((s, k) => s + (parseInt(c[k]) ? 1 : 0), 0);
-  }
-
-  function renderBarra(hecho, total) {
-    const pct = Math.round((hecho / total) * 100);
-    let color;
-    if (pct === 100)      color = '#10b981';
-    else if (pct >= 60)   color = '#f59e0b';
-    else if (pct >= 20)   color = '#dc2020';
-    else                  color = '#6e6e82';
-    return `
-      <div style="display:flex;align-items:center;gap:10px;max-width:380px">
-        <div style="flex:1;background:rgba(255,255,255,.08);border-radius:4px;height:8px;overflow:hidden;min-width:120px">
-          <div style="height:100%;width:${pct}%;background:${color};border-radius:4px;transition:width .4s"></div>
-        </div>
-        <span style="font-size:.78rem;font-weight:700;color:${color};min-width:32px;white-space:nowrap">${hecho}/${total}</span>
-        <span style="font-size:.72rem;color:${pct===100?'#10b981':'var(--muted)'};min-width:32px;white-space:nowrap">${pct}%</span>
-      </div>`;
-  }
-
-  function renderEtapasDetalle(c) {
-    return ETAPAS_KEYS.map(k => {
-      const ok  = parseInt(c[k]);
-      const lbl = ETAPAS_LABEL[k];
-      return `<span onclick="toggleEstadoCap(${c.id},'${k}',${c[k]})"
-        title="Click para cambiar"
-        style="cursor:pointer;display:inline-flex;align-items:center;gap:4px;padding:3px 10px;
-               border-radius:6px;font-size:.78rem;font-weight:600;
-               background:${ok?'rgba(16,185,129,.15)':'rgba(255,255,255,.05)'};
-               border:1px solid ${ok?'#10b981':'rgba(255,255,255,.1)'};
-               color:${ok?'#10b981':'#6e6e82'}">
-        ${ok?'✓':'✗'} ${lbl}
-      </span>`;
-    }).join('');
-  }
-
-  window.cargarVistaCapitulos = async function() {
-    const pId  = document.getElementById('vp-proyecto-select').value;
-    const tbody = document.getElementById('vp-capitulos-body');
-    const titulo = document.getElementById('vp-proyecto-titulo');
-    if(!pId) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Selecciona un proyecto.</td></tr>';
-      titulo.textContent = '◎ Selecciona un proyecto';
-      return;
-    }
-    titulo.textContent = '◎ Capítulos de ' + vpProyectosMap[pId];
-    tbody.innerHTML = '<tr><td colspan="4" class="loading-cell"><span class="spinner"></span></td></tr>';
-    try {
-      const req = await fetch('api.php?action=listarCapitulos&proyecto_id=' + pId);
-      const res = await req.json();
-      if(!res || !res.exito) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Error cargando capítulos.</td></tr>';
-        return;
-      }
-      if(!res.datos.length) {
-        tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">No hay capítulos registrados.</td></tr>';
-        return;
-      }
-      tbody.innerHTML = res.datos.map(c => {
-        const hecho = calcProgreso(c);
-        const total = ETAPAS_KEYS.length;
-        const pct   = Math.round((hecho / total) * 100);
-        const estadoGen  = c.estado_general || 'Pendiente';
-        const badgeClass = estadoGen === 'Publicado' ? 'success' : (estadoGen === 'Retrasado' ? 'danger' : 'warning');
-        const isReady    = hecho === total && estadoGen !== 'Publicado';
-        return `
-          <tr id="cap-row-${c.id}">
-            <td style="font-weight:bold;text-align:center;font-size:1.05rem">${c.numero}</td>
-            <td>${renderBarra(hecho, total)}</td>
-            <td style="text-align:center"><span class="badge ${badgeClass}">${estadoGen}</span></td>
-            <td style="text-align:center;display:flex;gap:6px;justify-content:center;align-items:center;flex-wrap:wrap">
-              <button class="btn btn-ghost btn-sm" onclick="toggleDetalle(${c.id}, ${pId}, ${c.numero})">◎ Detalle</button>
-              ${isReady ? `<button class="btn btn-primary btn-sm" onclick="publicarCapitulo(${c.id})">Publicar</button>` : ''}
-            </td>
-          </tr>
-          <tr id="cap-det-${c.id}" style="display:none">
-            <td colspan="4" style="padding:.75rem 1.25rem;background:rgba(255,255,255,.02);border-bottom:1px solid var(--border)">
-              <div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">
-                ${renderEtapasDetalle(c)}
-                <button class="btn btn-ghost btn-sm" onclick="verificarDrive(${c.id},${pId},${c.numero})" id="btn-drive-${c.id}"
-                  style="margin-left:auto" title="Busca carpetas 'Capítulo N' en Drive y actualiza los estados automáticamente">⚡ Sync Drive</button>
-              </div>
-              <div id="drive-result-${c.id}" style="margin-top:.6rem;font-size:.8rem"></div>
-            </td>
-          </tr>`;
-      }).join('');
-    } catch(e) {
-      tbody.innerHTML = '<tr><td colspan="4" class="empty-msg">Error: ' + e.message + '</td></tr>';
-    }
-  };
-
-  window.toggleDetalle = function(id, pId, num) {
-    const det = document.getElementById('cap-det-' + id);
-    det.style.display = det.style.display === 'none' ? '' : 'none';
-  };
-
-  window.verificarDrive = async function(capId, proyId, capNum) {
-    const btn     = document.getElementById('btn-drive-' + capId);
-    const res_div = document.getElementById('drive-result-' + capId);
-    btn.disabled  = true;
-    btn.textContent = '⏳ Sincronizando…';
-    res_div.innerHTML = '<span style="color:var(--muted);font-size:.8rem">Buscando carpetas en Drive…</span>';
-    try {
-      const url = `api.php?action=verificarDriveCapitulo&proyecto_id=${proyId}&capitulo_id=${capId}&capitulo_num=${capNum}&sync=1`;
-      const req = await fetch(url);
-      const res = await req.json();
-      if(!res.exito) {
-        res_div.innerHTML = `<span style="color:#dc2020;font-size:.8rem">⚠ ${res.mensaje}</span>`;
-        return;
-      }
-      const etapasNombre = { raw:'RAW', trad:'Traducción', clean:'Limpieza', type:'Typos', proof:'QC' };
-      const chips = Object.entries(res.etapas).map(([k, v]) => {
-        const ok = v.encontrado;
-        return `<span title="${v.nombre || 'No encontrado'}"
-          style="padding:3px 10px;border-radius:6px;font-size:.75rem;font-weight:600;
-                 background:${ok?'rgba(16,185,129,.15)':'rgba(220,32,32,.12)'};
-                 border:1px solid ${ok?'#10b981':'#dc2020'};
-                 color:${ok?'#10b981':'#f87171'}">
-          ${ok?'✓':'✗'} ${etapasNombre[k]}
-        </span>`;
-      }).join('');
-      const syncMsg = res.actualizados > 0
-        ? `<span style="color:#10b981;font-size:.75rem;margin-left:8px">✓ ${res.actualizados} etapa(s) actualizadas en BD</span>`
-        : `<span style="color:var(--muted);font-size:.75rem;margin-left:8px">Sin cambios nuevos</span>`;
-      res_div.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center">${chips}${syncMsg}</div>`;
-      // Recargar la tabla para que las barras reflejen los nuevos estados
-      if(res.actualizados > 0) setTimeout(() => cargarVistaCapitulos(), 600);
-    } catch(e) {
-      res_div.innerHTML = `<span style="color:#dc2020;font-size:.8rem">Error: ${e.message}</span>`;
-    } finally {
-      btn.disabled    = false;
-      btn.textContent = '⚡ Sync Drive';
-    }
-  };
-
-  window.syncTodosCapitulos = async function() {
-    const pId = document.getElementById('vp-proyecto-select').value;
-    if (!pId) { alert('Selecciona un proyecto primero.'); return; }
-
+  window.syncTodosProyecto = async function(pId, btn) {
     const driveId = vpProyectosDriveMap[pId];
-    if (!driveId) {
-      alert('Este proyecto no tiene carpeta de Drive vinculada.\nVe a Proyectos → Gestión de Proyectos y usa "🔍 Auto".');
-      return;
-    }
-
-    const btn = document.getElementById('btn-sync-all');
-    btn.disabled = true;
-
-    // Obtener lista de capítulos
+    if (!driveId) { alert('Sin Drive vinculado. Usa 🔍 Auto primero.'); return; }
+    if (btn) { btn.disabled = true; }
     let caps;
     try {
       const r = await fetch('api.php?action=listarCapitulos&proyecto_id=' + pId);
       const d = await r.json();
-      if (!d.exito || !d.datos.length) { btn.disabled = false; return; }
+      if (!d.exito || !d.datos.length) { if (btn) { btn.disabled = false; } return; }
       caps = d.datos;
-    } catch(e) { btn.disabled = false; return; }
-
-    let actualizadosTotal = 0;
+    } catch(e) { if (btn) btn.disabled = false; return; }
+    let total = 0;
     for (let i = 0; i < caps.length; i++) {
-      const c = caps[i];
-      btn.textContent = `⏳ ${i+1}/${caps.length}`;
+      if (btn) btn.textContent = `${i+1}/${caps.length}`;
       try {
-        const url = `api.php?action=verificarDriveCapitulo&proyecto_id=${pId}&capitulo_id=${c.id}&capitulo_num=${c.numero}&sync=1`;
-        const r = await fetch(url);
+        const r = await fetch(`api.php?action=verificarDriveCapitulo&proyecto_id=${pId}&capitulo_id=${caps[i].id}&capitulo_num=${caps[i].numero}&sync=1`);
         const res = await r.json();
-        if (res.exito) actualizadosTotal += (res.actualizados || 0);
-      } catch(e) { /* sigue con el siguiente */ }
+        if (res.exito) total += (res.actualizados || 0);
+      } catch(e) {}
     }
-
-    btn.disabled = false;
-    btn.textContent = '⚡ Sync All';
-    await cargarVistaCapitulos();
-    if (actualizadosTotal > 0) {
-      const msg = document.createElement('div');
-      msg.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#10b981;color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;font-weight:600;z-index:9999';
-      msg.textContent = `✓ ${actualizadosTotal} etapa(s) sincronizadas desde Drive`;
-      document.body.appendChild(msg);
-      setTimeout(() => msg.remove(), 4000);
+    if (btn) { btn.disabled = false; btn.textContent = '⚡'; }
+    const body = document.getElementById('proy-body-' + pId);
+    if (body && body.style.display !== 'none') await cargarCapitulosProyecto(pId);
+    if (total > 0) {
+      const t = document.createElement('div');
+      t.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#10b981;color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;font-weight:600;z-index:9999';
+      t.textContent = `✓ ${total} etapa(s) sincronizadas`;
+      document.body.appendChild(t);
+      setTimeout(() => t.remove(), 3500);
     }
   };
 
-  window.toggleEstadoCap = async function(id, campo, valorActual) {
-    const nuevoValor = valorActual == 1 ? 0 : 1;
-    const fd = new FormData();
-    fd.append('id', id);
-    fd.append('campo', campo);
-    fd.append('valor', nuevoValor);
-    fd.append('csrf_token', window.csrfToken);
-    
+  window.verificarDriveAcordeon = async function(capId, proyId, capNum) {
+    const btn    = document.getElementById('btn-drive-' + capId);
+    const resDiv = document.getElementById('drive-result-' + capId);
+    const resRow = document.getElementById('drive-result-row-' + capId);
+    btn.disabled = true; btn.textContent = '⏳';
+    if (resRow) resRow.style.display = '';
+    if (resDiv) resDiv.innerHTML = '<span style="color:var(--muted)">Buscando en Drive…</span>';
     try {
-      const r = await fetch('api.php?action=actualizarEstadoCapitulo', { method: 'POST', body: fd });
+      const r   = await fetch(`api.php?action=verificarDriveCapitulo&proyecto_id=${proyId}&capitulo_id=${capId}&capitulo_num=${capNum}&sync=1`);
       const res = await r.json();
-      if(res.exito) {
-         cargarVistaCapitulos();
-      } else {
-         alert(res.mensaje || 'Error al actualizar');
-      }
+      if (!res.exito) { if (resDiv) resDiv.innerHTML = `<span style="color:#dc2020">⚠ ${res.mensaje}</span>`; return; }
+      const EN = { raw:'RAW', trad:'Trad', clean:'Clean', type:'Type', proof:'QC' };
+      const chips = Object.entries(res.etapas).map(([k,v]) => {
+        const ok = v.encontrado;
+        return `<span style="padding:2px 7px;border-radius:6px;font-size:.7rem;font-weight:600;background:${ok?'rgba(16,185,129,.15)':'rgba(220,32,32,.12)'};border:1px solid ${ok?'#10b981':'#dc2020'};color:${ok?'#10b981':'#f87171'}">${ok?'✓':'✗'} ${EN[k]}</span>`;
+      }).join('');
+      const msg = res.actualizados > 0 ? `<span style="color:#10b981;margin-left:6px">✓ ${res.actualizados} actualizadas</span>` : `<span style="color:var(--muted);margin-left:6px">Sin cambios</span>`;
+      if (resDiv) resDiv.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:5px;align-items:center">${chips}${msg}</div>`;
+      if (res.actualizados > 0) await cargarCapitulosProyecto(proyId);
     } catch(e) {
-      console.error(e);
+      if (resDiv) resDiv.innerHTML = `<span style="color:#dc2020">Error: ${e.message}</span>`;
+    } finally {
+      btn.disabled = false; btn.textContent = '⚡';
     }
   };
 
-  window.publicarCapitulo = async function(id) {
-    if(!confirm("¿Marcar como publicado?")) return;
+  window.toggleEstadoCap = async function(id, campo, valorActual, proyId) {
     const fd = new FormData();
-    fd.append('id', id);
+    fd.append('id', id); fd.append('campo', campo);
+    fd.append('valor', valorActual == 1 ? 0 : 1);
     fd.append('csrf_token', window.csrfToken);
     try {
-      const r = await fetch('api.php?action=publicarCapitulo', { method: 'POST', body: fd });
+      const r = await fetch('api.php?action=actualizarEstadoCapitulo', { method:'POST', body:fd });
       const res = await r.json();
-      if(res.exito) cargarVistaCapitulos();
-    } catch(e) {
-      console.error(e);
-    }
+      if (res.exito && proyId) await cargarCapitulosProyecto(proyId);
+      else if (!res.exito) alert(res.mensaje || 'Error');
+    } catch(e) { console.error(e); }
   };
 
-  window.abrirModalNuevoCapitulo = function() {
-    const pId = document.getElementById('vp-proyecto-select').value;
-    if(!pId) return alert('Selecciona un proyecto primero.');
+  window.publicarCapitulo = async function(id, proyId) {
+    if (!confirm('¿Marcar como publicado?')) return;
+    const fd = new FormData();
+    fd.append('id', id); fd.append('csrf_token', window.csrfToken);
+    try {
+      const r = await fetch('api.php?action=publicarCapitulo', { method:'POST', body:fd });
+      const res = await r.json();
+      if (res.exito && proyId) await cargarCapitulosProyecto(proyId);
+    } catch(e) { console.error(e); }
+  };
+
+  window.abrirModalNuevoCapitulo = function(proyId) {
+    if (!proyId) return alert('Proyecto no seleccionado.');
+    document.getElementById('cap-modal-proy-id').value = proyId;
     document.getElementById('new-cap-num').value = '';
+    document.getElementById('new-cap-desde').value = '';
+    document.getElementById('new-cap-hasta').value = '';
+    document.getElementById('cap-modal-resultado').textContent = '';
+    setCapModo('uno');
     document.getElementById('cap-modal-overlay').classList.remove('hidden');
     document.getElementById('cap-modal').classList.remove('hidden');
   };
@@ -791,27 +750,59 @@
     document.getElementById('cap-modal').classList.add('hidden');
   };
 
+  window.setCapModo = function(modo) {
+    const esRango = modo === 'rango';
+    document.getElementById('cap-form-uno').style.display   = esRango ? 'none' : '';
+    document.getElementById('cap-form-rango').style.display = esRango ? '' : 'none';
+    document.getElementById('cap-modo-uno').className   = 'btn btn-sm ' + (esRango ? 'btn-ghost' : 'btn-primary');
+    document.getElementById('cap-modo-rango').className  = 'btn btn-sm ' + (esRango ? 'btn-primary' : 'btn-ghost');
+  };
+
   window.guardarNuevoCapitulo = async function() {
-    const pId = document.getElementById('vp-proyecto-select').value;
-    const num = document.getElementById('new-cap-num').value;
-    if(!pId || !num) return;
-    
-    const fd = new FormData();
-    fd.append('proyecto_id', pId);
-    fd.append('numero', num);
-    fd.append('csrf_token', window.csrfToken);
-    
-    try {
-      const r = await fetch('api.php?action=crearCapitulo', { method: 'POST', body: fd });
-      const res = await r.json();
-      if(res.exito) {
-        cerrarModalNuevoCapitulo();
-        cargarVistaCapitulos();
-      } else {
-        alert(res.mensaje || 'Error al crear.');
+    const pId    = parseInt(document.getElementById('cap-modal-proy-id').value);
+    const esRango = document.getElementById('cap-form-rango').style.display !== 'none';
+    const autoSync = document.getElementById('cap-auto-sync').checked;
+    const resDiv  = document.getElementById('cap-modal-resultado');
+    if (!pId) return;
+    resDiv.textContent = '';
+    let ok = false;
+
+    if (esRango) {
+      const desde = parseInt(document.getElementById('new-cap-desde').value);
+      const hasta = parseInt(document.getElementById('new-cap-hasta').value);
+      if (!desde || !hasta || desde > hasta || (hasta - desde) > 200) {
+        resDiv.style.color = '#ff5555'; resDiv.textContent = 'Rango inválido (máx. 200 caps).'; return;
       }
-    } catch(e) {
-      console.error(e);
+      const fd = new FormData();
+      fd.append('proyecto_id', pId); fd.append('desde', desde); fd.append('hasta', hasta);
+      fd.append('csrf_token', window.csrfToken);
+      const res = await fetch('api.php?action=crearCapitulosRango', { method:'POST', body:fd }).then(r=>r.json());
+      if (!res.exito) { resDiv.style.color='#ff5555'; resDiv.textContent = res.mensaje || 'Error'; return; }
+      resDiv.style.color = '#10b981';
+      resDiv.textContent = `✓ ${res.creados} capítulo(s) creados (${res.omitidos} ya existían)`;
+      ok = true;
+    } else {
+      const num = document.getElementById('new-cap-num').value;
+      if (!num) return;
+      const fd = new FormData();
+      fd.append('proyecto_id', pId); fd.append('numero', num);
+      fd.append('csrf_token', window.csrfToken);
+      const res = await fetch('api.php?action=crearCapitulo', { method:'POST', body:fd }).then(r=>r.json());
+      if (!res.exito) { resDiv.style.color='#ff5555'; resDiv.textContent = res.mensaje || 'Error'; return; }
+      resDiv.style.color = '#10b981'; resDiv.textContent = '✓ Capítulo creado.';
+      ok = true;
+    }
+
+    if (ok) {
+      cerrarModalNuevoCapitulo();
+      // Abrir acordeón del proyecto y recargar
+      const body  = document.getElementById('proy-body-' + pId);
+      const arrow = document.getElementById('proy-arrow-' + pId);
+      if (body) { body.style.display = ''; if (arrow) arrow.style.transform = 'rotate(90deg)'; }
+      await cargarCapitulosProyecto(pId);
+      if (autoSync && vpProyectosDriveMap[pId]) {
+        await syncTodosProyecto(pId, document.getElementById('btn-sync-proy-' + pId));
+      }
     }
   };
 

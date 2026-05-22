@@ -309,6 +309,24 @@ switch ($action) {
         }
         break;
 
+    case 'crearCapitulosRango':
+        requireAdmin();
+        $pId   = intval($_POST['proyecto_id'] ?? 0);
+        $desde = intval($_POST['desde'] ?? 0);
+        $hasta = intval($_POST['hasta'] ?? 0);
+        if (!$pId || $desde < 1 || $hasta < $desde || ($hasta - $desde) > 200) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Parámetros inválidos']); break;
+        }
+        $db = getDB();
+        $stmt = $db->prepare("INSERT IGNORE INTO capitulos (proyecto_id, numero) VALUES (?, ?)");
+        $creados = 0; $omitidos = 0;
+        for ($n = $desde; $n <= $hasta; $n++) {
+            $stmt->execute([$pId, $n]);
+            $stmt->rowCount() > 0 ? $creados++ : $omitidos++;
+        }
+        echo json_encode(['exito' => true, 'creados' => $creados, 'omitidos' => $omitidos]);
+        break;
+
     case 'actualizarEstadoCapitulo':
         requireAdmin();
         $cap_id = intval($_POST['id'] ?? 0);
@@ -511,13 +529,11 @@ switch ($action) {
 
     // ── DEBUG DRIVE ───────────────────────────────────────────────────────
     case 'debugDrive':
-        $raiz = CARPETA_RAIZ_ID;
-        $carpetas = driveQ("'{$raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 50);
+        $appsUrl = APPS_SCRIPT_URL;
+        $res = $appsUrl ? httpGet($appsUrl . '?action=listarProyectosConId') : null;
         echo json_encode([
-            'accion_recibida' => $action,
-            'carpeta_raiz_id' => $raiz,
-            'carpetas_encontradas' => array_column($carpetas, 'name'),
-            'total' => count($carpetas),
+            'apps_script_url'      => $appsUrl ?: '(no configurada)',
+            'apps_script_respuesta' => $res,
         ]);
         break;
 

@@ -138,7 +138,8 @@
           <select id="vp-proyecto-select" class="field-input" style="display:inline-block; width:200px; margin-right:10px;" onchange="cargarVistaCapitulos()">
             <option value="">Cargando proyectos...</option>
           </select>
-          <button class="btn btn-ghost btn-sm" onclick="cargarVistaCapitulos()">↺ Refrescar</button>
+          <button class="btn btn-ghost btn-sm" onclick="cargarVistaCapitulos()" style="margin-right:6px">↺ Refrescar</button>
+          <button class="btn btn-ghost btn-sm" id="btn-sync-all" onclick="syncTodosCapitulos()" title="Sincroniza todas las barras de progreso con Drive">⚡ Sync All</button>
         </div>
       </div>
       <div class="panel">
@@ -693,6 +694,52 @@
     } finally {
       btn.disabled    = false;
       btn.textContent = '⚡ Sync Drive';
+    }
+  };
+
+  window.syncTodosCapitulos = async function() {
+    const pId = document.getElementById('vp-proyecto-select').value;
+    if (!pId) { alert('Selecciona un proyecto primero.'); return; }
+
+    const driveId = vpProyectosDriveMap[pId];
+    if (!driveId) {
+      alert('Este proyecto no tiene carpeta de Drive vinculada.\nVe a Proyectos → Gestión de Proyectos y usa "🔍 Auto".');
+      return;
+    }
+
+    const btn = document.getElementById('btn-sync-all');
+    btn.disabled = true;
+
+    // Obtener lista de capítulos
+    let caps;
+    try {
+      const r = await fetch('api.php?action=listarCapitulos&proyecto_id=' + pId);
+      const d = await r.json();
+      if (!d.exito || !d.datos.length) { btn.disabled = false; return; }
+      caps = d.datos;
+    } catch(e) { btn.disabled = false; return; }
+
+    let actualizadosTotal = 0;
+    for (let i = 0; i < caps.length; i++) {
+      const c = caps[i];
+      btn.textContent = `⏳ ${i+1}/${caps.length}`;
+      try {
+        const url = `api.php?action=verificarDriveCapitulo&proyecto_id=${pId}&capitulo_id=${c.id}&capitulo_num=${c.numero}&sync=1`;
+        const r = await fetch(url);
+        const res = await r.json();
+        if (res.exito) actualizadosTotal += (res.actualizados || 0);
+      } catch(e) { /* sigue con el siguiente */ }
+    }
+
+    btn.disabled = false;
+    btn.textContent = '⚡ Sync All';
+    await cargarVistaCapitulos();
+    if (actualizadosTotal > 0) {
+      const msg = document.createElement('div');
+      msg.style.cssText = 'position:fixed;bottom:24px;right:24px;background:#10b981;color:#fff;padding:10px 18px;border-radius:8px;font-size:.85rem;font-weight:600;z-index:9999';
+      msg.textContent = `✓ ${actualizadosTotal} etapa(s) sincronizadas desde Drive`;
+      document.body.appendChild(msg);
+      setTimeout(() => msg.remove(), 4000);
     }
   };
 

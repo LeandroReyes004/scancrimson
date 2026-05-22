@@ -102,8 +102,16 @@ function driveQ(string $q, string $fields = 'files(id,name)', int $limit = 100):
 }
 
 function folderIdByName(string $parentId, string $name): ?string {
+    // Búsqueda exacta primero (más rápida)
     $files = driveQ("'{$parentId}' in parents and name='" . addslashes($name) . "' and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 1);
-    return $files[0]['id'] ?? null;
+    if (!empty($files[0]['id'])) return $files[0]['id'];
+    // Fallback case-insensitive: listar todas y comparar en PHP
+    $all = driveQ("'{$parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 200);
+    $needle = mb_strtolower(trim($name));
+    foreach ($all as $f) {
+        if (mb_strtolower(trim($f['name'])) === $needle) return $f['id'];
+    }
+    return null;
 }
 
 function downloadUrl(string $fileId): string {

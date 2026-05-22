@@ -752,10 +752,10 @@ switch ($action) {
         $sd = $db->prepare("SELECT discord_id FROM staff_discord WHERE usuario_form = ?");
         $sd->execute([$u['usuario']]);
         $staff = $sd->fetch();
-        if (!$staff) { echo json_encode(['exito' => true, 'data' => []]); break; }
+        if (!$staff) { echo json_encode(['exito' => true, 'vinculado' => false, 'data' => []]); break; }
         $rows = $db->prepare("SELECT * FROM tareas WHERE discord_id = ? AND estado = 'activa' ORDER BY limite ASC");
         $rows->execute([$staff['discord_id']]);
-        echo json_encode(['exito' => true, 'data' => $rows->fetchAll()]);
+        echo json_encode(['exito' => true, 'vinculado' => true, 'data' => $rows->fetchAll()]);
         break;
 
     // ── STAFF: marcar tarea entregada ────────────────────────────────────
@@ -779,6 +779,28 @@ switch ($action) {
                       ON DUPLICATE KEY UPDATE puntos = puntos + 1")
            ->execute([$staff['discord_id'], $ahora->format('n'), $ahora->format('Y')]);
         echo json_encode(['exito' => true]);
+        break;
+
+    // ── STAFF: cambiar contraseña propia ────────────────────────────────
+    case 'cambiarPassword':
+        requireLogin();
+        requireCsrf();
+        $u = auth_get_user();
+        $actual  = $_POST['actual']  ?? '';
+        $nueva   = $_POST['nueva']   ?? '';
+        $nueva2  = $_POST['nueva2']  ?? '';
+        if (!$actual || !$nueva || !$nueva2) { echo json_encode(['exito' => false, 'mensaje' => 'Completa todos los campos']); break; }
+        if ($nueva !== $nueva2) { echo json_encode(['exito' => false, 'mensaje' => 'Las contraseñas nuevas no coinciden']); break; }
+        if (strlen($nueva) < 6) { echo json_encode(['exito' => false, 'mensaje' => 'Mínimo 6 caracteres']); break; }
+        $db = getDB();
+        $row = $db->prepare("SELECT password FROM usuarios WHERE id = ?");
+        $row->execute([$u['id']]);
+        $urow = $row->fetch();
+        $ok = password_verify($actual, $urow['password'] ?? '') || $actual === ($urow['password'] ?? '');
+        if (!$ok) { echo json_encode(['exito' => false, 'mensaje' => 'Contraseña actual incorrecta']); break; }
+        $hash = password_hash($nueva, PASSWORD_BCRYPT);
+        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$hash, $u['id']]);
+        echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada']);
         break;
 
     // ── STAFF: mi ranking del mes ────────────────────────────────────────

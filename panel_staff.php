@@ -204,12 +204,37 @@ $csrf_token = csrf_token_generate();
   <div class="header-logo">CRIMSON <span>SCAN</span></div>
   <div class="header-right">
     <div class="header-user"><strong><?= htmlspecialchars($user['usuario']) ?></strong></div>
+    <button class="logout-btn" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--muted2)" onclick="abrirCambiarPass()">🔑</button>
     <form action="logout.php" method="post" style="margin:0">
       <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
       <button type="submit" class="logout-btn">Salir</button>
     </form>
   </div>
 </header>
+
+<!-- MODAL cambiar contraseña -->
+<div id="modal-pass" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#13131f;border:1px solid var(--border);border-radius:16px;padding:1.5rem;width:100%;max-width:340px">
+    <div style="font-weight:700;margin-bottom:1.2rem">🔑 Cambiar contraseña</div>
+    <div class="field-group">
+      <label class="field-label">Contraseña actual</label>
+      <input type="password" id="pass-actual" class="field-input" placeholder="••••••">
+    </div>
+    <div class="field-group">
+      <label class="field-label">Nueva contraseña</label>
+      <input type="password" id="pass-nueva" class="field-input" placeholder="••••••">
+    </div>
+    <div class="field-group" style="margin-bottom:1rem">
+      <label class="field-label">Repetir nueva</label>
+      <input type="password" id="pass-nueva2" class="field-input" placeholder="••••••">
+    </div>
+    <div id="pass-msg" style="font-size:.8rem;margin-bottom:.8rem;min-height:1.2rem"></div>
+    <div style="display:flex;gap:.75rem">
+      <button class="upload-btn" onclick="guardarPass()">Guardar</button>
+      <button class="upload-btn" style="background:rgba(255,255,255,.06);color:var(--muted2)" onclick="cerrarCambiarPass()">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 <!-- CONTENT -->
 <main class="content">
@@ -502,7 +527,18 @@ async function cargarTareas() {
   const list = document.getElementById('tareas-list');
   list.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
   const res = await api('misTareas');
-  if (!res.exito || !res.data.length) {
+  if (!res.exito) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div>Error al cargar tareas.</div></div>';
+    return;
+  }
+  if (res.vinculado === false) {
+    document.getElementById('tareas-count').style.display = 'none';
+    list.innerHTML = `<div class="empty"><div class="empty-icon">🔗</div>
+      <div style="text-align:center">No estás vinculado con Discord.<br>
+      <span style="font-size:.8rem;color:var(--muted)">Usa <b>cd!mi_usuario tu_apodo</b> en el servidor de Discord para vincular tu cuenta.</span></div></div>`;
+    return;
+  }
+  if (!res.data.length) {
     document.getElementById('tareas-count').style.display = 'none';
     list.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div>Sin tareas activas por ahora.</div></div>';
     return;
@@ -572,6 +608,41 @@ async function cargarRanking() {
           <div class="ranking-pts-sm">${m.puntos} pts</div>
         </div>`).join('')
     : '<div class="empty">Sin datos de ranking aún.</div>';
+}
+
+// ── Cambiar contraseña ───────────────────────────────────────────────────────
+
+const modal = document.getElementById('modal-pass');
+modal.style.display = 'none';
+
+function abrirCambiarPass() {
+  document.getElementById('pass-actual').value = '';
+  document.getElementById('pass-nueva').value  = '';
+  document.getElementById('pass-nueva2').value = '';
+  document.getElementById('pass-msg').textContent = '';
+  modal.style.display = 'flex';
+}
+function cerrarCambiarPass() { modal.style.display = 'none'; }
+
+async function guardarPass() {
+  const msg = document.getElementById('pass-msg');
+  const fd  = new FormData();
+  fd.append('csrf_token', CSRF);
+  fd.append('actual',  document.getElementById('pass-actual').value);
+  fd.append('nueva',   document.getElementById('pass-nueva').value);
+  fd.append('nueva2',  document.getElementById('pass-nueva2').value);
+  msg.style.color = 'var(--muted2)';
+  msg.textContent = 'Guardando...';
+  const res = await fetch('api.php?action=cambiarPassword', { method:'POST', body: fd, credentials:'same-origin' });
+  const data = await res.json();
+  if (data.exito) {
+    msg.style.color = 'var(--green)';
+    msg.textContent = '✓ ' + data.mensaje;
+    setTimeout(cerrarCambiarPass, 1500);
+  } else {
+    msg.style.color = 'var(--red-bright)';
+    msg.textContent = '✗ ' + (data.mensaje || 'Error');
+  }
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────

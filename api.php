@@ -509,6 +509,18 @@ switch ($action) {
         echo json_encode(['exito' => true]);
         break;
 
+    // ── DEBUG DRIVE ───────────────────────────────────────────────────────
+    case 'debugDrive':
+        requireAdmin();
+        $raiz = CARPETA_RAIZ_ID;
+        $carpetas = driveQ("'{$raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 50);
+        echo json_encode([
+            'carpeta_raiz_id' => $raiz,
+            'carpetas_encontradas' => array_column($carpetas, 'name'),
+            'total' => count($carpetas),
+        ]);
+        break;
+
     // ── AUTO-DETECTAR CARPETA DRIVE POR NOMBRE ───────────────────────────
     case 'autoDetectarDriveId':
         requireAdmin();
@@ -520,7 +532,7 @@ switch ($action) {
         $p = $proy->fetch();
         if (!$p) { echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado']); break; }
         $fid = folderIdByName(CARPETA_RAIZ_ID, $p['nombre']);
-        if (!$fid) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta "' . $p['nombre'] . '" no encontrada en Drive']); break; }
+        if (!$fid) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta "' . $p['nombre'] . '" no encontrada en Drive', 'raiz_usada' => CARPETA_RAIZ_ID]); break; }
         $db->prepare("UPDATE proyectos SET carpeta_drive_id = ? WHERE id = ?")->execute([$fid, $id]);
         echo json_encode(['exito' => true, 'drive_id' => $fid]);
         break;

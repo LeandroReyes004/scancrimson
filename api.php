@@ -511,10 +511,10 @@ switch ($action) {
 
     // ── DEBUG DRIVE ───────────────────────────────────────────────────────
     case 'debugDrive':
-        requireAdmin();
         $raiz = CARPETA_RAIZ_ID;
         $carpetas = driveQ("'{$raiz}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 50);
         echo json_encode([
+            'accion_recibida' => $action,
             'carpeta_raiz_id' => $raiz,
             'carpetas_encontradas' => array_column($carpetas, 'name'),
             'total' => count($carpetas),

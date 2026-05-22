@@ -26,6 +26,50 @@ function doGet(e) {
     return jsonResponse({ exito: true, datos: nombres });
   }
 
+  if (action === 'listarProyectosConId') {
+    var folder  = DriveApp.getFolderById(CARPETA_RAIZ_ID);
+    var folders = folder.getFolders();
+    var datos   = [];
+    while (folders.hasNext()) {
+      var f = folders.next();
+      datos.push({ nombre: f.getName(), id: f.getId() });
+    }
+    datos.sort(function(a, b) { return a.nombre.localeCompare(b.nombre); });
+    return jsonResponse({ exito: true, datos: datos });
+  }
+
+  if (action === 'verificarCapitulo') {
+    var proyDriveId = e.parameter.proyecto_drive_id;
+    var capNum      = e.parameter.capitulo;
+    if (!proyDriveId || !capNum) return jsonResponse({ exito: false, mensaje: 'Faltan parametros' });
+    var capNombre   = 'Capítulo ' + capNum;
+    var capNombreB  = 'Capitulo '  + capNum;
+    var etapasMap   = {
+      raw:   '01. RAWs',
+      trad:  '02. Traducción',
+      clean: '03. Limpieza y Redibujo',
+      type:  '04. Typos',
+      proof: '05. Control de Calidad'
+    };
+    var resultado = {};
+    try {
+      var pFolder = DriveApp.getFolderById(proyDriveId);
+      Object.keys(etapasMap).forEach(function(clave) {
+        try {
+          var eFolders = pFolder.getFoldersByName(etapasMap[clave]);
+          if (!eFolders.hasNext()) { resultado[clave] = false; return; }
+          var eFolder  = eFolders.next();
+          var c1 = eFolder.getFoldersByName(capNombre);
+          var c2 = eFolder.getFoldersByName(capNombreB);
+          resultado[clave] = c1.hasNext() || c2.hasNext();
+        } catch(err) { resultado[clave] = false; }
+      });
+      return jsonResponse({ exito: true, etapas: resultado });
+    } catch(err) {
+      return jsonResponse({ exito: false, mensaje: 'Error: ' + err.toString() });
+    }
+  }
+
   if (action === 'historial') {
     var lastRow = sheet.getLastRow();
     if (lastRow <= 1) return jsonResponse({ exito: true, datos: [] });

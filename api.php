@@ -531,14 +531,20 @@ switch ($action) {
         $proy->execute([$id]);
         $p = $proy->fetch();
         if (!$p) { echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado']); break; }
-        $fid = folderIdByName(CARPETA_RAIZ_ID, $p['nombre']);
-        if (!$fid) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta "' . $p['nombre'] . '" no encontrada en Drive', 'raiz_usada' => CARPETA_RAIZ_ID]); break; }
+        // Buscar via Apps Script (tiene auth para Drive privado)
+        $res = httpGet(APPS_SCRIPT_URL . '?action=listarProyectosConId');
+        if (empty($res['datos'])) { echo json_encode(['exito' => false, 'mensaje' => 'Apps Script no devolvió proyectos']); break; }
+        $needle = mb_strtolower(trim($p['nombre']));
+        $fid = null;
+        foreach ($res['datos'] as $item) {
+            if (mb_strtolower(trim($item['nombre'])) === $needle) { $fid = $item['id']; break; }
+        }
+        if (!$fid) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta "' . $p['nombre'] . '" no encontrada en Drive']); break; }
         $db->prepare("UPDATE proyectos SET carpeta_drive_id = ? WHERE id = ?")->execute([$fid, $id]);
         echo json_encode(['exito' => true, 'drive_id' => $fid]);
         break;
 
     // ── VERIFICAR DRIVE Y SINCRONIZAR ESTADOS EN BD ───────────────────────
-    // Estructura real en Drive: Proyecto / "0X. Etapa" / "Capítulo N" (carpeta)
     case 'verificarDriveCapitulo':
         requireLogin();
         $proyecto_id  = intval($_GET['proyecto_id']  ?? 0);
@@ -555,49 +561,39 @@ switch ($action) {
         $proy = $stmt->fetch();
         if (!$proy) { echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado']); break; }
 
-        $folderId = $proy['carpeta_drive_id'] ?: folderIdByName(CARPETA_RAIZ_ID, $proy['nombre']);
-        if (!$folderId) { echo json_encode(['exito' => false, 'mensaje' => 'Carpeta "' . $proy['nombre'] . '" no encontrada en Drive']); break; }
-
-        // Nombre de carpeta tal como aparece en Drive: "Capítulo 6"
-        $capNum = (floor($capitulo_num) == $capitulo_num) ? (int)$capitulo_num : $capitulo_num;
-        $capNombreExacto  = 'Capítulo ' . $capNum;
-        $capNombreAlt     = 'Capitulo ' . $capNum;   // sin tilde, por si acaso
-
-        $etapas = [
-            'raw'   => ['db' => 'estado_raw',   'drive' => '01. RAWs'],
-            'trad'  => ['db' => 'estado_trad',  'drive' => '02. Traducción'],
-            'clean' => ['db' => 'estado_clean', 'drive' => '03. Limpieza y Redibujo'],
-            'type'  => ['db' => 'estado_type',  'drive' => '04. Typos'],
-            'proof' => ['db' => 'estado_proof', 'drive' => '05. Control de Calidad'],
-        ];
-
-        $resultado   = [];
-        $dbActualizar = [];
-
-        foreach ($etapas as $clave => $info) {
-            $etapaId = folderIdByName($folderId, $info['drive']);
-            if (!$etapaId) {
-                $resultado[$clave] = ['encontrado' => false, 'nombre' => null];
-                continue;
-            }
-            // Buscar subcarpeta "Capítulo N" dentro de la carpeta de etapa
-            $q = "'{$etapaId}' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'";
-            $carpetas = driveQ($q, 'files(id,name)', 100);
-            $match = null;
-            foreach ($carpetas as $f) {
-                $n = $f['name'];
-                if (strcasecmp($n, $capNombreExacto) === 0 || strcasecmp($n, $capNombreAlt) === 0
-                    || preg_match('/\b' . preg_quote((string)$capNum, '/') . '\b/', $n)) {
-                    $match = $f;
-                    break;
-                }
-            }
-            $encontrado = ($match !== null);
-            $resultado[$clave] = ['encontrado' => $encontrado, 'nombre' => $match['name'] ?? null];
-            if ($encontrado) $dbActualizar[$info['db']] = 1;
+        $folderId = $proy['carpeta_drive_id'];
+        if (!$folderId) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Proyecto sin Drive vinculado. Usa "🔍 Auto" en Gestión de Proyectos.']);
+            break;
         }
 
-        // Si se pide sincronizar y hay capítulo ID, actualizar la BD
+        $capNum = (floor($capitulo_num) == $capitulo_num) ? (int)$capitulo_num : $capitulo_num;
+
+        // Llamar a Apps Script (tiene auth OAuth para Drive privado)
+        $url = APPS_SCRIPT_URL . '?action=verificarCapitulo'
+             . '&proyecto_drive_id=' . urlencode($folderId)
+             . '&capitulo=' . urlencode((string)$capNum);
+        $res = httpGet($url);
+
+        if (empty($res['exito'])) {
+            echo json_encode(['exito' => false, 'mensaje' => $res['mensaje'] ?? 'Error en Apps Script']);
+            break;
+        }
+
+        $etapasDb = [
+            'raw'   => 'estado_raw',
+            'trad'  => 'estado_trad',
+            'clean' => 'estado_clean',
+            'type'  => 'estado_type',
+            'proof' => 'estado_proof',
+        ];
+        $resultado    = [];
+        $dbActualizar = [];
+        foreach ($res['etapas'] as $clave => $encontrado) {
+            $resultado[$clave] = ['encontrado' => (bool)$encontrado, 'nombre' => $encontrado ? 'Capítulo ' . $capNum : null];
+            if ($encontrado && isset($etapasDb[$clave])) $dbActualizar[$etapasDb[$clave]] = 1;
+        }
+
         $actualizados = 0;
         if ($sincronizar && $capitulo_id && !empty($dbActualizar)) {
             $sets = implode(', ', array_map(fn($col) => "$col = ?", array_keys($dbActualizar)));

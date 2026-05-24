@@ -3,8 +3,8 @@
 // El panel en Hostinger no puede conectar directo a MySQL (puerto 3306 bloqueado),
 // por lo que todas las consultas al bot van por este bridge.
 
-define('BRIDGE_URL', 'http://134.209.74.99/bridge/api.php');
-define('BRIDGE_KEY', 'crimson_bridge_2026_secret');
+define('BRIDGE_URL', getenv('BRIDGE_URL') ?: '');
+define('BRIDGE_KEY', getenv('BRIDGE_KEY') ?: '');
 
 function bridge_call(string $action, array $params = [], string $method = 'GET'): array {
     $url = BRIDGE_URL . '?action=' . urlencode($action);

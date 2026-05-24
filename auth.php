@@ -4,7 +4,12 @@
 // Auth state lives in a signed HttpOnly JWT cookie; CSRF uses HMAC time-windows.
 
 function _auth_secret(): string {
-    return getenv('AUTH_SECRET') ?: 'crimson_default_secret_change_me_32x';
+    $s = getenv('AUTH_SECRET');
+    if (!$s || strlen($s) < 32) {
+        http_response_code(500);
+        exit(json_encode(['exito' => false, 'mensaje' => 'Configuración del servidor incompleta.']));
+    }
+    return $s;
 }
 
 function _b64url_enc(string $d): string {

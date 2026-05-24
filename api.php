@@ -9,8 +9,8 @@ header('Content-Type: application/json; charset=utf-8');
 
 set_exception_handler(function(Throwable $e) {
     if (!headers_sent()) header('Content-Type: application/json; charset=utf-8');
-    error_log('api.php exception: ' . $e->getMessage());
-    echo json_encode(['exito' => false, 'mensaje' => 'Error interno: ' . $e->getMessage()]);
+    error_log('api.php exception: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    echo json_encode(['exito' => false, 'mensaje' => 'Error interno del servidor.']);
 });
 
 // CORS Seguro dinámico limitado al host actual
@@ -64,8 +64,9 @@ function requireAdmin(): void {
     }
 }
 function verificarTokenBot(): void {
-    $token = $_SERVER['HTTP_X_BOT_TOKEN'] ?? '';
-    if ($token !== 'crimson_bot_secret_2026') {
+    $token    = $_SERVER['HTTP_X_BOT_TOKEN'] ?? '';
+    $expected = getenv('BOT_SECRET') ?: '';
+    if (!$expected || !hash_equals($expected, $token)) {
         http_response_code(401);
         die(json_encode(['exito'=>false, 'mensaje'=>'Token inválido']));
     }
@@ -344,7 +345,9 @@ switch ($action) {
             break;
         }
         $db = getDB();
-        $caps = $db->query("SELECT * FROM capitulos WHERE proyecto_id = $proyecto_id ORDER BY numero DESC")->fetchAll();
+        $stmt = $db->prepare("SELECT * FROM capitulos WHERE proyecto_id = ? ORDER BY numero DESC");
+        $stmt->execute([$proyecto_id]);
+        $caps = $stmt->fetchAll();
         echo json_encode(['exito' => true, 'datos' => $caps]);
         break;
 
@@ -392,10 +395,13 @@ switch ($action) {
         }
         
         $db = getDB();
-        $db->prepare("UPDATE capitulos SET $campo = ? WHERE id = ?")->execute([$valor, $cap_id]);
-        
+        $campo_safe = array_combine($campos_validos, $campos_validos)[$campo];
+        $db->prepare("UPDATE capitulos SET `$campo_safe` = ? WHERE id = ?")->execute([$valor, $cap_id]);
+
         // Revisar si todo está listo
-        $cap = $db->query("SELECT * FROM capitulos WHERE id = $cap_id")->fetch();
+        $capStmt = $db->prepare("SELECT * FROM capitulos WHERE id = ?");
+        $capStmt->execute([$cap_id]);
+        $cap = $capStmt->fetch();
         if ($cap) {
             $nuevo_estado = 'Pendiente';
             $completados = $cap['estado_raw'] + $cap['estado_trad'] + $cap['estado_clean'] + $cap['estado_type'] + $cap['estado_proof'];
@@ -504,22 +510,6 @@ switch ($action) {
         echo json_encode(['exito' => true, 'mensaje' => 'Usuario eliminado.']);
         break;
 
-    case 'cambiarPassword':
-        requireAdmin();
-        $uid      = intval($_POST['id']       ?? 0);
-        $newPass  = $_POST['password'] ?? '';
-
-        if (!$uid || strlen($newPass) < 6) {
-            echo json_encode(['exito' => false, 'mensaje' => 'Contraseña debe tener al menos 6 caracteres.']);
-            break;
-        }
-
-        $db = getDB();
-        $hash = password_hash($newPass, PASSWORD_BCRYPT);
-        $db->prepare("UPDATE usuarios SET password = ? WHERE id = ?")->execute([$hash, $uid]);
-        echo json_encode(['exito' => true, 'mensaje' => 'Contraseña actualizada.']);
-        break;
-
     // ── LISTAR STAFF DISCORD (directo BD) ────────────────────────────────
     case 'listarStaff':
         requireAdmin();
@@ -595,6 +585,7 @@ switch ($action) {
 
     // ── DEBUG DRIVE ───────────────────────────────────────────────────────
     case 'debugDrive':
+        requireAdmin();
         $appsUrl = APPS_SCRIPT_URL;
         $res = $appsUrl ? httpGet($appsUrl . '?action=listarProyectosConId') : null;
         echo json_encode([

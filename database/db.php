@@ -194,12 +194,14 @@ function getDB(): PDO {
         // Log error silently if user lacks privileges
     }
 
-    // Seed: crear admin por defecto si la tabla está vacía
+    // Seed: crear admin con contraseña aleatoria si la tabla está vacía
     $count = (int) $pdo->query("SELECT COUNT(*) FROM usuarios")->fetchColumn();
     if ($count === 0) {
-        $hash = password_hash('crimson2026', PASSWORD_BCRYPT);
+        $tempPass = bin2hex(random_bytes(10)); // 20 chars aleatorios
+        $hash     = password_hash($tempPass, PASSWORD_BCRYPT, ['cost' => 12]);
         $pdo->prepare("INSERT INTO usuarios (usuario, password, rol) VALUES (?, ?, 'admin')")
             ->execute(['admin', $hash]);
+        error_log("CRIMSON SCAN — CONTRASEÑA INICIAL ADMIN: {$tempPass} — Cámbiala después del primer login.");
     }
 
     return $pdo;

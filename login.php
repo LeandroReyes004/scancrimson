@@ -68,15 +68,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             header('Location: ' . $destino);
                             exit;
                         } else {
-                            // Incrementar intentos fallidos
+                            // Incrementar intentos fallidos con bloqueo exponencial
                             $intentos = $user['intentos'] + 1;
-                            $bloqueo = null;
-                            if ($intentos >= 5) {
-                                $bloqueo = date('Y-m-d H:i:s', time() + 5); // Bloqueo de 5 segundos (según petición de prueba del usuario)
-                                $error = 'Has superado el límite de intentos de acceso. Cuenta bloqueada por 5 segundos.';
+                            $bloqueo  = null;
+                            // Segundos de bloqueo por nivel: 5→30s, 10→5min, 15→30min, 20+→2h
+                            if ($intentos >= 20) {
+                                $seg     = 7200;
+                                $bloqueo = date('Y-m-d H:i:s', time() + $seg);
+                                $error   = 'Demasiados intentos fallidos. Cuenta bloqueada por 2 horas.';
+                            } elseif ($intentos >= 15) {
+                                $seg     = 1800;
+                                $bloqueo = date('Y-m-d H:i:s', time() + $seg);
+                                $error   = 'Demasiados intentos fallidos. Cuenta bloqueada por 30 minutos.';
+                            } elseif ($intentos >= 10) {
+                                $seg     = 300;
+                                $bloqueo = date('Y-m-d H:i:s', time() + $seg);
+                                $error   = 'Demasiados intentos fallidos. Cuenta bloqueada por 5 minutos.';
+                            } elseif ($intentos >= 5) {
+                                $seg     = 30;
+                                $bloqueo = date('Y-m-d H:i:s', time() + $seg);
+                                $error   = 'Has superado el límite de intentos. Cuenta bloqueada por 30 segundos.';
                             } else {
                                 $error = 'Usuario o contraseña incorrectos.';
                             }
+                            error_log("Login fallido: usuario={$usuario} intentos={$intentos} IP=" . ($_SERVER['REMOTE_ADDR'] ?? '?'));
                             $db->prepare("UPDATE usuarios SET intentos = ?, bloqueado_hasta = ? WHERE id = ?")
                                ->execute([$intentos, $bloqueo, $user['id']]);
                         }
@@ -105,14 +120,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --bg:       #080810;
-  --card:     #13131f;
-  --border:   #252535;
-  --red:      #dc2020;
-  --red-glow: rgba(220,32,32,0.2);
-  --red-dim:  #8b1010;
-  --text:     #e4e4f0;
-  --muted:    #6a6a85;
+  --bg:       #09080f;
+  --card:     #13111e;
+  --border:   #25233a;
+  --red:      #DC143C;
+  --red-glow: rgba(220,20,60,0.2);
+  --red-dim:  #7A0022;
+  --text:     #eae8f2;
+  --muted:    #6b6880;
   --font-h:   'Bebas Neue', sans-serif;
   --font-b:   'DM Sans', sans-serif;
 }
@@ -134,14 +149,14 @@ body {
 .bg-grid {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-image:
-    linear-gradient(rgba(220,32,32,0.04) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(220,32,32,0.04) 1px, transparent 1px);
+    linear-gradient(rgba(220,20,60,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220,20,60,0.04) 1px, transparent 1px);
   background-size: 48px 48px;
 }
 
 .bg-glow {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
-  background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(220,32,32,0.12) 0%, transparent 70%);
+  background: radial-gradient(ellipse 60% 50% at 50% 40%, rgba(220,20,60,0.12) 0%, transparent 70%);
 }
 
 .bg-orb {
@@ -172,12 +187,18 @@ body {
 }
 
 .login-card {
-  background: rgba(19,19,31,0.85);
-  border: 1px solid rgba(255,255,255,0.07);
+  background: rgba(19,17,30,0.88);
+  border: 1px solid rgba(255,255,255,0.08);
   border-radius: 20px;
   padding: 3rem 2.5rem;
   backdrop-filter: blur(24px);
-  box-shadow: 0 24px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.05);
+  -webkit-backdrop-filter: blur(24px);
+  box-shadow: 0 24px 80px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+@media (max-width: 440px) {
+  .login-card { padding: 2.5rem 1.75rem; border-radius: 16px; }
+  .login-wrap { padding: 1rem; }
 }
 
 /* ── LOGO ── */
@@ -232,7 +253,8 @@ body {
   color: var(--text);
   font-family: var(--font-b);
   font-size: 0.95rem;
-  padding: 0.75rem 1rem;
+  padding: 0 1rem;
+  height: 52px;
   outline: none;
   transition: border-color 0.2s, box-shadow 0.2s;
   width: 100%;
@@ -268,7 +290,8 @@ body {
   font-family: var(--font-h);
   font-size: 1.1rem;
   letter-spacing: 0.08em;
-  padding: 0.85rem;
+  padding: 0;
+  height: 52px;
   cursor: pointer;
   margin-top: 0.5rem;
   transition: background 0.2s, transform 0.15s, box-shadow 0.2s;

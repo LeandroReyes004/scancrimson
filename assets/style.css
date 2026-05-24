@@ -1,13 +1,13 @@
 /* ─── VARIABLES ─────────────────────────────────────────────────────────── */
 :root {
-  --bg:        #080810;
-  --bg2:       #0f0f1a;
-  --card:      #13131f;
-  --card2:     #1a1a2a;
-  --border:    #252535;
-  --red:       #dc2020;
-  --red-dim:   #8b1010;
-  --red-glow:  rgba(220,32,32,0.18);
+  --bg:        #09080f;
+  --bg2:       #0e0d18;
+  --card:      #13111e;
+  --card2:     #1a1829;
+  --border:    #25233a;
+  --red:       #DC143C;
+  --red-dim:   #7A0022;
+  --red-glow:  rgba(220,20,60,0.18);
   --text:      #e4e4f0;
   --muted:     #6a6a85;
   --faint:     #2a2a40;
@@ -34,8 +34,8 @@ body {
 .bg-grid {
   position: fixed; inset: 0; z-index: 0; pointer-events: none;
   background-image:
-    linear-gradient(rgba(220,32,32,0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(220,32,32,0.03) 1px, transparent 1px);
+    linear-gradient(rgba(220,20,60,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(220,20,60,0.03) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 .noise {
@@ -125,7 +125,7 @@ body {
   transition: background .2s, transform .15s, box-shadow .2s;
   box-shadow: 0 0 0 0 var(--red-glow);
 }
-.btn-primary:hover { background: #b81a1a; box-shadow: 0 0 20px var(--red-glow); transform: translateY(-1px); }
+.btn-primary:hover { background: #b0002e; box-shadow: 0 0 20px var(--red-glow); transform: translateY(-1px); }
 .btn-primary:active { transform: translateY(0); }
 .btn-icon { font-size: 1rem; }
 

@@ -504,13 +504,18 @@ async function subirArchivo() {
       const xhr = new XMLHttpRequest();
       xhr.open('PUT', init.uploadUrl);
       xhr.setRequestHeader('Content-Type', selectedFile.type || 'application/octet-stream');
+      let bytesSent = 0;
       xhr.upload.onprogress = e => {
         if (e.lengthComputable) {
+          bytesSent = e.loaded;
           bar.style.width = (20 + Math.round((e.loaded / e.total) * 75)) + '%';
         }
       };
+      xhr.upload.onload = () => { bytesSent = selectedFile.size; };
       xhr.onload  = () => xhr.status < 400 ? resolve() : reject(new Error('HTTP ' + xhr.status));
-      xhr.onerror = () => reject(new Error('Error de red'));
+      // Drive a veces no devuelve CORS headers en la respuesta → onerror aunque el archivo sí llegó.
+      // Si todos los bytes fueron enviados, el archivo está en Drive → tratar como éxito.
+      xhr.onerror = () => bytesSent >= selectedFile.size ? resolve() : reject(new Error('Error de red'));
       xhr.send(selectedFile);
     });
 

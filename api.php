@@ -138,7 +138,7 @@ switch ($action) {
 
     case 'enlaces':
         $proyecto     = trim($_GET['proyecto'] ?? '');
-        $capitulo     = intval($_GET['capitulo'] ?? 0);
+        $capitulo     = trim($_GET['capitulo'] ?? '');
         $etapaBuscada = trim($_GET['etapa'] ?? 'Todas');
 
         if (!$proyecto || !$capitulo) {
@@ -146,16 +146,58 @@ switch ($action) {
             break;
         }
 
+        // ── Prioridad: Apps Script (accede a Drive privado con OAuth) ────────
+        $db     = getDB();
+        $pstmt  = $db->prepare("SELECT carpeta_drive_id FROM proyectos WHERE nombre = ? AND estado = 'activo'");
+        $pstmt->execute([$proyecto]);
+        $proyRow        = $pstmt->fetch();
+        $carpetaDriveId = $proyRow['carpeta_drive_id'] ?? null;
+
+        if ($carpetaDriveId && APPS_SCRIPT_URL) {
+            $asUrl = APPS_SCRIPT_URL . '?' . http_build_query([
+                'action'            => 'buscarCapituloConEnlaces',
+                'proyecto_drive_id' => $carpetaDriveId,
+                'capitulo'          => $capitulo,
+                'etapa'             => $etapaBuscada,
+            ]);
+            $asRes = httpGet($asUrl, 30);
+            if (!empty($asRes['exito'])) {
+                $mapaEtapas = [
+                    'raw'   => '01. RAWs',
+                    'trad'  => '02. Traducción',
+                    'clean' => '03. Limpieza y Redibujo',
+                    'type'  => '04. Typos',
+                    'proof' => '05. Control de Calidad',
+                ];
+                $resultados = [];
+                foreach ($asRes['etapas'] as $clave => $info) {
+                    if (!empty($info['encontrado']) && !empty($info['id'])) {
+                        $nombreEtapa = $mapaEtapas[$clave] ?? $clave;
+                        $resultados[$nombreEtapa] = [
+                            'nombre' => $info['nombre'],
+                            'url'    => downloadUrl($info['id']),
+                        ];
+                    }
+                }
+                echo json_encode(['exito' => true, 'datos' => $resultados]);
+                break;
+            }
+            // Apps Script falló → caer al fallback con API Key
+        }
+
+        // ── Fallback: API Key (solo funciona si Drive es público) ────────────
+        $capInt   = intval($capitulo);
+        $capRegex = '/cap[_\-\s]?0*' . $capInt . '(\.|$|[^0-9])/i';
+
         $proyectoId = folderIdByName(CARPETA_RAIZ_ID, $proyecto);
         if (!$proyectoId) {
-            echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado.']);
+            echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado en Drive.']);
             break;
         }
 
         $todasEtapas = ["01. RAWs", "02. Traducción", "03. Limpieza y Redibujo", "04. Typos", "05. Control de Calidad"];
         $etapas      = ($etapaBuscada && $etapaBuscada !== 'Todas') ? [$etapaBuscada] : $todasEtapas;
         $resultados  = [];
-        $capRegex    = '/cap[_\-\s]?0*' . $capitulo . '(\.|$|[^0-9])/i';
 
         foreach ($etapas as $etapa) {
             $etapaId = folderIdByName($proyectoId, $etapa);
@@ -172,14 +214,14 @@ switch ($action) {
                     }
                 }
                 if (!$encontrado) {
-                    $capId = folderIdByName($etapaId, "Capítulo {$capitulo}");
+                    $capId = folderIdByName($etapaId, "Capítulo {$capInt}");
                     if ($capId) {
                         $capFiles = driveQ("'{$capId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 1);
                         if ($capFiles) $resultados[$etapa] = ['nombre' => $capFiles[0]['name'], 'url' => downloadUrl($capFiles[0]['id'])];
                     }
                 }
             } else {
-                $capId = folderIdByName($etapaId, "Capítulo {$capitulo}");
+                $capId = folderIdByName($etapaId, "Capítulo {$capInt}");
                 if ($capId) {
                     $capFiles = driveQ("'{$capId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 1);
                     if ($capFiles) $resultados[$etapa] = ['nombre' => $capFiles[0]['name'], 'url' => downloadUrl($capFiles[0]['id'])];

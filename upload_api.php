@@ -123,8 +123,9 @@ if ($action === 'initUpload') {
         exit;
     }
 
-    // 2. Obtener usuario autenticado desde JWT
-    $usuario = $_SESSION['user']['usuario'] ?? '';
+    // 2. Obtener usuario autenticado desde JWT (más fiable que $_SESSION en serverless)
+    $currentUser = auth_get_user();
+    $usuario     = $currentUser['usuario'] ?? '';
     $proyecto  = trim($data['proyecto']  ?? '');
     $capitulo  = trim($data['capitulo']  ?? '');
     $etapa     = trim($data['etapa']     ?? '');

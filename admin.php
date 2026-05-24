@@ -116,48 +116,65 @@
         <div class="stat-card sc1">
           <div class="stat-value" id="stat-proyectos">—</div>
           <div class="stat-label">Proyectos</div>
-          <div class="stat-trend" id="stat-proyectos-sub">en Drive</div>
+          <div class="stat-trend" id="stat-proyectos-sub">activos</div>
         </div>
         <div class="stat-card sc2">
-          <div class="stat-value" id="stat-total">—</div>
-          <div class="stat-label">Total subidas</div>
-          <div class="stat-trend" id="stat-total-sub">registros</div>
+          <div class="stat-value" id="stat-disponible">—</div>
+          <div class="stat-label">Staff disponible</div>
+          <div class="stat-trend" id="stat-disponible-sub">sin tareas</div>
         </div>
         <div class="stat-card sc3">
-          <div class="stat-value" id="stat-hoy">—</div>
-          <div class="stat-label">Subidas hoy</div>
-          <div class="stat-trend" id="stat-hoy-sub">hoy</div>
+          <div class="stat-value" id="stat-tareas">—</div>
+          <div class="stat-label">Tareas activas</div>
+          <div class="stat-trend" id="stat-tareas-sub">en curso</div>
         </div>
         <div class="stat-card sc4">
-          <div class="stat-value" id="stat-raws">—</div>
-          <div class="stat-label">RAWs</div>
-          <div class="stat-trend" id="stat-raws-sub">registradas</div>
+          <div class="stat-value" id="stat-atrasados">—</div>
+          <div class="stat-label">Atrasados</div>
+          <div class="stat-trend" id="stat-atrasados-sub">con retraso</div>
         </div>
       </div>
 
       <div class="two-col">
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">◎ Actividad reciente</div>
-            <button class="btn btn-ghost btn-sm" onclick="refrescarTodo()">↺</button>
+            <div class="panel-title">✓ Staff disponible</div>
+            <button class="btn btn-ghost btn-sm" onclick="cargarDashboard()">↺</button>
           </div>
-          <div class="panel-body" id="actividad-mini">
+          <div class="panel-body" id="dash-disponible">
             <div class="empty-msg">Cargando…</div>
           </div>
         </div>
 
         <div class="panel">
           <div class="panel-header">
-            <div class="panel-title">≡ Últimas 10 subidas</div>
+            <div class="panel-title">⚠ Atrasados / Sin actividad</div>
           </div>
-          <div class="table-scroll">
-            <table class="data-table">
-              <thead><tr><th>Manga</th><th>Cap.</th><th>Etapa</th><th>Estado</th><th>Acciones</th></tr></thead>
-              <tbody id="historial-body">
-                <tr><td colspan="5" class="loading-cell"><span class="spinner"></span></td></tr>
-              </tbody>
-            </table>
+          <div class="panel-body" id="dash-atrasados">
+            <div class="empty-msg">Cargando…</div>
           </div>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:1.5rem">
+        <div class="panel-header">
+          <div class="panel-title">📢 Anunciar subida</div>
+        </div>
+        <div class="panel-body">
+          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
+            <div class="field-group" style="flex:1;min-width:220px;margin-bottom:0">
+              <label class="field-label">Link del capítulo</label>
+              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…">
+            </div>
+            <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding-bottom:2px">
+              <input type="checkbox" id="anuncio-discord" checked style="accent-color:#dc2020"> Discord
+            </label>
+            <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding-bottom:2px">
+              <input type="checkbox" id="anuncio-telegram" style="accent-color:#dc2020"> Telegram
+            </label>
+            <button class="btn btn-primary" onclick="anunciarSubida()" id="btn-anunciar">Enviar</button>
+          </div>
+          <div id="anuncio-resultado" style="margin-top:.75rem;font-size:.83rem"></div>
         </div>
       </div>
     </div>
@@ -433,7 +450,7 @@
     if (e.key === 'Escape') closeMobileNav();
   });
 </script>
-<script src="assets/admin.js?v=4"></script>
+<script src="assets/admin.js?v=5"></script>
 <script>
 // ─── PARCHES INLINE v3: índices correctos de la hoja ─────────────────────────
 // Estructura de la hoja de cálculo:
@@ -443,101 +460,131 @@
 //   f[3] = Etapa
 //   f[4] = Capítulo
 //   f[5] = URL del archivo en Drive
-(function() {
-  var _historial = [];
-
-  async function fetchHistorial() {
+  // ─── DASHBOARD ───────────────────────────────────────────────────────────────
+  window.cargarDashboard = async function() {
+    // Stats
     try {
-      const r = await fetch('api.php?action=historial');
+      const r = await fetch('api.php?action=dashboardStats');
       const res = await r.json();
-      if (res && res.exito && res.datos) {
-        _historial = res.datos;
-        if (window.state) window.state.historial = res.datos;
-        // Actualizar stats del dashboard
-        _actualizarStats(res.datos);
-        return res.datos;
+      if (res.exito) {
+        const el = id => document.getElementById(id);
+        if (el('stat-proyectos'))  el('stat-proyectos').textContent  = res.data.proyectos_activos;
+        if (el('stat-disponible')) el('stat-disponible').textContent = res.data.staff_disponible;
+        if (el('stat-tareas'))     el('stat-tareas').textContent     = res.data.tareas_activas;
+        const atEl = el('stat-atrasados');
+        if (atEl) {
+          atEl.textContent = res.data.atrasados;
+          atEl.style.color = res.data.atrasados > 0 ? '#ff5555' : '';
+        }
+        const subEl = el('stat-atrasados-sub');
+        if (subEl) subEl.style.color = res.data.atrasados > 0 ? '#ff5555' : '';
       }
-    } catch(e) { console.error('fetchHistorial:', e); }
-    return [];
-  }
+    } catch(e) { console.error('dashboardStats:', e); }
 
-  function _actualizarStats(historial) {
-    const hoyStr = new Date().toLocaleDateString('es-ES', {day:'2-digit',month:'2-digit',year:'numeric'});
-    const hoyCount = historial.filter(function(f){ return f[0] && f[0].toString().includes(hoyStr.substring(0,5)); }).length;
-    const rawsCount = historial.filter(function(f){ return f[3] && f[3].includes('RAWs'); }).length;
-    const el = function(id){ return document.getElementById(id); };
-    if(el('stat-total')) el('stat-total').textContent = historial.length;
-    if(el('stat-hoy'))   el('stat-hoy').textContent   = hoyCount;
-    if(el('stat-raws'))  el('stat-raws').textContent  = rawsCount;
-    // Actividad reciente en dashboard
-    _renderActividad(historial.slice(0, 8));
-  }
+    // Staff disponible
+    try {
+      const r = await fetch('api.php?action=staffDisponible');
+      const res = await r.json();
+      const cont = document.getElementById('dash-disponible');
+      if (!cont) return;
+      if (!res.exito) {
+        cont.innerHTML = `<div class="empty-msg" style="color:var(--red-bright)">Error: ${res.mensaje}</div>`;
+      } else if (!res.data || !res.data.length) {
+        cont.innerHTML = '<div class="empty-msg">Todo el staff tiene tareas activas.</div>';
+      } else {
+        cont.innerHTML = res.data.map(s => `
+          <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+            <div style="width:34px;height:34px;border-radius:50%;background:rgba(16,185,129,.15);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#10b981;flex-shrink:0">${(s.nombre_display||'?')[0].toUpperCase()}</div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.85rem;font-weight:600">${s.nombre_display || s.discord_id}</div>
+              <div style="font-size:.71rem;color:var(--muted)">${s.rol || 'Staff'}</div>
+            </div>
+            <span style="font-size:.68rem;padding:2px 7px;border-radius:5px;background:rgba(16,185,129,.12);color:#10b981">Libre</span>
+          </div>
+        `).join('');
+      }
+    } catch(e) { console.error('staffDisponible:', e); }
 
-  function _renderActividad(filas) {
-    var cont = document.getElementById('actividad-mini');
-    if (!cont) return;
-    if (!filas.length) { cont.innerHTML = '<div class="empty-msg">Sin actividad reciente</div>'; return; }
-    var colores = {'01':'#ef4444','02':'#3b82f6','03':'#8b5cf6','04':'#f59e0b','05':'#10b981'};
-    cont.innerHTML = filas.map(function(f) {
-      var etapaKey = (f[3] || '').substring(0, 2);
-      var color = colores[etapaKey] || 'var(--muted)';
-      return [
-        '<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border)">',
-          '<div style="width:8px;height:8px;border-radius:50%;background:' + color + ';flex-shrink:0"></div>',
-          '<div style="flex:1;min-width:0">',
-            '<div style="font-size:.84rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">',
-              (f[2] || '—') + ' <span style="color:var(--red-bright)">cap. ' + (f[4] || '?') + '</span>',
-            '</div>',
-            '<div style="font-size:.7rem;color:var(--muted);margin-top:2px">' + (f[3] || '—') + ' · ' + (f[1] || '') + '</div>',
-          '</div>',
-          '<div style="font-size:.7rem;color:var(--muted);white-space:nowrap">' + (f[0] || '').toString().substring(0,10) + '</div>',
-        '</div>'
-      ].join('');
-    }).join('');
-    if (cont.lastElementChild) cont.lastElementChild.style.borderBottom = 'none';
-  }
+    // Atrasados / inactivos
+    try {
+      const r = await fetch('api.php?action=staffAtrasados');
+      const res = await r.json();
+      const cont = document.getElementById('dash-atrasados');
+      if (!cont) return;
+      if (!res.exito) {
+        cont.innerHTML = `<div class="empty-msg" style="color:var(--red-bright)">Error: ${res.mensaje}</div>`;
+        return;
+      }
+      let html = '';
+      if (res.atrasadas && res.atrasadas.length) {
+        html += '<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Tareas atrasadas</div>';
+        html += res.atrasadas.map(t => `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+            <div style="width:8px;height:8px;border-radius:50%;background:#ff5555;flex-shrink:0"></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.83rem;font-weight:600">${t.nombre_display||t.discord_id}</div>
+              <div style="font-size:.71rem;color:var(--muted)">${t.obra} cap.${t.cap} · ${t.rol}</div>
+            </div>
+            <span style="font-size:.68rem;color:#ff5555;white-space:nowrap">${t.horas_atraso}h atraso</span>
+          </div>
+        `).join('');
+      }
+      if (res.inactivos && res.inactivos.length) {
+        html += `<div style="font-size:.7rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-top:12px;margin-bottom:6px">Sin actividad esta semana</div>`;
+        html += res.inactivos.map(s => `
+          <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+            <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:.83rem;font-weight:600">${s.nombre_display||s.discord_id}</div>
+              <div style="font-size:.71rem;color:var(--muted)">${s.rol||'Staff'}</div>
+            </div>
+            <span style="font-size:.68rem;color:#f59e0b;white-space:nowrap">Inactivo</span>
+          </div>
+        `).join('');
+      }
+      if (!html) html = '<div class="empty-msg">Sin retrasos ni inactividad.</div>';
+      cont.innerHTML = html;
+    } catch(e) { console.error('staffAtrasados:', e); }
+  };
 
-  // Estadísticas por manga — usando f[2]=proyecto, f[4]=cap
-  function statsParaManga(nombre, historial) {
-    var filas = historial.filter(function(f) { return f[2] === nombre; });
-    var caps = filas.map(function(f) { return parseFloat(f[4]); }).filter(function(n) { return !isNaN(n); });
-    return {
-      total: filas.length,
-      minCap: caps.length ? Math.min.apply(null, caps) : '—',
-      maxCap: caps.length ? Math.max.apply(null, caps) : '—',
-      ultima: filas.length ? (filas[0][0] || '').toString().substring(0,10) : '—',
-      ultimoUsuario: filas.length ? (filas[0][1] || '') : ''
-    };
-  }
+  window.anunciarSubida = async function() {
+    const link     = (document.getElementById('anuncio-link').value || '').trim();
+    const discord  = document.getElementById('anuncio-discord').checked;
+    const telegram = document.getElementById('anuncio-telegram').checked;
+    const resEl    = document.getElementById('anuncio-resultado');
+    const btn      = document.getElementById('btn-anunciar');
+    if (!link)               { toast('Ingresa un link', 'err'); return; }
+    if (!discord && !telegram) { toast('Selecciona al menos una plataforma', 'err'); return; }
+    btn.disabled = true; btn.textContent = '…'; resEl.textContent = '';
+    try {
+      const fd = new FormData();
+      fd.append('csrf_token', window.csrfToken);
+      fd.append('link', link);
+      if (discord)  fd.append('discord',  '1');
+      if (telegram) fd.append('telegram', '1');
+      const r   = await fetch('api.php?action=anunciarSubida', { method:'POST', body:fd });
+      const res = await r.json();
+      if (res.exito) {
+        const msgs = [];
+        if (res.resultados.discord  === true)  msgs.push('Discord ✓');
+        if (res.resultados.discord  === false) msgs.push('Discord ✗');
+        if (res.resultados.telegram === true)  msgs.push('Telegram ✓');
+        if (res.resultados.telegram === false) msgs.push('Telegram ✗');
+        resEl.innerHTML = `<span style="color:#10b981">${msgs.join('  ')}</span>`;
+        document.getElementById('anuncio-link').value = '';
+        toast('Anuncio enviado');
+      } else {
+        resEl.innerHTML = `<span style="color:#ff5555">${res.mensaje || 'Error'}</span>`;
+        toast(res.mensaje || 'Error al anunciar', 'err');
+      }
+    } catch(e) {
+      resEl.innerHTML = '<span style="color:#ff5555">Error de conexión</span>';
+      toast('Error de conexión: ' + e.message, 'err');
+    }
+    btn.disabled = false; btn.textContent = 'Enviar';
+  };
 
-  function renderTarjeta(nombre, s) {
-    var capRango = s.total > 0
-      ? 'Cap. <b style="color:#dc2020">' + s.minCap + '</b> → <b style="color:#dc2020">' + s.maxCap + '</b>'
-      : '<span style="color:var(--muted)">Sin registros aún</span>';
-    return [
-      '<div class="project-card" style="display:flex;flex-direction:column;gap:10px">',
-        '<div style="display:flex;align-items:center;gap:10px">',
-          '<div class="project-icon">📖</div>',
-          '<div class="project-name" style="font-size:.88rem;line-height:1.3">' + nombre + '</div>',
-        '</div>',
-        '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">',
-          '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px">',
-            '<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Rango caps.</div>',
-            '<div style="font-size:.82rem">' + capRango + '</div>',
-          '</div>',
-          '<div style="background:rgba(255,255,255,.04);border-radius:8px;padding:8px 10px">',
-            '<div style="font-size:.6rem;color:var(--muted);text-transform:uppercase;letter-spacing:2px;margin-bottom:3px">Subidas</div>',
-            '<div style="font-size:.82rem;font-weight:700">' + s.total + '</div>',
-          '</div>',
-        '</div>',
-        s.ultima !== '—' ? '<div style="font-size:.7rem;color:var(--muted)">Última: ' + s.ultima + (s.ultimoUsuario ? ' · ' + s.ultimoUsuario : '') + '</div>' : '',
-        '<div class="project-actions">',
-          '<button class="act-btn" onclick="window.open(\'index.php?proyecto=' + encodeURIComponent(nombre) + '\',\'_blank\')">🔍 Buscador</button>',
-        '</div>',
-      '</div>'
-    ].join('');
-  }
-
+(function() {
   window.vpProyectosMap = {};
   window.vpProyectosDriveMap = {};
   window.todosProyectos = [];
@@ -900,12 +947,16 @@
     const tbody = document.getElementById('historial-full-body');
     if (!tbody) return;
     tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem"><span class="spinner"></span> Cargando…</td></tr>';
-    const historial = await fetchHistorial();
-    if (!historial || !historial.length) {
+    let historial = [];
+    try {
+      const r = await fetch('api.php?action=historial');
+      const res = await r.json();
+      if (res && res.exito && res.datos) historial = res.datos;
+    } catch(e) { console.error('cargarHistorialFull:', e); }
+    if (!historial.length) {
       tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No hay registros.</td></tr>';
       return;
     }
-    // Columnas: Manga | Cap | Etapa | Fecha | Usuario | Acciones
     tbody.innerHTML = historial.map(function(f, i) {
       var urlArchivo = f[5] ? '<a href="' + f[5] + '" target="_blank" style="color:var(--red-bright);text-decoration:none" title="Ver archivo">🔗</a>' : '';
       return [

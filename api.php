@@ -1011,6 +1011,128 @@ switch ($action) {
         echo json_encode(['exito' => true]);
         break;
 
+    // ── DASHBOARD STATS ───────────────────────────────────────────────────
+    case 'dashboardStats':
+        requireAdmin();
+        $db = getDB();
+        $s  = [];
+        $s['proyectos_activos'] = (int)$db->query("SELECT COUNT(*) FROM proyectos WHERE estado='activo'")->fetchColumn();
+        $s['staff_disponible']  = (int)$db->query("
+            SELECT COUNT(*) FROM staff_discord sd
+            WHERE sd.activo = 1
+              AND NOT EXISTS (SELECT 1 FROM tareas t WHERE t.discord_id = sd.discord_id AND t.estado = 'activa')
+        ")->fetchColumn();
+        $s['tareas_activas']    = (int)$db->query("SELECT COUNT(*) FROM tareas WHERE estado='activa'")->fetchColumn();
+        $s['atrasados']         = (int)$db->query("
+            SELECT COUNT(*) FROM tareas WHERE estado = 'activa' AND limite IS NOT NULL AND limite < NOW()
+        ")->fetchColumn();
+        echo json_encode(['exito' => true, 'data' => $s]);
+        break;
+
+    // ── STAFF DISPONIBLE (sin tareas activas) ─────────────────────────────
+    case 'staffDisponible':
+        requireAdmin();
+        $db   = getDB();
+        $stmt = $db->query("
+            SELECT sd.discord_id, sd.nombre_display, sd.rol
+            FROM staff_discord sd
+            WHERE sd.activo = 1
+              AND NOT EXISTS (
+                  SELECT 1 FROM tareas t
+                  WHERE t.discord_id = sd.discord_id AND t.estado = 'activa'
+              )
+            ORDER BY sd.nombre_display
+        ");
+        echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
+        break;
+
+    // ── STAFF ATRASADOS / SIN ACTIVIDAD SEMANAL ──────────────────────────
+    case 'staffAtrasados':
+        requireAdmin();
+        $db        = getDB();
+        $atrasadas = $db->query("
+            SELECT t.id, t.discord_id, t.obra, t.cap, t.rol, t.limite,
+                   s.nombre_display,
+                   TIMESTAMPDIFF(HOUR, t.limite, NOW()) AS horas_atraso
+            FROM tareas t
+            LEFT JOIN staff_discord s ON s.discord_id = t.discord_id
+            WHERE t.estado = 'activa'
+              AND t.limite IS NOT NULL
+              AND t.limite < NOW()
+            ORDER BY t.limite ASC
+            LIMIT 20
+        ")->fetchAll();
+        $inactivos = $db->query("
+            SELECT sd.discord_id, sd.nombre_display, sd.rol
+            FROM staff_discord sd
+            WHERE sd.activo = 1
+              AND NOT EXISTS (
+                  SELECT 1 FROM tareas t
+                  WHERE t.discord_id = sd.discord_id
+                    AND t.creado >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+              )
+            ORDER BY sd.nombre_display
+            LIMIT 20
+        ")->fetchAll();
+        echo json_encode(['exito' => true, 'atrasadas' => $atrasadas, 'inactivos' => $inactivos]);
+        break;
+
+    // ── ANUNCIAR SUBIDA (Discord webhook + Telegram) ──────────────────────
+    case 'anunciarSubida':
+        requireAdmin();
+        $link     = trim($_POST['link']     ?? '');
+        $discord  = !empty($_POST['discord']);
+        $telegram = !empty($_POST['telegram']);
+        if (!$link) { echo json_encode(['exito' => false, 'mensaje' => 'Link requerido']); break; }
+        $db             = getDB();
+        $webhookUrl     = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn() ?: '';
+        $telegramToken  = $db->query("SELECT valor FROM config_bot WHERE clave='telegram_token'")->fetchColumn()          ?: '';
+        $telegramChatId = $db->query("SELECT valor FROM config_bot WHERE clave='telegram_chat_id'")->fetchColumn()        ?: '';
+        $resultados     = [];
+        if ($discord) {
+            if (!$webhookUrl) {
+                $resultados['discord'] = false;
+            } else {
+                $ch = curl_init($webhookUrl);
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST           => true,
+                    CURLOPT_POSTFIELDS     => json_encode(['content' => "📢 **Nuevo capítulo publicado**\n{$link}"]),
+                    CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+                    CURLOPT_TIMEOUT        => 10,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                ]);
+                curl_exec($ch);
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                $resultados['discord'] = ($code >= 200 && $code < 300);
+            }
+        }
+        if ($telegram) {
+            if (!$telegramToken || !$telegramChatId) {
+                $resultados['telegram'] = false;
+            } else {
+                $ch = curl_init("https://api.telegram.org/bot{$telegramToken}/sendMessage");
+                curl_setopt_array($ch, [
+                    CURLOPT_RETURNTRANSFER => true,
+                    CURLOPT_POST           => true,
+                    CURLOPT_POSTFIELDS     => http_build_query([
+                        'chat_id'    => $telegramChatId,
+                        'text'       => "📢 Nuevo capítulo publicado\n{$link}",
+                        'parse_mode' => 'HTML',
+                    ]),
+                    CURLOPT_TIMEOUT        => 10,
+                    CURLOPT_SSL_VERIFYPEER => true,
+                ]);
+                curl_exec($ch);
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                $resultados['telegram'] = ($code === 200);
+            }
+        }
+        echo json_encode(['exito' => true, 'resultados' => $resultados]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);

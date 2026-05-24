@@ -39,11 +39,11 @@ function switchTab(id) {
     if (btnEl) btnEl.classList.add('active');
 
     // Cargar datos solo cuando se necesitan
-    if (id === 'proyectos') cargarProyectos();
+    if (id === 'dashboard') { if (typeof window.cargarDashboard === 'function') window.cargarDashboard(); }
+    else if (id === 'proyectos') cargarProyectos();
     else if (id === 'historial') cargarHistorialFull();
     else if (id === 'usuarios') cargarUsuarios();
     else if (id === 'staff') cargarStaff();
-    // 'dashboard' y 'nuevo' no necesitan carga adicional
 }
 
 /* ─── UI COMPONENTS ─── */
@@ -122,8 +122,7 @@ async function apiFetch(action, options = {}) {
 }
 
 function refrescarTodo() {
-    cargarStats();
-    cargarHistorial();
+    if (typeof window.cargarDashboard === 'function') window.cargarDashboard();
 }
 
 async function cargarStats() {

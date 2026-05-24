@@ -7,6 +7,12 @@ require_once __DIR__ . '/bridge_client.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
+set_exception_handler(function(Throwable $e) {
+    if (!headers_sent()) header('Content-Type: application/json; charset=utf-8');
+    error_log('api.php exception: ' . $e->getMessage());
+    echo json_encode(['exito' => false, 'mensaje' => 'Error interno: ' . $e->getMessage()]);
+});
+
 // CORS Seguro dinámico limitado al host actual
 $allowed = [];
 $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";

@@ -626,7 +626,8 @@
       const fd = new FormData();
       fd.append('csrf_token', window.csrfToken);
       fd.append('id', id);
-      const res = await fetch('api.php?action=toggleEstadoProyecto', { method:'POST', body:fd }).then(r=>r.json());
+      const r = await fetch('api.php?action=toggleEstadoProyecto', { method:'POST', body:fd });
+      const res = await r.json();
       if (res.exito) {
         if (p) p.estado = res.estado;
         const activo = res.estado === 'activo';
@@ -650,7 +651,7 @@
       }
     } catch(e) {
       btn.textContent = textoOriginal; btn.disabled = false;
-      toast('Error de conexión', 'err');
+      toast('Error de conexión: ' + e.message, 'err');
     }
   };
 

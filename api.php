@@ -1084,10 +1084,13 @@ switch ($action) {
     // ── ANUNCIAR SUBIDA (Discord webhook + Telegram) ──────────────────────
     case 'anunciarSubida':
         requireAdmin();
+        $mensaje  = trim($_POST['mensaje']  ?? '');
         $link     = trim($_POST['link']     ?? '');
         $discord  = !empty($_POST['discord']);
         $telegram = !empty($_POST['telegram']);
-        if (!$link) { echo json_encode(['exito' => false, 'mensaje' => 'Link requerido']); break; }
+        if (!$mensaje) { echo json_encode(['exito' => false, 'mensaje' => 'Mensaje requerido']); break; }
+        // Para Telegram convertir **bold** a <b>bold</b>
+        $mensajeTg = preg_replace('/\*\*(.+?)\*\*/', '<b>$1</b>', $mensaje);
         $db             = getDB();
         $webhookUrl     = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn() ?: '';
         $telegramToken  = $db->query("SELECT valor FROM config_bot WHERE clave='telegram_token'")->fetchColumn()          ?: '';
@@ -1101,7 +1104,7 @@ switch ($action) {
                 curl_setopt_array($ch, [
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_POST           => true,
-                    CURLOPT_POSTFIELDS     => json_encode(['content' => "📢 **Nuevo capítulo publicado**\n{$link}"]),
+                    CURLOPT_POSTFIELDS     => json_encode(['content' => $mensaje]),
                     CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
                     CURLOPT_TIMEOUT        => 10,
                     CURLOPT_SSL_VERIFYPEER => true,
@@ -1122,7 +1125,7 @@ switch ($action) {
                     CURLOPT_POST           => true,
                     CURLOPT_POSTFIELDS     => http_build_query([
                         'chat_id'    => $telegramChatId,
-                        'text'       => "📢 Nuevo capítulo publicado\n{$link}",
+                        'text'       => $mensajeTg,
                         'parse_mode' => 'HTML',
                     ]),
                     CURLOPT_TIMEOUT        => 10,

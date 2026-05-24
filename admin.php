@@ -161,18 +161,37 @@
           <div class="panel-title">📢 Anunciar subida</div>
         </div>
         <div class="panel-body">
-          <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end">
-            <div class="field-group" style="flex:1;min-width:220px;margin-bottom:0">
-              <label class="field-label">Link del capítulo</label>
-              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px">
+            <div class="field-group" style="margin-bottom:0">
+              <label class="field-label">Manga</label>
+              <select id="anuncio-manga" class="field-input" onchange="anuncioActualizarMensaje()">
+                <option value="">— Seleccionar —</option>
+              </select>
             </div>
-            <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding-bottom:2px">
+            <div class="field-group" style="margin-bottom:0">
+              <label class="field-label">Capítulo</label>
+              <input id="anuncio-cap" type="text" class="field-input" placeholder="Ej: 15" oninput="anuncioActualizarMensaje()">
+            </div>
+            <div class="field-group" style="margin-bottom:0">
+              <label class="field-label">Link</label>
+              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…" oninput="anuncioActualizarMensaje()">
+            </div>
+          </div>
+          <div class="field-group" style="margin-bottom:12px">
+            <label class="field-label">Mensaje <span style="color:var(--muted);font-weight:400">(editable)</span></label>
+            <textarea id="anuncio-mensaje" class="field-input" rows="4" style="resize:vertical;font-family:monospace;font-size:.82rem;line-height:1.5" placeholder="El mensaje se genera automáticamente al completar los campos…"></textarea>
+          </div>
+          <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+            <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer">
               <input type="checkbox" id="anuncio-discord" checked style="accent-color:#dc2020"> Discord
             </label>
-            <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer;padding-bottom:2px">
+            <label style="display:flex;align-items:center;gap:6px;font-size:.83rem;cursor:pointer">
               <input type="checkbox" id="anuncio-telegram" style="accent-color:#dc2020"> Telegram
             </label>
-            <button class="btn btn-primary" onclick="anunciarSubida()" id="btn-anunciar">Enviar</button>
+            <div style="margin-left:auto;display:flex;gap:8px">
+              <button class="btn btn-ghost btn-sm" onclick="anuncioLimpiar()">Limpiar</button>
+              <button class="btn btn-primary" onclick="anunciarSubida()" id="btn-anunciar">Publicar</button>
+            </div>
           </div>
           <div id="anuncio-resultado" style="margin-top:.75rem;font-size:.83rem"></div>
         </div>
@@ -461,7 +480,43 @@
 //   f[4] = Capítulo
 //   f[5] = URL del archivo en Drive
   // ─── DASHBOARD ───────────────────────────────────────────────────────────────
+  window.anuncioActualizarMensaje = function() {
+    const manga = document.getElementById('anuncio-manga').value;
+    const cap   = (document.getElementById('anuncio-cap').value || '').trim();
+    const link  = (document.getElementById('anuncio-link').value || '').trim();
+    const ta    = document.getElementById('anuncio-mensaje');
+    if (!ta) return;
+    let msg = '';
+    if (manga) msg += `📢 **${manga}**`;
+    if (cap)   msg += ` — Capítulo ${cap}`;
+    if (manga || cap) msg += ' ya disponible!';
+    if (link)  msg += `\n🔗 ${link}`;
+    ta.value = msg;
+  };
+
+  window.anuncioLimpiar = function() {
+    ['anuncio-manga','anuncio-cap','anuncio-link','anuncio-mensaje','anuncio-resultado'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'SELECT') el.selectedIndex = 0;
+      else el.value = '';
+      if (id === 'anuncio-resultado') el.innerHTML = '';
+    });
+  };
+
   window.cargarDashboard = async function() {
+    // Poblar dropdown de mangas
+    try {
+      const r = await fetch('api.php?action=proyectos');
+      const res = await r.json();
+      const sel = document.getElementById('anuncio-manga');
+      if (sel && res.exito && res.datos) {
+        const prev = sel.value;
+        sel.innerHTML = '<option value="">— Seleccionar —</option>' +
+          res.datos.map(n => `<option value="${n}"${n===prev?' selected':''}>${n}</option>`).join('');
+      }
+    } catch(e) {}
+
     // Stats
     try {
       const r = await fetch('api.php?action=dashboardStats');
@@ -548,17 +603,19 @@
   };
 
   window.anunciarSubida = async function() {
+    const mensaje  = (document.getElementById('anuncio-mensaje').value || '').trim();
     const link     = (document.getElementById('anuncio-link').value || '').trim();
     const discord  = document.getElementById('anuncio-discord').checked;
     const telegram = document.getElementById('anuncio-telegram').checked;
     const resEl    = document.getElementById('anuncio-resultado');
     const btn      = document.getElementById('btn-anunciar');
-    if (!link)               { toast('Ingresa un link', 'err'); return; }
+    if (!mensaje)              { toast('Completa el mensaje antes de publicar', 'err'); return; }
     if (!discord && !telegram) { toast('Selecciona al menos una plataforma', 'err'); return; }
     btn.disabled = true; btn.textContent = '…'; resEl.textContent = '';
     try {
       const fd = new FormData();
       fd.append('csrf_token', window.csrfToken);
+      fd.append('mensaje', mensaje);
       fd.append('link', link);
       if (discord)  fd.append('discord',  '1');
       if (telegram) fd.append('telegram', '1');
@@ -567,12 +624,11 @@
       if (res.exito) {
         const msgs = [];
         if (res.resultados.discord  === true)  msgs.push('Discord ✓');
-        if (res.resultados.discord  === false) msgs.push('Discord ✗');
+        if (res.resultados.discord  === false) msgs.push('Discord ✗ (webhook no configurado)');
         if (res.resultados.telegram === true)  msgs.push('Telegram ✓');
-        if (res.resultados.telegram === false) msgs.push('Telegram ✗');
-        resEl.innerHTML = `<span style="color:#10b981">${msgs.join('  ')}</span>`;
-        document.getElementById('anuncio-link').value = '';
-        toast('Anuncio enviado');
+        if (res.resultados.telegram === false) msgs.push('Telegram ✗ (token no configurado)');
+        resEl.innerHTML = `<span style="color:#10b981">${msgs.join('  &nbsp;')}</span>`;
+        toast('Anuncio publicado');
       } else {
         resEl.innerHTML = `<span style="color:#ff5555">${res.mensaje || 'Error'}</span>`;
         toast(res.mensaje || 'Error al anunciar', 'err');
@@ -581,7 +637,7 @@
       resEl.innerHTML = '<span style="color:#ff5555">Error de conexión</span>';
       toast('Error de conexión: ' + e.message, 'err');
     }
-    btn.disabled = false; btn.textContent = 'Enviar';
+    btn.disabled = false; btn.textContent = 'Publicar';
   };
 
 (function() {

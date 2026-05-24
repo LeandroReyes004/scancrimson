@@ -529,25 +529,62 @@ switch ($action) {
         echo json_encode(['exito' => true]);
         break;
 
-    // ── RANKING DEL MES (vía bridge) ──────────────────────────────────────
+    // ── RANKING DEL MES (directo BD) ─────────────────────────────────────
     case 'rankingMes':
         $mes  = intval($_GET['mes']  ?? date('n'));
         $anio = intval($_GET['anio'] ?? date('Y'));
-        echo json_encode(bridge_call('rankingMes', ['mes' => $mes, 'anio' => $anio]));
+        $db   = getDB();
+        $stmt = $db->prepare("
+            SELECT e.discord_id, e.puntos, s.nombre_display, s.usuario_form
+            FROM expedientes e
+            LEFT JOIN staff_discord s ON s.discord_id = e.discord_id
+            WHERE e.mes = ? AND e.anio = ? AND e.puntos > 0
+            ORDER BY e.puntos DESC
+        ");
+        $stmt->execute([$mes, $anio]);
+        echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
         break;
 
-    // ── TAREAS ACTIVAS (vía bridge) ───────────────────────────────────────
+    // ── TAREAS ACTIVAS (directo BD) ───────────────────────────────────────
     case 'tareasActivas':
         requireAdmin();
-        echo json_encode(bridge_call('tareasActivas'));
+        $db   = getDB();
+        $stmt = $db->query("
+            SELECT t.*, s.nombre_display,
+                   TIMESTAMPDIFF(HOUR, NOW(), t.limite) AS horas_restantes
+            FROM tareas t
+            LEFT JOIN staff_discord s ON s.discord_id = t.discord_id
+            WHERE t.estado = 'activa'
+            ORDER BY t.limite ASC
+        ");
+        echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
         break;
 
-    // ── HISTORIAL ERRORES STAFF (vía bridge) ──────────────────────────────
+    // ── HISTORIAL ERRORES STAFF (directo BD) ──────────────────────────────
     case 'erroresStaff':
         requireAdmin();
-        $params = [];
-        if (!empty($_GET['discord_id'])) $params['discord_id'] = $_GET['discord_id'];
-        echo json_encode(bridge_call('erroresStaff', $params));
+        $db  = getDB();
+        $did = trim($_GET['discord_id'] ?? '');
+        if ($did) {
+            $stmt = $db->prepare("
+                SELECT e.id, e.discord_id, e.error AS descripcion, e.reportado_por, e.fecha,
+                       s.nombre_display
+                FROM errores_hist e
+                LEFT JOIN staff_discord s ON s.discord_id = e.discord_id
+                WHERE e.discord_id = ?
+                ORDER BY e.fecha DESC LIMIT 50
+            ");
+            $stmt->execute([$did]);
+        } else {
+            $stmt = $db->query("
+                SELECT e.id, e.discord_id, e.error AS descripcion, e.reportado_por, e.fecha,
+                       s.nombre_display
+                FROM errores_hist e
+                LEFT JOIN staff_discord s ON s.discord_id = e.discord_id
+                ORDER BY e.fecha DESC LIMIT 50
+            ");
+        }
+        echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
         break;
 
     // ── ESTADÍSTICAS GLOBALES ─────────────────────────────────────────────

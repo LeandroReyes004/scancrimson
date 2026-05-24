@@ -13,6 +13,7 @@ function getDB(): PDO {
         PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET sql_mode='NO_ENGINE_SUBSTITUTION', time_zone='+00:00'",
     ]);
 
     // Crear tabla si no existe
@@ -96,6 +97,9 @@ function getDB(): PDO {
                 creado     DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
+
+        // Asegurar que proyectos.estado admita VARCHAR(20) (puede existir como VARCHAR(6) o ENUM en DBs antiguas)
+        try { $pdo->exec("ALTER TABLE proyectos MODIFY COLUMN estado VARCHAR(20) DEFAULT 'activo'"); } catch (PDOException $e) { }
 
         // Migraciones para columnas de capitulos que pueden faltar en instancias antiguas
         foreach ([

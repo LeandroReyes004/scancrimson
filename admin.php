@@ -61,8 +61,43 @@
       <a href="settings.php" class="btn btn-ghost btn-sm" title="Configuración" style="text-decoration:none">⚙</a>
       <?php endif; ?>
       <a href="logout.php" class="user-logout" title="Cerrar sesión" style="text-decoration:none">⎋ Salir</a>
+      <button class="hamburger-btn" id="hamburger-btn" onclick="toggleMobileNav()" aria-label="Menú de navegación">
+        <span></span><span></span><span></span>
+      </button>
     </div>
   </header>
+
+  <!-- ─── MOBILE NAV ─── -->
+  <div id="mobile-nav-overlay" class="mobile-nav-overlay hidden" onclick="closeMobileNav()"></div>
+  <div id="mobile-nav" class="mobile-nav hidden" role="navigation" aria-label="Menú principal">
+    <div class="mobile-nav-header">
+      <div class="header-icon">⚔</div>
+      <span style="font-family:var(--font-head);font-size:1.1rem;letter-spacing:.06em">CRIMSON <b style="color:var(--red)">SCAN</b></span>
+      <button class="mobile-nav-close" onclick="closeMobileNav()" aria-label="Cerrar menú">✕</button>
+    </div>
+    <div class="mobile-nav-body">
+      <button class="mobile-nav-item active" data-tab="dashboard" onclick="mobileNavSwitch('dashboard')">◈ Dashboard</button>
+      <button class="mobile-nav-item" data-tab="proyectos" onclick="mobileNavSwitch('proyectos')">◫ Proyectos</button>
+      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+      <button class="mobile-nav-item" data-tab="nuevo" onclick="mobileNavSwitch('nuevo')">⊕ Nuevo Proyecto</button>
+      <?php endif; ?>
+      <button class="mobile-nav-item" data-tab="historial" onclick="mobileNavSwitch('historial')">≡ Historial</button>
+      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+      <button class="mobile-nav-item" data-tab="usuarios" onclick="mobileNavSwitch('usuarios')">👤 Usuarios</button>
+      <button class="mobile-nav-item" data-tab="staff" onclick="mobileNavSwitch('staff')">⚔ Staff Discord</button>
+      <?php endif; ?>
+      <a href="subir.php" class="mobile-nav-item">↑ Subir archivo</a>
+      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+      <a href="settings.php" class="mobile-nav-item">⚙ Configuración</a>
+      <?php endif; ?>
+    </div>
+    <div class="mobile-nav-footer">
+      <div style="font-size:.72rem;color:var(--muted);padding:.25rem .9rem .6rem;text-transform:uppercase;letter-spacing:.12em">
+        <?php echo htmlspecialchars($_SESSION['user']['usuario']); ?> · <?php echo $_SESSION['user']['rol']; ?>
+      </div>
+      <a href="logout.php" class="mobile-nav-logout">⎋ Cerrar sesión</a>
+    </div>
+  </div>
 
   <!-- PAGE BODY -->
   <div class="page-body">
@@ -364,6 +399,39 @@
 
 <script>
   window.csrfToken = '<?= $_SESSION['csrf_token'] ?>';
+
+  function toggleMobileNav() {
+    var nav     = document.getElementById('mobile-nav');
+    var overlay = document.getElementById('mobile-nav-overlay');
+    var btn     = document.getElementById('hamburger-btn');
+    if (!nav.classList.contains('hidden')) {
+      closeMobileNav();
+    } else {
+      nav.classList.remove('hidden');
+      overlay.classList.remove('hidden');
+      btn.classList.add('open');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function closeMobileNav() {
+    document.getElementById('mobile-nav').classList.add('hidden');
+    document.getElementById('mobile-nav-overlay').classList.add('hidden');
+    document.getElementById('hamburger-btn').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function mobileNavSwitch(tab) {
+    if (typeof switchTab === 'function') switchTab(tab);
+    closeMobileNav();
+    document.querySelectorAll('.mobile-nav-item[data-tab]').forEach(function(el) {
+      el.classList.toggle('active', el.dataset.tab === tab);
+    });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeMobileNav();
+  });
 </script>
 <script src="assets/admin.js?v=4"></script>
 <script>

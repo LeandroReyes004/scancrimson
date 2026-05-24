@@ -413,8 +413,9 @@ switch ($action) {
         $uid     = intval($_POST['id']     ?? 0);
         $activo  = intval($_POST['activo'] ?? 0);
 
-        // No permitir desactivarse a sí mismo
-        if ($uid === (int)$_SESSION['user']['id']) {
+        // No permitir desactivarse a sí mismo (usa JWT, no $_SESSION que no existe en api.php)
+        $currentUser = auth_get_user();
+        if ($uid === (int)($currentUser['id'] ?? 0)) {
             echo json_encode(['exito' => false, 'mensaje' => 'No puedes desactivar tu propia cuenta.']);
             break;
         }

@@ -541,8 +541,8 @@
         <div style="border-bottom:1px solid var(--border)">
           <div onclick="toggleAcordeon(${p.id})" style="display:flex;align-items:center;gap:.6rem;padding:.8rem .75rem;cursor:pointer;user-select:none">
             <span id="proy-arrow-${p.id}" style="font-size:.65rem;color:var(--muted);transition:transform .2s;display:inline-block;width:10px">▶</span>
-            <span style="flex:1;font-weight:700;font-size:.92rem;${activo?'':'color:var(--muted);text-decoration:line-through'}">${p.nombre}</span>
-            <span style="font-size:.7rem;padding:2px 8px;border-radius:6px;background:${activo?'rgba(16,185,129,.15)':'rgba(220,32,32,.1)'};color:${activo?'#10b981':'#ff5555'}">${activo?'Activo':'Inactivo'}</span>
+            <span id="proy-nombre-${p.id}" style="flex:1;font-weight:700;font-size:.92rem;${activo?'':'color:var(--muted);text-decoration:line-through'}">${p.nombre}</span>
+            <span id="proy-badge-${p.id}" style="font-size:.7rem;padding:2px 8px;border-radius:6px;background:${activo?'rgba(16,185,129,.15)':'rgba(220,32,32,.1)'};color:${activo?'#10b981':'#ff5555'}">${activo?'Activo':'Inactivo'}</span>
             <span id="drive-status-${p.id}" style="font-size:.72rem;color:${driveId?'#10b981':'var(--muted)'}">${driveId?'✓ Drive':'Sin Drive'}</span>
             <div onclick="event.stopPropagation()" style="display:flex;gap:4px">
               ${driveBtn}
@@ -619,17 +619,38 @@
   };
 
   window.toggleProyecto = async function(id, btn) {
+    const p = todosProyectos.find(x => x.id == id);
+    const textoOriginal = btn.textContent;
     btn.disabled = true; btn.textContent = '…';
-    const fd = new FormData();
-    fd.append('csrf_token', window.csrfToken);
-    fd.append('id', id);
-    const res = await fetch('api.php?action=toggleEstadoProyecto', { method:'POST', body:fd }).then(r=>r.json());
-    if (res.exito) {
-      const p = todosProyectos.find(x => x.id == id);
-      if (p) p.estado = res.estado;
-      renderAcordeonProyectos();
-    } else {
-      btn.disabled = false; btn.textContent = 'Error';
+    try {
+      const fd = new FormData();
+      fd.append('csrf_token', window.csrfToken);
+      fd.append('id', id);
+      const res = await fetch('api.php?action=toggleEstadoProyecto', { method:'POST', body:fd }).then(r=>r.json());
+      if (res.exito) {
+        if (p) p.estado = res.estado;
+        const activo = res.estado === 'activo';
+        const badge = document.getElementById('proy-badge-' + id);
+        if (badge) {
+          badge.textContent = activo ? 'Activo' : 'Inactivo';
+          badge.style.background = activo ? 'rgba(16,185,129,.15)' : 'rgba(220,32,32,.1)';
+          badge.style.color = activo ? '#10b981' : '#ff5555';
+        }
+        const nombre = document.getElementById('proy-nombre-' + id);
+        if (nombre) {
+          nombre.style.color = activo ? '' : 'var(--muted)';
+          nombre.style.textDecoration = activo ? '' : 'line-through';
+        }
+        btn.textContent = activo ? 'Off' : 'On';
+        btn.disabled = false;
+        toast(activo ? 'Proyecto activado' : 'Proyecto desactivado');
+      } else {
+        btn.textContent = textoOriginal; btn.disabled = false;
+        toast(res.mensaje || 'Error al cambiar estado', 'err');
+      }
+    } catch(e) {
+      btn.textContent = textoOriginal; btn.disabled = false;
+      toast('Error de conexión', 'err');
     }
   };
 

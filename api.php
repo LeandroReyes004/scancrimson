@@ -318,9 +318,13 @@ switch ($action) {
         $id = intval($_POST['id'] ?? 0);
         if (!$id) { echo json_encode(['exito' => false, 'mensaje' => 'ID inválido']); break; }
         $db = getDB();
-        $db->prepare("UPDATE proyectos SET estado = CASE WHEN estado='activo' THEN 'inactivo' ELSE 'activo' END WHERE id = ?")->execute([$id]);
-        $row = $db->prepare("SELECT estado FROM proyectos WHERE id = ?"); $row->execute([$id]);
-        echo json_encode(['exito' => true, 'estado' => $row->fetch()['estado']]);
+        $sel = $db->prepare("SELECT estado FROM proyectos WHERE id = ?");
+        $sel->execute([$id]);
+        $proy = $sel->fetch();
+        if (!$proy) { echo json_encode(['exito' => false, 'mensaje' => 'Proyecto no encontrado']); break; }
+        $nuevoEstado = ($proy['estado'] === 'activo') ? 'inactivo' : 'activo';
+        $db->prepare("UPDATE proyectos SET estado = ? WHERE id = ?")->execute([$nuevoEstado, $id]);
+        echo json_encode(['exito' => true, 'estado' => $nuevoEstado]);
         break;
 
     case 'setProyectoDriveId':

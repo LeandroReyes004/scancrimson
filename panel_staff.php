@@ -59,7 +59,7 @@ $csrf_token = csrf_token_generate();
     position: fixed; bottom: 0; left: 0; right: 0; height: var(--tab-h); z-index: 100;
     background: rgba(13,13,25,.96); border-top: 1px solid var(--border);
     backdrop-filter: blur(20px);
-    display: grid; grid-template-columns: repeat(3, 1fr);
+    display: grid; grid-template-columns: repeat(4, 1fr);
   }
   .tab-item {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -299,6 +299,41 @@ $csrf_token = csrf_token_generate();
     </div>
   </div>
 
+  <!-- TAB: BUSCAR -->
+  <div class="tab-pane" id="tab-buscar">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">🔍</span>
+        <span class="title">Buscar capítulo</span>
+      </div>
+      <div class="card-body">
+        <div class="field">
+          <label>Proyecto</label>
+          <select id="buscar-proyecto"><option value="">Cargando...</option></select>
+        </div>
+        <div class="field">
+          <label>Capítulo</label>
+          <input type="number" id="buscar-cap" placeholder="Ej: 12" min="1" step="1">
+        </div>
+        <div class="field">
+          <label>Etapa</label>
+          <select id="buscar-etapa">
+            <option value="Todas">Todas las etapas</option>
+            <option value="01. RAWs">01. RAWs</option>
+            <option value="02. Traducción">02. Traducción</option>
+            <option value="03. Limpieza y Redibujo">03. Limpieza y Redibujo</option>
+            <option value="04. Typos">04. Typos</option>
+            <option value="05. Control de Calidad">05. Control de Calidad</option>
+          </select>
+        </div>
+        <button class="btn-primary" id="btn-buscar-staff" onclick="buscarCapituloStaff()">
+          <span id="btn-buscar-txt">🔍 Buscar</span>
+        </button>
+        <div id="buscar-resultados" style="margin-top:1rem"></div>
+      </div>
+    </div>
+  </div>
+
   <!-- TAB: RANKING -->
   <div class="tab-pane" id="tab-ranking">
     <div class="card">
@@ -330,6 +365,11 @@ $csrf_token = csrf_token_generate();
   <button class="tab-item" onclick="switchTab('ranking', this)">
     <span class="tab-icon">🏅</span>
     <span>Ranking</span>
+    <span class="tab-dot"></span>
+  </button>
+  <button class="tab-item" onclick="switchTab('buscar', this)">
+    <span class="tab-icon">🔍</span>
+    <span>Buscar</span>
     <span class="tab-dot"></span>
   </button>
 </nav>
@@ -373,6 +413,7 @@ function switchTab(name, btn) {
   btn.classList.add('active');
   if (name === 'tareas')  cargarTareas();
   if (name === 'ranking') cargarRanking();
+  if (name === 'buscar')  cargarProyectosBuscar();
 }
 
 // ── Proyectos ────────────────────────────────────────────────────────────────
@@ -644,6 +685,78 @@ async function guardarPass() {
     msg.style.color = 'var(--red-bright)';
     msg.textContent = '✗ ' + (data.mensaje || 'Error');
   }
+}
+
+// ── Buscar ───────────────────────────────────────────────────────────────────
+
+const ETAPA_LABELS_STAFF = {
+  "01. RAWs":                { label: "RAWs",             icon: "📦" },
+  "02. Traducción":          { label: "Traducción",        icon: "🌐" },
+  "03. Limpieza y Redibujo": { label: "Limpieza/Redibujo", icon: "✏️" },
+  "04. Typos":               { label: "Typos",             icon: "🔤" },
+  "05. Control de Calidad":  { label: "Control de Calidad",icon: "✅" },
+};
+
+async function cargarProyectosBuscar() {
+  const sel = document.getElementById('buscar-proyecto');
+  if (sel.options.length > 1) return; // ya cargado
+  const res = await api('proyectos');
+  if (res.exito && res.datos.length) {
+    sel.innerHTML = '<option value="">Seleccionar...</option>' +
+      res.datos.map(p => `<option value="${p}">${p}</option>`).join('');
+  } else {
+    sel.innerHTML = '<option value="">Sin proyectos</option>';
+  }
+}
+
+async function buscarCapituloStaff() {
+  const proyecto = document.getElementById('buscar-proyecto').value;
+  const cap      = document.getElementById('buscar-cap').value.trim();
+  const etapa    = document.getElementById('buscar-etapa').value || 'Todas';
+  const area     = document.getElementById('buscar-resultados');
+  const btn      = document.getElementById('btn-buscar-staff');
+  const txt      = document.getElementById('btn-buscar-txt');
+
+  if (!proyecto) { toast('Selecciona un proyecto', 'err'); return; }
+  if (!cap)      { toast('Ingresa el número de capítulo', 'err'); return; }
+
+  btn.disabled = true;
+  txt.innerHTML = '<span class="spinner"></span>';
+  area.innerHTML = '';
+
+  const res = await api('enlaces', null,
+    `proyecto=${encodeURIComponent(proyecto)}&capitulo=${encodeURIComponent(cap)}&etapa=${encodeURIComponent(etapa)}`);
+
+  btn.disabled = false;
+  txt.textContent = '🔍 Buscar';
+
+  if (!res.exito) {
+    area.innerHTML = `<div style="text-align:center;padding:1rem;color:var(--muted)">${res.mensaje || 'Error al buscar'}</div>`;
+    return;
+  }
+
+  const datos = res.datos || {};
+  const keys  = Object.keys(datos);
+
+  if (!keys.length) {
+    area.innerHTML = `<div style="text-align:center;padding:1rem;color:var(--muted)">No se encontró el capítulo <b>${cap}</b> en <b>${proyecto}</b>.</div>`;
+    return;
+  }
+
+  area.innerHTML = keys.map(k => {
+    const info   = ETAPA_LABELS_STAFF[k] || { label: k, icon: "📁" };
+    const enlace = datos[k];
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.9rem;background:var(--surface2);border:1px solid var(--border);border-radius:10px;margin-bottom:.5rem">
+      <div style="min-width:0">
+        <div style="font-size:.75rem;font-weight:700;color:var(--red-bright);margin-bottom:.2rem">${info.icon} ${info.label}</div>
+        <div style="font-size:.8rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${enlace.nombre}</div>
+      </div>
+      <a href="${enlace.url}" target="_blank" rel="noopener"
+         style="flex-shrink:0;background:var(--red);color:#fff;padding:.4rem .9rem;border-radius:8px;font-size:.8rem;font-weight:600;text-decoration:none">
+        ⬇ Bajar
+      </a>
+    </div>`;
+  }).join('');
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────

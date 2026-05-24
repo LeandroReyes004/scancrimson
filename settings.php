@@ -71,14 +71,21 @@ if (!$user || $user['rol'] !== 'admin') {
   <h2>Notificaciones <span>Discord</span></h2>
   <div class="panel">
     <div class="field">
-      <label>Webhook para subidas de archivos</label>
+      <label>Webhook — Subidas de archivos</label>
       <input type="url" id="webhook-subidas" placeholder="https://discord.com/api/webhooks/...">
-      <div class="hint">Se notificará a este canal cada vez que un staff suba un archivo. Crea el webhook en Discord: Canal → Editar → Integraciones → Webhooks.</div>
+      <div class="hint">Se notificará a este canal cada vez que un staff suba un archivo.</div>
+    </div>
+    <div class="field" style="margin-top:1.2rem">
+      <label>Webhook — Anuncios de publicación</label>
+      <input type="url" id="webhook-anuncios" placeholder="https://discord.com/api/webhooks/...">
+      <div class="hint">Canal donde se publican los anuncios de nuevos capítulos desde el Dashboard. Crea el webhook en Discord: Canal → Editar → Integraciones → Webhooks.</div>
     </div>
     <div class="row-btns">
-      <button class="btn" onclick="guardarWebhook()">Guardar</button>
-      <button class="btn btn-ghost" onclick="testWebhook()">Probar webhook</button>
-      <span id="webhook-status"></span>
+      <button class="btn" onclick="guardarWebhooks()">Guardar</button>
+      <button class="btn btn-ghost" onclick="testWebhook('webhook-subidas', 'test-subidas')">Probar subidas</button>
+      <span id="test-subidas"></span>
+      <button class="btn btn-ghost" onclick="testWebhook('webhook-anuncios', 'test-anuncios')">Probar anuncios</button>
+      <span id="test-anuncios"></span>
     </div>
   </div>
 </div>
@@ -166,8 +173,9 @@ async function cargarConfig() {
   if (!res.exito) return;
   configActual = res.config || {};
 
-  document.getElementById('webhook-subidas').value = configActual['discord_webhook_subidas'] || '';
-  document.getElementById('canal-alertas').value   = configActual['canal_alertas'] || '';
+  document.getElementById('webhook-subidas').value  = configActual['discord_webhook_subidas']  || '';
+  document.getElementById('webhook-anuncios').value = configActual['discord_webhook_anuncios'] || '';
+  document.getElementById('canal-alertas').value    = configActual['canal_alertas'] || '';
 
   // Renderizar tabla de permisos
   const tbody = document.getElementById('permisos-body');
@@ -182,28 +190,33 @@ async function cargarConfig() {
   }).join('');
 }
 
-async function guardarWebhook() {
-  const val = document.getElementById('webhook-subidas').value.trim();
-  const res = await api('setConfigSistema', { clave: 'discord_webhook_subidas', valor: val });
-  if (res.exito) toast('Webhook guardado');
-  else toast(res.mensaje || 'Error', 'err');
+async function guardarWebhooks() {
+  const valSubidas  = document.getElementById('webhook-subidas').value.trim();
+  const valAnuncios = document.getElementById('webhook-anuncios').value.trim();
+  await Promise.all([
+    api('setConfigSistema', { clave: 'discord_webhook_subidas',  valor: valSubidas }),
+    api('setConfigSistema', { clave: 'discord_webhook_anuncios', valor: valAnuncios }),
+  ]);
+  toast('Webhooks guardados');
 }
 
-async function testWebhook() {
-  const webhook = document.getElementById('webhook-subidas').value.trim();
-  const status  = document.getElementById('webhook-status');
-  if (!webhook) { toast('Primero guarda el webhook', 'err'); return; }
-  status.textContent = 'Enviando...';
+async function testWebhook(inputId, statusId) {
+  const webhook = document.getElementById(inputId).value.trim();
+  const status  = document.getElementById(statusId);
+  if (!webhook) { toast('Ingresa el webhook antes de probar', 'err'); return; }
+  status.textContent = 'Enviando…';
   status.className   = '';
-
-  const payload = JSON.stringify({ content: '✅ **Test desde Crimson Scan Panel** — Webhook configurado correctamente.' });
   try {
-    const r = await fetch(webhook, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload });
+    const r = await fetch(webhook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: '✅ **Test desde Crimson Scan Panel** — Webhook configurado correctamente.' }),
+    });
     if (r.ok || r.status === 204) {
-      status.textContent = '✓ Webhook funcionando';
+      status.textContent = '✓ OK';
       status.className   = 'badge-ok';
     } else {
-      status.textContent = '✗ Error HTTP ' + r.status;
+      status.textContent = '✗ HTTP ' + r.status;
       status.className   = 'badge-err';
     }
   } catch (e) {

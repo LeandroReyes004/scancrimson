@@ -78,6 +78,7 @@ function doGet(e) {
     var proyDriveId = e.parameter.proyecto_drive_id;
     var capNum      = e.parameter.capitulo;
     if (!proyDriveId || !capNum) return jsonResponse({ exito: false, mensaje: 'Faltan parametros' });
+    var capInt     = parseInt(capNum);
     var capNombre  = 'Capítulo ' + capNum;
     var capNombreB = 'Capitulo '  + capNum;
     var etapasMap  = {
@@ -95,15 +96,36 @@ function doGet(e) {
           var eFolders = pFolder.getFoldersByName(etapasMap[clave]);
           if (!eFolders.hasNext()) { resultado[clave] = false; return; }
           var eFolder = eFolders.next();
-          var c1 = eFolder.getFoldersByName(capNombre);
-          var c2 = eFolder.getFoldersByName(capNombreB);
-          resultado[clave] = c1.hasNext() || c2.hasNext();
+          // RAWs: buscar subcarpeta O archivo directo Cap_N.zip/rar
+          if (clave === 'raw') {
+            var c1 = eFolder.getFoldersByName(capNombre);
+            var c2 = eFolder.getFoldersByName(capNombreB);
+            if (c1.hasNext() || c2.hasNext()) { resultado[clave] = true; return; }
+            var files = eFolder.getFiles();
+            while (files.hasNext()) {
+              var m = files.next().getName().toLowerCase().match(/^cap[_\-\s]?0*(\d+)/);
+              if (m && parseInt(m[1]) === capInt) { resultado[clave] = true; return; }
+            }
+            resultado[clave] = false;
+          } else {
+            var c1 = eFolder.getFoldersByName(capNombre);
+            var c2 = eFolder.getFoldersByName(capNombreB);
+            resultado[clave] = c1.hasNext() || c2.hasNext();
+          }
         } catch(err) { resultado[clave] = false; }
       });
       return jsonResponse({ exito: true, etapas: resultado });
     } catch(err) {
       return jsonResponse({ exito: false, mensaje: 'Error: ' + err.toString() });
     }
+  }
+
+  if (action === 'buscarCapituloConEnlaces') {
+    var proyDriveId = e.parameter.proyecto_drive_id;
+    var capNum      = e.parameter.capitulo;
+    var etapaFiltro = e.parameter.etapa || 'Todas';
+    if (!proyDriveId || !capNum) return jsonResponse({ exito: false, mensaje: 'Faltan parametros' });
+    return buscarCapituloConEnlaces(proyDriveId, capNum, etapaFiltro);
   }
 
   return ContentService.createTextOutput('Crimson API Online - ' + new Date().toISOString());
@@ -228,6 +250,98 @@ function crearProyecto(nombre) {
     return jsonResponse({ exito: true, mensaje: 'Proyecto creado.', carpetaId: pFolder.getId() });
   } catch(e) {
     return jsonResponse({ exito: false, mensaje: e.toString() });
+  }
+}
+
+/**
+ * Busca archivos de un capítulo en Drive y devuelve IDs + nombres.
+ * Maneja dos nomenclaturas para RAWs:
+ *   - Subcarpeta:   RAWs/Capítulo N/archivo.zip
+ *   - Archivo directo: RAWs/Cap_N.zip  (subida manual)
+ */
+function buscarCapituloConEnlaces(proyDriveId, capNum, etapaFiltro) {
+  try {
+    var capInt     = parseInt(capNum);
+    var capNombre  = 'Capítulo ' + capNum;
+    var capNombreB = 'Capitulo '  + capNum;
+    var etapasMap  = {
+      raw:   '01. RAWs',
+      trad:  '02. Traducción',
+      clean: '03. Limpieza y Redibujo',
+      type:  '04. Typos',
+      proof: '05. Control de Calidad'
+    };
+    var resultado  = {};
+    var pFolder    = DriveApp.getFolderById(proyDriveId);
+
+    Object.keys(etapasMap).forEach(function(clave) {
+      var etapaName = etapasMap[clave];
+
+      // Filtrar etapa si se pidió una específica
+      if (etapaFiltro && etapaFiltro !== 'Todas' && etapaFiltro !== etapaName) {
+        resultado[clave] = { encontrado: false };
+        return;
+      }
+
+      try {
+        var eFolders = pFolder.getFoldersByName(etapaName);
+        if (!eFolders.hasNext()) { resultado[clave] = { encontrado: false }; return; }
+        var eFolder = eFolders.next();
+
+        if (clave === 'raw') {
+          // 1) Buscar archivo directo: Cap_N.zip / Cap_N.rar / cap-N.zip etc.
+          var files = eFolder.getFiles();
+          while (files.hasNext()) {
+            var f = files.next();
+            var m = f.getName().toLowerCase().match(/^cap[_\-\s]?0*(\d+)/);
+            if (m && parseInt(m[1]) === capInt) {
+              resultado[clave] = { encontrado: true, id: f.getId(), nombre: f.getName() };
+              return;
+            }
+          }
+          // 2) Buscar subcarpeta "Capítulo N" (subidas por panel)
+          var subFolders = [
+            eFolder.getFoldersByName(capNombre),
+            eFolder.getFoldersByName(capNombreB)
+          ];
+          for (var i = 0; i < subFolders.length; i++) {
+            if (subFolders[i].hasNext()) {
+              var capFiles = subFolders[i].next().getFiles();
+              if (capFiles.hasNext()) {
+                var cf = capFiles.next();
+                resultado[clave] = { encontrado: true, id: cf.getId(), nombre: cf.getName() };
+                return;
+              }
+            }
+          }
+          resultado[clave] = { encontrado: false };
+
+        } else {
+          // Otras etapas: buscar subcarpeta "Capítulo N"
+          var subFolders = [
+            eFolder.getFoldersByName(capNombre),
+            eFolder.getFoldersByName(capNombreB)
+          ];
+          for (var i = 0; i < subFolders.length; i++) {
+            if (subFolders[i].hasNext()) {
+              var capFiles = subFolders[i].next().getFiles();
+              if (capFiles.hasNext()) {
+                var cf = capFiles.next();
+                resultado[clave] = { encontrado: true, id: cf.getId(), nombre: cf.getName() };
+                return;
+              }
+            }
+          }
+          resultado[clave] = { encontrado: false };
+        }
+      } catch(err) {
+        resultado[clave] = { encontrado: false };
+      }
+    });
+
+    return jsonResponse({ exito: true, etapas: resultado });
+  } catch(err) {
+    return jsonResponse({ exito: false, mensaje: 'Error: ' + err.toString() });
   }
 }
 

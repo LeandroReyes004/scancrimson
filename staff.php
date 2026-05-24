@@ -459,7 +459,11 @@ async function cargarRanking() {
   podio.innerHTML = '';
 
   const res = await api('rankingMes', { qs: 'mes=' + mes + '&anio=' + anio });
-  if (!res.exito || !res.data.length) {
+  if (!res.exito) {
+    tbody.innerHTML = `<tr><td colspan="4" class="empty" style="color:var(--red-bright)">⚠️ ${res.mensaje || 'Error al conectar con el bridge'}</td></tr>`;
+    return;
+  }
+  if (!res.data || !res.data.length) {
     tbody.innerHTML = '<tr><td colspan="4" class="empty">Sin datos para este período.</td></tr>';
     return;
   }
@@ -491,7 +495,11 @@ async function cargarRanking() {
 async function cargarTareas() {
   const tbody = document.getElementById('tareas-body');
   const res   = await api('tareasActivas');
-  if (!res.exito || !res.data.length) {
+  if (!res.exito) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty" style="color:var(--red-bright)">⚠️ ${res.mensaje || 'Error al conectar con el bridge'}</td></tr>`;
+    return;
+  }
+  if (!res.data || !res.data.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty">No hay tareas activas.</td></tr>';
     return;
   }
@@ -512,7 +520,11 @@ async function cargarTareas() {
 async function cargarErrores() {
   const tbody = document.getElementById('errores-body');
   const res   = await api('erroresStaff');
-  if (!res.exito || !res.data.length) {
+  if (!res.exito) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty" style="color:var(--red-bright)">⚠️ ${res.mensaje || 'Error al conectar con el bridge'}</td></tr>`;
+    return;
+  }
+  if (!res.data || !res.data.length) {
     tbody.innerHTML = '<tr><td colspan="3" class="empty">Sin errores registrados.</td></tr>';
     return;
   }

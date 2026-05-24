@@ -1034,14 +1034,16 @@ switch ($action) {
         requireAdmin();
         $db   = getDB();
         $stmt = $db->query("
-            SELECT sd.discord_id, sd.nombre_display, sd.rol
+            SELECT sd.discord_id,
+                   COALESCE(NULLIF(sd.nombre_display,''), NULLIF(sd.usuario_form,''), sd.discord_id) AS nombre_display,
+                   sd.rol
             FROM staff_discord sd
             WHERE sd.activo = 1
               AND NOT EXISTS (
                   SELECT 1 FROM tareas t
                   WHERE t.discord_id = sd.discord_id AND t.estado = 'activa'
               )
-            ORDER BY sd.nombre_display
+            ORDER BY nombre_display
         ");
         echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
         break;
@@ -1052,7 +1054,7 @@ switch ($action) {
         $db        = getDB();
         $atrasadas = $db->query("
             SELECT t.id, t.discord_id, t.obra, t.cap, t.rol, t.limite,
-                   s.nombre_display,
+                   COALESCE(NULLIF(s.nombre_display,''), NULLIF(s.usuario_form,''), t.discord_id) AS nombre_display,
                    TIMESTAMPDIFF(HOUR, t.limite, NOW()) AS horas_atraso
             FROM tareas t
             LEFT JOIN staff_discord s ON s.discord_id = t.discord_id
@@ -1063,7 +1065,9 @@ switch ($action) {
             LIMIT 20
         ")->fetchAll();
         $inactivos = $db->query("
-            SELECT sd.discord_id, sd.nombre_display, sd.rol
+            SELECT sd.discord_id,
+                   COALESCE(NULLIF(sd.nombre_display,''), NULLIF(sd.usuario_form,''), sd.discord_id) AS nombre_display,
+                   sd.rol
             FROM staff_discord sd
             WHERE sd.activo = 1
               AND NOT EXISTS (
@@ -1071,7 +1075,7 @@ switch ($action) {
                   WHERE t.discord_id = sd.discord_id
                     AND t.creado >= DATE_SUB(NOW(), INTERVAL 7 DAY)
               )
-            ORDER BY sd.nombre_display
+            ORDER BY nombre_display
             LIMIT 20
         ")->fetchAll();
         echo json_encode(['exito' => true, 'atrasadas' => $atrasadas, 'inactivos' => $inactivos]);

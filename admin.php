@@ -496,7 +496,7 @@
           <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
             <div style="width:34px;height:34px;border-radius:50%;background:rgba(16,185,129,.15);display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:700;color:#10b981;flex-shrink:0">${(s.nombre_display||'?')[0].toUpperCase()}</div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:.85rem;font-weight:600">${s.nombre_display || s.discord_id}</div>
+              <div style="font-size:.85rem;font-weight:600">${s.nombre_display}</div>
               <div style="font-size:.71rem;color:var(--muted)">${s.rol || 'Staff'}</div>
             </div>
             <span style="font-size:.68rem;padding:2px 7px;border-radius:5px;background:rgba(16,185,129,.12);color:#10b981">Libre</span>
@@ -522,7 +522,7 @@
           <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
             <div style="width:8px;height:8px;border-radius:50%;background:#ff5555;flex-shrink:0"></div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:.83rem;font-weight:600">${t.nombre_display||t.discord_id}</div>
+              <div style="font-size:.83rem;font-weight:600">${t.nombre_display}</div>
               <div style="font-size:.71rem;color:var(--muted)">${t.obra} cap.${t.cap} · ${t.rol}</div>
             </div>
             <span style="font-size:.68rem;color:#ff5555;white-space:nowrap">${t.horas_atraso}h atraso</span>
@@ -535,7 +535,7 @@
           <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
             <div style="width:8px;height:8px;border-radius:50%;background:#f59e0b;flex-shrink:0"></div>
             <div style="flex:1;min-width:0">
-              <div style="font-size:.83rem;font-weight:600">${s.nombre_display||s.discord_id}</div>
+              <div style="font-size:.83rem;font-weight:600">${s.nombre_display}</div>
               <div style="font-size:.71rem;color:var(--muted)">${s.rol||'Staff'}</div>
             </div>
             <span style="font-size:.68rem;color:#f59e0b;white-space:nowrap">Inactivo</span>

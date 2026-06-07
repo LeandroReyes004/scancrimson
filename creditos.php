@@ -1,8 +1,8 @@
 <?php
 require_once 'auth.php';
-$imgPath = __DIR__ . '/creditos.jpg';
+$imgPath = __DIR__ . '/creditos.png';
 $imgData = file_exists($imgPath)
-    ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($imgPath))
+    ? 'data:image/png;base64,' . base64_encode(file_get_contents($imgPath))
     : '';
 ?>
 <!DOCTYPE html>

@@ -191,9 +191,25 @@ const COVERS = [
 const IMG_SRC = 'creditos.jpg';
 let imgEl = new Image();
 let imgLoaded = false;
-imgEl.onload  = () => { imgLoaded = true; renderCanvas(); };
-imgEl.onerror = () => console.error('No se pudo cargar la imagen de plantilla');
-imgEl.src = IMG_SRC;
+imgEl.crossOrigin = 'anonymous';
+imgEl.onload = () => { imgLoaded = true; renderCanvas(); };
+imgEl.onerror = () => {
+  const canvas = document.getElementById('credito-canvas');
+  if (!canvas) return;
+  canvas.width = 530; canvas.height = 750;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#1a0a1e';
+  ctx.fillRect(0, 0, 530, 750);
+  ctx.fillStyle = '#ff5555';
+  ctx.font = 'bold 16px Arial';
+  ctx.textAlign = 'center';
+  ctx.fillText('No se pudo cargar creditos.jpg', 265, 375);
+};
+imgEl.src = IMG_SRC + '?v=' + Date.now(); // evitar caché
+// Si ya estaba cacheada y complete antes del onload
+document.addEventListener('DOMContentLoaded', () => {
+  if (imgEl.complete && imgEl.naturalWidth > 0) { imgLoaded = true; renderCanvas(); }
+});
 
 function renderCanvas() {
   const canvas = document.getElementById('credito-canvas');

@@ -196,20 +196,25 @@ $imgData = file_exists($imgPath)
     <div class="panel">
       <div class="panel-title">✉ Notificar hoja de créditos</div>
       <p style="font-size:.78rem;color:var(--muted);margin-bottom:.9rem;line-height:1.5">
-        Envía una notificación por Discord a los staff seleccionados con el link directo a esta hoja de créditos.
+        Manda un mensaje de Discord mencionando al staff con el link directo a esta hoja.
       </p>
       <div class="field">
-        <label>Staff 1</label>
+        <label>Responsable</label>
         <select id="sel-notif-1" class="sel-notif">
-          <option value="">— Ninguno —</option>
+          <option value="">— Seleccionar —</option>
         </select>
       </div>
-      <div class="field">
-        <label>Staff 2 <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
-        <select id="sel-notif-2" class="sel-notif">
-          <option value="">— Ninguno —</option>
-        </select>
+      <div id="notif-2-wrap" style="display:none">
+        <div class="field">
+          <label>Segundo responsable</label>
+          <select id="sel-notif-2" class="sel-notif">
+            <option value="">— Ninguno —</option>
+          </select>
+        </div>
       </div>
+      <button type="button" id="btn-add-notif2" class="btn btn-ghost btn-sm"
+        style="margin-bottom:.9rem"
+        onclick="toggleSegundo()">+ Añadir segundo responsable</button>
       <div class="field">
         <label>Nota <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
         <input id="inp-notif-nota" type="text" placeholder="Ej: Para el lunes por favor">
@@ -444,6 +449,15 @@ async function cargarStaff() {
     if (selN1)   selN1.innerHTML   = '<option value="">— Ninguno —</option>' + opts;
     if (selN2)   selN2.innerHTML   = '<option value="">— Ninguno —</option>' + opts;
   }
+}
+
+function toggleSegundo() {
+  const wrap = document.getElementById('notif-2-wrap');
+  const btn  = document.getElementById('btn-add-notif2');
+  const visible = wrap.style.display !== 'none';
+  wrap.style.display = visible ? 'none' : '';
+  btn.textContent = visible ? '+ Añadir segundo responsable' : '− Quitar segundo responsable';
+  if (visible) document.getElementById('sel-notif-2').value = '';
 }
 
 /* ── Notificar staff para hoja de créditos ── */

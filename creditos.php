@@ -188,7 +188,7 @@ const COVERS = [
   { x: 0.578, y: 0.726, w: 0.302, h: 0.075 }, // APOYO "ESCLAVOS CRIMSON'S"
 ];
 
-const IMG_SRC = 'hoja_credito_STAFF_YESCLAVOS_.jpg';
+const IMG_SRC = 'creditos.jpg';
 let imgEl = new Image();
 let imgLoaded = false;
 imgEl.onload  = () => { imgLoaded = true; renderCanvas(); };

@@ -1,4 +1,10 @@
-<?php require_once 'auth.php'; ?>
+<?php
+require_once 'auth.php';
+$imgPath = __DIR__ . '/creditos.jpg';
+$imgData = file_exists($imgPath)
+    ? 'data:image/jpeg;base64,' . base64_encode(file_get_contents($imgPath))
+    : '';
+?>
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -188,10 +194,9 @@ const COVERS = [
   { x: 0.578, y: 0.726, w: 0.302, h: 0.075 }, // APOYO "ESCLAVOS CRIMSON'S"
 ];
 
-const IMG_SRC = 'creditos.jpg';
+const IMG_SRC = <?= json_encode($imgData) ?>;
 let imgEl = new Image();
 let imgLoaded = false;
-imgEl.crossOrigin = 'anonymous';
 imgEl.onload = () => { imgLoaded = true; renderCanvas(); };
 imgEl.onerror = () => {
   const canvas = document.getElementById('credito-canvas');
@@ -203,10 +208,9 @@ imgEl.onerror = () => {
   ctx.fillStyle = '#ff5555';
   ctx.font = 'bold 16px Arial';
   ctx.textAlign = 'center';
-  ctx.fillText('No se pudo cargar creditos.jpg', 265, 375);
+  ctx.fillText('Error: no se encontró creditos.jpg en el servidor', 265, 375);
 };
-imgEl.src = IMG_SRC + '?v=' + Date.now(); // evitar caché
-// Si ya estaba cacheada y complete antes del onload
+imgEl.src = IMG_SRC;
 document.addEventListener('DOMContentLoaded', () => {
   if (imgEl.complete && imgEl.naturalWidth > 0) { imgLoaded = true; renderCanvas(); }
 });

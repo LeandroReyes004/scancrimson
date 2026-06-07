@@ -168,7 +168,7 @@ $imgData = file_exists($imgPath)
     <!-- Asignar tarea -->
     <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
     <div class="panel">
-      <div class="panel-title">⊕ Asignar tarea</div>
+      <div class="panel-title">⊕ Asignar tarea en BD</div>
       <div class="field">
         <label>Rol</label>
         <select id="sel-rol-asignar">
@@ -190,6 +190,34 @@ $imgData = file_exists($imgPath)
       </div>
       <button class="btn btn-green btn-sm" onclick="asignarTarea()">Asignar</button>
       <div id="asignar-msg"></div>
+    </div>
+
+    <!-- Notificar staff para hoja de créditos -->
+    <div class="panel">
+      <div class="panel-title">✉ Notificar hoja de créditos</div>
+      <p style="font-size:.78rem;color:var(--muted);margin-bottom:.9rem;line-height:1.5">
+        Envía una notificación por Discord a los staff seleccionados con el link directo a esta hoja de créditos.
+      </p>
+      <div class="field">
+        <label>Staff 1</label>
+        <select id="sel-notif-1" class="sel-notif">
+          <option value="">— Ninguno —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Staff 2 <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+        <select id="sel-notif-2" class="sel-notif">
+          <option value="">— Ninguno —</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Nota <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+        <input id="inp-notif-nota" type="text" placeholder="Ej: Para el lunes por favor">
+      </div>
+      <button class="btn btn-sm" onclick="notificarCreditos()" id="btn-notif">
+        Enviar notificación
+      </button>
+      <div id="notif-msg" style="margin-top:.6rem;font-size:.8rem"></div>
     </div>
     <?php endif; ?>
 
@@ -402,17 +430,58 @@ async function cargarProyectos() {
 /* ── Cargar staff ── */
 async function cargarStaff() {
   const res = await fetch('api.php?action=listarStaff').then(r=>r.json()).catch(()=>null);
-  const sel = document.getElementById('sel-staff-asignar');
-  if (!sel) return;
+  const selAsig  = document.getElementById('sel-staff-asignar');
+  const selN1    = document.getElementById('sel-notif-1');
+  const selN2    = document.getElementById('sel-notif-2');
+
   if (res?.exito && res.datos?.length) {
-    sel.innerHTML = '<option value="">— Seleccionar staff —</option>' +
+    const opts = '<option value="">— Seleccionar —</option>' +
       res.datos.map(s => {
         const nombre = s.nombre_display || s.usuario_form || s.discord_id;
-        return `<option value="${esc(s.discord_id)}">${esc(nombre)} (${esc(s.rol||'Staff')})</option>`;
+        return `<option value="${esc(s.discord_id)}">${esc(nombre)}</option>`;
       }).join('');
-  } else {
-    sel.innerHTML = '<option value="">Sin staff registrado</option>';
+    if (selAsig) selAsig.innerHTML = opts;
+    if (selN1)   selN1.innerHTML   = '<option value="">— Ninguno —</option>' + opts;
+    if (selN2)   selN2.innerHTML   = '<option value="">— Ninguno —</option>' + opts;
   }
+}
+
+/* ── Notificar staff para hoja de créditos ── */
+async function notificarCreditos() {
+  const manga  = document.getElementById('sel-manga').value;
+  const cap    = document.getElementById('inp-cap').value.trim();
+  const id1    = document.getElementById('sel-notif-1').value;
+  const id2    = document.getElementById('sel-notif-2').value;
+  const nota   = document.getElementById('inp-notif-nota').value.trim();
+  const msgEl  = document.getElementById('notif-msg');
+  const btn    = document.getElementById('btn-notif');
+
+  if (!id1) { toast('Selecciona al menos un staff', 'err'); return; }
+
+  btn.disabled = true;
+  btn.textContent = 'Enviando…';
+
+  const fd = new FormData();
+  fd.append('csrf_token', CSRF);
+  fd.append('manga',      manga);
+  fd.append('cap',        cap);
+  fd.append('discord_id_1', id1);
+  fd.append('discord_id_2', id2);
+  fd.append('nota',       nota);
+
+  const res = await fetch('api.php?action=notificarCreditos', { method:'POST', body:fd })
+    .then(r=>r.json()).catch(()=>null);
+
+  btn.disabled = false;
+  btn.textContent = 'Enviar notificación';
+
+  if (res?.exito) {
+    msgEl.innerHTML = '<span style="color:var(--green)">✓ Notificación enviada</span>';
+    toast('Notificación enviada por Discord');
+  } else {
+    msgEl.innerHTML = `<span style="color:var(--red-bright)">✗ ${res?.mensaje || 'Error al enviar'}</span>`;
+  }
+  setTimeout(() => { msgEl.innerHTML = ''; }, 5000);
 }
 
 /* ── Cargar asignaciones de BD ── */

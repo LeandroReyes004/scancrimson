@@ -1190,6 +1190,57 @@ switch ($action) {
         echo json_encode(['exito' => true, 'resultados' => $resultados]);
         break;
 
+    // ── NOTIFICAR HOJA DE CRÉDITOS ────────────────────────────────────────
+    case 'notificarCreditos':
+        requireAdmin();
+        $manga   = trim($_POST['manga']        ?? '');
+        $cap     = trim($_POST['cap']          ?? '');
+        $id1     = trim($_POST['discord_id_1'] ?? '');
+        $id2     = trim($_POST['discord_id_2'] ?? '');
+        $nota    = trim($_POST['nota']         ?? '');
+        if (!$id1) { echo json_encode(['exito' => false, 'mensaje' => 'Staff requerido']); break; }
+
+        $db         = getDB();
+        $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn() ?: '';
+        if (!$webhookUrl) { echo json_encode(['exito' => false, 'mensaje' => 'Webhook de anuncios no configurado']); break; }
+
+        // Construir menciones
+        $menciones = "<@{$id1}>";
+        if ($id2) $menciones .= " <@{$id2}>";
+
+        // Link directo a creditos.php con parámetros pre-llenados
+        $baseUrl = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
+                 . '://' . ($_SERVER['HTTP_HOST'] ?? 'scancrimson.vercel.app');
+        $params  = http_build_query(array_filter(['manga' => $manga, 'cap' => $cap]));
+        $link    = $baseUrl . '/creditos.php' . ($params ? '?' . $params : '');
+
+        $partes = ["{$menciones} necesitan completar la **hoja de créditos**"];
+        if ($manga) $partes[] = "**Manga:** {$manga}";
+        if ($cap)   $partes[] = "**Capítulo:** {$cap}";
+        if ($nota)  $partes[] = "**Nota:** {$nota}";
+        $partes[] = $link;
+        $mensaje = implode("\n", $partes);
+
+        $ch = curl_init($webhookUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_POST           => true,
+            CURLOPT_POSTFIELDS     => json_encode(['content' => $mensaje]),
+            CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        curl_exec($ch);
+        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($code >= 200 && $code < 300) {
+            echo json_encode(['exito' => true]);
+        } else {
+            echo json_encode(['exito' => false, 'mensaje' => "Discord devolvió HTTP {$code}"]);
+        }
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);

@@ -223,6 +223,54 @@
     animation: fadeUp .3s ease;
   }
   #resultados.hidden { display: none; }
+  /* ── PANEL BD ── */
+  #panel-bd {
+    margin-top: .75rem;
+    background: var(--surface);
+    border: 1px solid var(--glass-border);
+    border-radius: 14px;
+    padding: 1.25rem 1.5rem;
+    animation: fadeUp .3s ease;
+  }
+  #panel-bd.hidden { display: none; }
+  .bd-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: .85rem;
+    font-size: .68rem; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .bd-header a { font-size: .75rem; color: var(--red); text-decoration: none; font-weight: 600; text-transform: none; letter-spacing: 0; }
+  .bd-header a:hover { color: var(--red-bright); }
+  .asig-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: .5rem; }
+  .asig-chip {
+    background: rgba(255,255,255,.04); border: 1px solid var(--border);
+    border-radius: 9px; padding: .55rem .8rem;
+  }
+  .asig-chip .asig-rol { font-size: .6rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; }
+  .asig-chip .asig-nombre { font-size: .84rem; font-weight: 600; color: var(--text); }
+  .asig-chip.filled { border-color: rgba(16,185,129,.3); background: rgba(16,185,129,.06); }
+  .asig-chip.filled .asig-nombre { color: #10b981; }
+  .asig-chip.empty .asig-nombre { color: var(--muted); font-weight: 400; }
+  /* Asignar inline */
+  .asignar-form {
+    margin-top: .85rem; padding-top: .85rem; border-top: 1px solid var(--border);
+    display: flex; gap: .6rem; flex-wrap: wrap; align-items: flex-end;
+  }
+  .asignar-form select, .asignar-form input {
+    background: rgba(255,255,255,.06); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); padding: .5rem .8rem;
+    font-size: .83rem; font-family: inherit; outline: none;
+    transition: border-color .15s;
+  }
+  .asignar-form select:focus, .asignar-form input:focus { border-color: var(--red); }
+  .asignar-form select option { background: #1a0a1e; }
+  .btn-asignar {
+    padding: .5rem 1.1rem; background: var(--red); border: none; border-radius: 8px;
+    color: #fff; font-family: inherit; font-size: .83rem; font-weight: 600;
+    cursor: pointer; white-space: nowrap; transition: background .15s;
+  }
+  .btn-asignar:hover { background: var(--red-bright); }
+  .asignar-msg { font-size: .78rem; margin-top: .4rem; width: 100%; }
 
   .resultados-titulo {
     font-size: .68rem; font-weight: 700; letter-spacing: .12em;
@@ -373,8 +421,34 @@
       </div>
     </div>
 
-    <!-- RESULTADOS -->
+    <!-- RESULTADOS Drive -->
     <div id="resultados" class="hidden"></div>
+
+    <!-- PANEL BD: asignaciones + asignar -->
+    <div id="panel-bd" class="hidden">
+      <div class="bd-header">
+        <span>◎ Asignaciones en la BD</span>
+        <a id="link-creditos" href="creditos.php" target="_blank">✦ Generar hoja de créditos →</a>
+      </div>
+      <div class="asig-grid" id="asig-grid"></div>
+
+      <?php if (isset($_SESSION['user']) && $_SESSION['user']['rol'] === 'admin'): ?>
+      <div class="asignar-form" id="asignar-form">
+        <select id="asgn-rol" title="Rol">
+          <option value="Traductor">Traductor</option>
+          <option value="Limpiador">Limpiador/Redrawer</option>
+          <option value="Typesetter">Typesetter</option>
+          <option value="QC">QC / Proof</option>
+        </select>
+        <select id="asgn-staff" title="Staff" style="min-width:160px">
+          <option value="">Cargando staff…</option>
+        </select>
+        <input id="asgn-limite" type="datetime-local" title="Fecha límite (opcional)" style="width:180px">
+        <button class="btn-asignar" onclick="asignarTareaIndex()">⊕ Asignar</button>
+        <div id="asgn-msg" class="asignar-msg"></div>
+      </div>
+      <?php endif; ?>
+    </div>
 
   </div>
 </main>
@@ -386,6 +460,7 @@
 <div id="_toast"></div>
 
 <script>
+window._csrf = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>';
 const ETAPA_LABELS = {
   "01. RAWs":                { label: "RAWs",              icon: "📦" },
   "02. Traducción":          { label: "Traducción",         icon: "🌐" },
@@ -396,14 +471,7 @@ const ETAPA_LABELS = {
 
 document.addEventListener('DOMContentLoaded', () => {
   cargarProyectos();
-  // Pre-fill if coming from admin
-  const params = new URLSearchParams(location.search);
-  if (params.get('proyecto')) {
-    document.getElementById('sel-proyecto').addEventListener('change', function once() {
-      this.value = params.get('proyecto');
-      this.removeEventListener('change', once);
-    });
-  }
+  cargarStaffIndex();
 });
 
 function cargarProyectos() {
@@ -427,6 +495,9 @@ function cargarProyectos() {
     });
 }
 
+let _lastManga = '';
+let _lastCap   = '';
+
 function buscarCapitulo() {
   const proyecto = document.getElementById('sel-proyecto')?.value;
   const capitulo = document.getElementById('inp-capitulo')?.value;
@@ -435,6 +506,9 @@ function buscarCapitulo() {
 
   if (!proyecto) { showToast('Selecciona un proyecto.'); return; }
   if (!capitulo) { showToast('Ingresa un número de capítulo.'); return; }
+
+  _lastManga = proyecto;
+  _lastCap   = capitulo;
 
   area.classList.remove('hidden');
   area.innerHTML = '<div class="loading-pulse"><div class="pulse-bar"></div><div class="pulse-bar short"></div></div>';
@@ -448,6 +522,86 @@ function buscarCapitulo() {
     .then(data => renderResultados(data, proyecto, capitulo))
     .catch(() => { area.innerHTML = '<div class="no-resultado"><strong>⚠️</strong>Error de conexión.</div>'; })
     .finally(() => { if (btn) { btn.disabled = false; if (txt) txt.textContent = 'Buscar'; } });
+
+  // Siempre cargar panel BD
+  cargarPanelBD(proyecto, capitulo);
+}
+
+async function cargarPanelBD(manga, cap) {
+  const panel = document.getElementById('panel-bd');
+  if (!panel) return;
+  panel.classList.remove('hidden');
+
+  // Actualizar link a créditos
+  const lc = document.getElementById('link-creditos');
+  if (lc) lc.href = `creditos.php?manga=${encodeURIComponent(manga)}&cap=${encodeURIComponent(cap)}`;
+
+  const grid = document.getElementById('asig-grid');
+  grid.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Cargando…</div>';
+
+  const res = await fetch(`api.php?action=capituloAsignaciones&manga=${encodeURIComponent(manga)}&cap=${encodeURIComponent(cap)}`)
+    .then(r=>r.json()).catch(()=>null);
+
+  if (!res?.exito) { grid.innerHTML = '<div style="color:var(--muted);font-size:.8rem">Sin datos en BD.</div>'; return; }
+
+  const a = res.asig;
+  const roles = [
+    { key:'trad',  label:'Traductor/A' },
+    { key:'clean', label:'Cleaner' },
+    { key:'type',  label:'Typesetter' },
+    { key:'proof', label:'QC/Proof' },
+  ];
+  grid.innerHTML = roles.map(r => {
+    const filled = !!a[r.key];
+    return `<div class="asig-chip ${filled?'filled':'empty'}">
+      <div class="asig-rol">${r.label}</div>
+      <div class="asig-nombre">${esc(a[r.key] || '— Sin asignar')}</div>
+    </div>`;
+  }).join('');
+}
+
+async function asignarTareaIndex() {
+  const rol        = document.getElementById('asgn-rol')?.value;
+  const discord_id = document.getElementById('asgn-staff')?.value;
+  const limite     = document.getElementById('asgn-limite')?.value || '';
+  const msgEl      = document.getElementById('asgn-msg');
+
+  if (!_lastManga || !_lastCap) { showToast('Busca un capítulo primero.'); return; }
+  if (!discord_id) { showToast('Selecciona un miembro del staff.'); return; }
+
+  const fd = new FormData();
+  fd.append('csrf_token', window._csrf || '');
+  fd.append('manga',      _lastManga);
+  fd.append('cap',        _lastCap);
+  fd.append('rol',        rol);
+  fd.append('discord_id', discord_id);
+  if (limite) fd.append('limite', limite.replace('T',' ') + ':00');
+
+  const res = await fetch('api.php?action=asignarTarea', {method:'POST',body:fd})
+    .then(r=>r.json()).catch(()=>null);
+
+  if (res?.exito) {
+    msgEl.innerHTML = '<span style="color:#10b981">✓ Tarea asignada</span>';
+    await cargarPanelBD(_lastManga, _lastCap);
+  } else {
+    msgEl.innerHTML = `<span style="color:#ff5555">${esc(res?.mensaje || 'Error')}</span>`;
+  }
+  setTimeout(() => { msgEl.innerHTML = ''; }, 4000);
+}
+
+async function cargarStaffIndex() {
+  const sel = document.getElementById('asgn-staff');
+  if (!sel) return;
+  const res = await fetch('api.php?action=listarStaff').then(r=>r.json()).catch(()=>null);
+  if (res?.exito && res.datos?.length) {
+    sel.innerHTML = '<option value="">— Staff —</option>' +
+      res.datos.map(s => {
+        const n = s.nombre_display || s.usuario_form || s.discord_id;
+        return `<option value="${esc(s.discord_id)}">${esc(n)}</option>`;
+      }).join('');
+  } else {
+    sel.innerHTML = '<option value="">Sin staff</option>';
+  }
 }
 
 function renderResultados(data, proyecto, capitulo) {

@@ -46,6 +46,7 @@
       <button class="htab" id="htab-staff" onclick="switchTab('staff')">⚔ Staff Discord</button>
       <?php endif; ?>
       <a class="htab" href="subir.php">↑ Subir</a>
+      <a class="htab" href="creditos.php">✦ Créditos</a>
     </nav>
 
     <div class="header-right">
@@ -87,6 +88,7 @@
       <button class="mobile-nav-item" data-tab="staff" onclick="mobileNavSwitch('staff')">⚔ Staff Discord</button>
       <?php endif; ?>
       <a href="subir.php" class="mobile-nav-item">↑ Subir archivo</a>
+      <a href="creditos.php" class="mobile-nav-item">✦ Hoja de Créditos</a>
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <a href="settings.php" class="mobile-nav-item">⚙ Configuración</a>
       <?php endif; ?>

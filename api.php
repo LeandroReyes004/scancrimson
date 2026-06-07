@@ -1011,6 +1011,56 @@ switch ($action) {
         echo json_encode(['exito' => true]);
         break;
 
+    // ── ASIGNACIONES DE UN CAPÍTULO ───────────────────────────────────────
+    case 'capituloAsignaciones':
+        requireLogin();
+        $manga = trim($_GET['manga'] ?? '');
+        $cap   = trim($_GET['cap']   ?? '');
+        if (!$manga || $cap === '') { echo json_encode(['exito'=>false,'mensaje'=>'Faltan parámetros']); break; }
+        $db   = getDB();
+        $stmt = $db->prepare("
+            SELECT t.rol,
+                   COALESCE(NULLIF(s.nombre_display,''), NULLIF(s.usuario_form,''), t.discord_id) AS nombre,
+                   t.discord_id, t.estado, t.limite
+            FROM tareas t
+            LEFT JOIN staff_discord s ON s.discord_id = t.discord_id
+            WHERE t.obra = ? AND t.cap = ?
+            ORDER BY t.creado DESC
+        ");
+        $stmt->execute([$manga, $cap]);
+        $tareas = $stmt->fetchAll();
+        $asig = ['trad'=>'','clean'=>'','type'=>'','proof'=>''];
+        foreach ($tareas as $t) {
+            $r = mb_strtolower($t['rol']);
+            if (str_contains($r,'trad') && !$asig['trad'])   $asig['trad']  = $t['nombre'];
+            if ((str_contains($r,'clean')||str_contains($r,'limpia')) && !$asig['clean']) $asig['clean'] = $t['nombre'];
+            if ((str_contains($r,'type')||str_contains($r,'typer')||str_contains($r,'typeset')) && !$asig['type']) $asig['type'] = $t['nombre'];
+            if ((str_contains($r,'proof')||str_contains($r,'qc')||str_contains($r,'calidad')) && !$asig['proof']) $asig['proof'] = $t['nombre'];
+        }
+        echo json_encode(['exito'=>true, 'asig'=>$asig, 'tareas'=>$tareas]);
+        break;
+
+    // ── ASIGNAR TAREA DIRECTA ─────────────────────────────────────────────
+    case 'asignarTarea':
+        requireAdmin();
+        $manga      = trim($_POST['manga']      ?? '');
+        $cap        = trim($_POST['cap']        ?? '');
+        $rol        = trim($_POST['rol']        ?? '');
+        $discord_id = trim($_POST['discord_id'] ?? '');
+        $limite     = trim($_POST['limite']     ?? '');
+        if (!$manga || $cap==='' || !$rol || !$discord_id) {
+            echo json_encode(['exito'=>false,'mensaje'=>'Faltan datos']); break;
+        }
+        $db = getDB();
+        $chk = $db->prepare("SELECT discord_id FROM staff_discord WHERE discord_id=? AND activo=1");
+        $chk->execute([$discord_id]);
+        if (!$chk->fetch()) { echo json_encode(['exito'=>false,'mensaje'=>'Staff no encontrado o inactivo']); break; }
+        $limiteVal = $limite ?: null;
+        $db->prepare("INSERT INTO tareas (discord_id, obra, cap, rol, estado, limite) VALUES (?,?,?,?,'activa',?)")
+           ->execute([$discord_id, $manga, $cap, $rol, $limiteVal]);
+        echo json_encode(['exito'=>true]);
+        break;
+
     // ── DASHBOARD STATS ───────────────────────────────────────────────────
     case 'dashboardStats':
         requireAdmin();

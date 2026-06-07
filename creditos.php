@@ -62,6 +62,10 @@ $imgData = file_exists($imgPath)
   .asig-chip .nombre{font-size:.82rem;font-weight:600}
   .asig-chip.filled{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.06)}
   .asig-chip.filled .nombre{color:#10b981}
+  .inp-row{display:flex;gap:.5rem;align-items:center}
+  .inp-row input[type=text]{flex:1}
+  .inp-sz{width:62px;text-align:center;padding:.65rem .4rem;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none}
+  .inp-sz:focus{border-color:var(--red)}
   .toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;display:flex;flex-direction:column;gap:.5rem}
   .toast{background:#1e1e2e;border:1px solid var(--border);border-radius:8px;padding:.55rem 1rem;font-size:.84rem;animation:slideIn .2s ease}
   .toast.ok{border-color:var(--green)}.toast.err{border-color:var(--red)}
@@ -110,23 +114,38 @@ $imgData = file_exists($imgPath)
       <div class="panel-title">✏ Nombres para la hoja</div>
       <div class="field">
         <label>Traductor/A</label>
-        <input id="inp-trad" type="text" placeholder="Nombre del traductor" oninput="renderCanvas()">
+        <div class="inp-row">
+          <input id="inp-trad" type="text" placeholder="Nombre del traductor" oninput="renderCanvas()">
+          <input id="sz-trad" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+        </div>
       </div>
       <div class="field">
         <label>Typesetter</label>
-        <input id="inp-type" type="text" placeholder="Nombre del typesetter" oninput="renderCanvas()">
+        <div class="inp-row">
+          <input id="inp-type" type="text" placeholder="Nombre del typesetter" oninput="renderCanvas()">
+          <input id="sz-type" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+        </div>
       </div>
       <div class="field">
         <label>Cleaner / Redrawer</label>
-        <input id="inp-clean" type="text" placeholder="Nombre del cleaner" oninput="renderCanvas()">
+        <div class="inp-row">
+          <input id="inp-clean" type="text" placeholder="Nombre del cleaner" oninput="renderCanvas()">
+          <input id="sz-clean" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+        </div>
       </div>
       <div class="field">
         <label>Quality Checker</label>
-        <input id="inp-qc" type="text" value="STAFF" oninput="renderCanvas()">
+        <div class="inp-row">
+          <input id="inp-qc" type="text" value="STAFF" oninput="renderCanvas()">
+          <input id="sz-qc" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+        </div>
       </div>
       <div class="field">
         <label>Staff de Apoyo</label>
-        <input id="inp-apoyo" type="text" value="ESCLAVOS CRIMSON'S" oninput="renderCanvas()">
+        <div class="inp-row">
+          <input id="inp-apoyo" type="text" value="ESCLAVOS CRIMSON'S" oninput="renderCanvas()">
+          <input id="sz-apoyo" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+        </div>
       </div>
       <div class="field" style="margin-top:.75rem">
         <label>Color del texto</label>
@@ -134,15 +153,6 @@ $imgData = file_exists($imgPath)
           <input id="inp-color" type="color" value="#ff2484" oninput="updateColor(this.value)"
             style="width:44px;height:36px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;padding:2px">
           <span id="color-hex" style="font-size:.82rem;color:var(--muted2);font-family:monospace">#ff2484</span>
-        </div>
-      </div>
-      <div class="field">
-        <label>Tamaño del texto</label>
-        <div style="display:flex;align-items:center;gap:.75rem">
-          <input id="inp-size" type="range" min="10" max="80" value="28"
-            oninput="updateSize(this.value)"
-            style="flex:1;accent-color:var(--red)">
-          <span id="size-val" style="font-size:.82rem;color:var(--muted2);font-family:monospace;min-width:32px;text-align:right">28px</span>
         </div>
       </div>
       <div class="row" style="margin-top:.5rem">
@@ -206,7 +216,6 @@ let POS = {
 
 const FONT_FAMILY = '"New Wild Words", "Wild Words", "Bangers", Impact, Arial Black, sans-serif';
 let TEXT_COLOR = '#ff2484';
-let FONT_SIZE  = 28;
 
 function updateColor(val) {
   TEXT_COLOR = val;
@@ -214,10 +223,8 @@ function updateColor(val) {
   renderCanvas();
 }
 
-function updateSize(val) {
-  FONT_SIZE = parseInt(val);
-  document.getElementById('size-val').textContent = val + 'px';
-  renderCanvas();
+function getFontSize(key) {
+  return parseInt(document.getElementById('sz-' + key)?.value || 28);
 }
 
 const IMG_SRC = <?= json_encode($imgData) ?>;
@@ -325,7 +332,6 @@ function renderCanvas() {
     apoyo: document.getElementById('inp-apoyo').value.trim() || "ESCLAVOS CRIMSON'S",
   };
 
-  ctx.font         = `${FONT_SIZE}px ${FONT_FAMILY}`;
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle    = TEXT_COLOR;
@@ -334,7 +340,8 @@ function renderCanvas() {
 
   Object.entries(POS).forEach(([key, pos]) => {
     if (campos[key]) {
-      ctx.fillText(campos[key], W * pos.x, H * pos.y, W * 0.25);
+      ctx.font = `${getFontSize(key)}px ${FONT_FAMILY}`;
+      ctx.fillText(campos[key], W * pos.x, H * pos.y, W * 0.30);
     }
   });
 

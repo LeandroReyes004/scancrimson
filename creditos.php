@@ -128,6 +128,14 @@ $imgData = file_exists($imgPath)
         <label>Staff de Apoyo</label>
         <input id="inp-apoyo" type="text" value="ESCLAVOS CRIMSON'S" oninput="renderCanvas()">
       </div>
+      <div class="field" style="margin-top:.75rem">
+        <label>Color del texto</label>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <input id="inp-color" type="color" value="#ff2484" oninput="updateColor(this.value)"
+            style="width:44px;height:36px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;padding:2px">
+          <span id="color-hex" style="font-size:.82rem;color:var(--muted2);font-family:monospace">#ff2484</span>
+        </div>
+      </div>
       <div class="row" style="margin-top:.5rem">
         <button class="btn btn-ghost btn-sm" onclick="limpiarCampos()">Limpiar</button>
         <button class="btn btn-sm" style="margin-left:auto" onclick="descargarCredito()">⬇ Descargar PNG</button>
@@ -188,7 +196,13 @@ let POS = {
 };
 
 const FONT_FAMILY = '"New Wild Words", "Wild Words", "Bangers", Impact, Arial Black, sans-serif';
-const TEXT_COLOR  = '#000000';
+let TEXT_COLOR = '#ff2484';
+
+function updateColor(val) {
+  TEXT_COLOR = val;
+  document.getElementById('color-hex').textContent = val;
+  renderCanvas();
+}
 
 const IMG_SRC = <?= json_encode($imgData) ?>;
 let imgEl = new Image();

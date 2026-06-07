@@ -59,7 +59,7 @@ $csrf_token = csrf_token_generate();
     position: fixed; bottom: 0; left: 0; right: 0; height: var(--tab-h); z-index: 100;
     background: rgba(13,13,25,.96); border-top: 1px solid var(--border);
     backdrop-filter: blur(20px);
-    display: grid; grid-template-columns: repeat(4, 1fr);
+    display: grid; grid-template-columns: repeat(5, 1fr);
   }
   .tab-item {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -334,6 +334,76 @@ $csrf_token = csrf_token_generate();
     </div>
   </div>
 
+  <!-- TAB: CRÉDITOS -->
+  <div class="tab-pane" id="tab-creditos">
+    <div class="card">
+      <div class="card-header"><span class="icon">✦</span><span class="title">Hoja de Créditos</span></div>
+      <div class="card-body">
+
+        <!-- Manga + cap -->
+        <div class="field">
+          <label>Manga</label>
+          <select id="cr-manga" onchange="cargarAsignacionesCredito()">
+            <option value="">Seleccionar…</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Capítulo</label>
+          <div style="display:flex;gap:.5rem">
+            <input type="text" id="cr-cap" placeholder="Ej: 01" style="flex:1">
+            <button class="btn-sm" onclick="cargarAsignacionesCredito()" style="flex-shrink:0;padding:.5rem .9rem">Cargar BD</button>
+          </div>
+        </div>
+
+        <!-- Nombres -->
+        <div style="height:1px;background:var(--border);margin:.75rem 0"></div>
+        <div style="font-size:.68rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;margin-bottom:.25rem">px</div>
+
+        <?php foreach([
+          ['cr-trad',  'Traductor/A',       'Nombre del traductor'],
+          ['cr-type',  'Typesetter',         'Nombre del typesetter'],
+          ['cr-clean', 'Cleaner/Redrawer',   'Nombre del cleaner'],
+          ['cr-qc',    'Quality Checker',    'STAFF'],
+          ['cr-apoyo', 'Staff de Apoyo',     "ESCLAVOS CRIMSON'S"],
+        ] as [$id, $lbl, $ph]): ?>
+        <div class="field">
+          <label><?= $lbl ?></label>
+          <div style="display:flex;gap:.5rem;align-items:center">
+            <input type="text" id="<?= $id ?>" placeholder="<?= htmlspecialchars($ph) ?>"
+              <?= in_array($id, ['cr-qc','cr-apoyo']) ? 'value="'.htmlspecialchars($ph).'"' : '' ?>
+              oninput="renderCredito()" style="flex:1;width:auto!important">
+            <input type="number" id="sz-<?= $id ?>" value="28" min="8" max="120"
+              oninput="renderCredito()"
+              style="width:58px;text-align:center;padding:.6rem .3rem;background:rgba(255,255,255,.05);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:.82rem;font-family:monospace;outline:none;-moz-appearance:textfield">
+          </div>
+        </div>
+        <?php endforeach; ?>
+
+        <!-- Color -->
+        <div class="field" style="margin-top:.75rem">
+          <label>Color del texto</label>
+          <div style="display:flex;align-items:center;gap:.6rem">
+            <input type="color" id="cr-color" value="#ff2484" oninput="renderCredito()"
+              style="width:40px;height:36px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;padding:2px;flex-shrink:0">
+            <span style="font-size:.8rem;color:var(--muted2);font-family:monospace">#ff2484</span>
+          </div>
+        </div>
+
+        <!-- Hint -->
+        <p id="cr-hint" style="font-size:.74rem;color:var(--muted);margin:.5rem 0 .75rem;line-height:1.4">
+          Cargando imagen…
+        </p>
+
+        <!-- Canvas -->
+        <canvas id="cr-canvas" style="width:100%;border-radius:10px;border:1px solid var(--border);display:block;touch-action:none"></canvas>
+        <p style="font-size:.7rem;color:var(--muted);margin-top:.4rem;text-align:center">Arrastra los textos para posicionarlos</p>
+
+        <!-- Descargar -->
+        <button class="btn-primary" style="margin-top:.9rem" onclick="descargarCredito()">⬇ Descargar PNG</button>
+      </div>
+    </div>
+  </div>
+
   <!-- TAB: RANKING -->
   <div class="tab-pane" id="tab-ranking">
     <div class="card">
@@ -370,6 +440,11 @@ $csrf_token = csrf_token_generate();
   <button class="tab-item" onclick="switchTab('buscar', this)">
     <span class="tab-icon">🔍</span>
     <span>Buscar</span>
+    <span class="tab-dot"></span>
+  </button>
+  <button class="tab-item" onclick="switchTab('creditos', this)">
+    <span class="tab-icon">✦</span>
+    <span>Créditos</span>
     <span class="tab-dot"></span>
   </button>
 </nav>
@@ -411,9 +486,10 @@ function switchTab(name, btn) {
   document.querySelectorAll('.tab-item').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-' + name).classList.add('active');
   btn.classList.add('active');
-  if (name === 'tareas')  cargarTareas();
-  if (name === 'ranking') cargarRanking();
-  if (name === 'buscar')  cargarProyectosBuscar();
+  if (name === 'tareas')   cargarTareas();
+  if (name === 'ranking')  cargarRanking();
+  if (name === 'buscar')   cargarProyectosBuscar();
+  if (name === 'creditos') initCreditos();
 }
 
 // ── Proyectos ────────────────────────────────────────────────────────────────
@@ -762,6 +838,127 @@ async function buscarCapituloStaff() {
       </a>
     </div>`;
   }).join('');
+}
+
+// ── Módulo Créditos ──────────────────────────────────────────────────────────
+
+const CR = {
+  img: null, loaded: false, drag: null,
+  color: '#ff2484',
+  font: '"New Wild Words","Wild Words","Bangers",Impact,Arial Black,sans-serif',
+  pos: {
+    'cr-trad':  { x: 0.390, y: 0.462 },
+    'cr-type':  { x: 0.770, y: 0.462 },
+    'cr-clean': { x: 0.450, y: 0.605 },
+    'cr-qc':    { x: 0.383, y: 0.760 },
+    'cr-apoyo': { x: 0.745, y: 0.760 },
+  }
+};
+
+async function initCreditos() {
+  if (CR.loaded) return;
+  const hint = document.getElementById('cr-hint');
+  hint.textContent = 'Cargando imagen…';
+  const res = await api('getImagenCreditos');
+  if (!res.exito) { hint.textContent = 'Error: no se encontró la plantilla.'; return; }
+  CR.img = new Image();
+  CR.img.onload = () => {
+    CR.loaded = true;
+    hint.textContent = 'Arrastra los nombres sobre la imagen para posicionarlos.';
+    document.fonts.ready.then(() => { renderCredito(); initDragCredito(); });
+    cargarProyectosCredito();
+  };
+  CR.img.src = res.data;
+}
+
+async function cargarProyectosCredito() {
+  const res = await api('proyectos');
+  const sel = document.getElementById('cr-manga');
+  if (res.exito && res.datos.length) {
+    sel.innerHTML = '<option value="">Seleccionar…</option>' +
+      res.datos.map(p => `<option value="${p}">${p}</option>`).join('');
+  }
+}
+
+async function cargarAsignacionesCredito() {
+  const manga = document.getElementById('cr-manga').value;
+  const cap   = document.getElementById('cr-cap').value.trim();
+  if (!manga || cap === '') { toast('Selecciona manga y capítulo', 'err'); return; }
+  const res = await api('capituloAsignaciones', null,
+    `manga=${encodeURIComponent(manga)}&cap=${encodeURIComponent(cap)}`);
+  if (!res.exito) { toast(res.mensaje || 'Sin datos', 'err'); return; }
+  const a = res.asig;
+  if (a.trad  && !document.getElementById('cr-trad').value)  document.getElementById('cr-trad').value  = a.trad;
+  if (a.type  && !document.getElementById('cr-type').value)  document.getElementById('cr-type').value  = a.type;
+  if (a.clean && !document.getElementById('cr-clean').value) document.getElementById('cr-clean').value = a.clean;
+  renderCredito();
+  toast('Asignaciones cargadas');
+}
+
+function renderCredito() {
+  const canvas = document.getElementById('cr-canvas');
+  if (!canvas || !CR.loaded) return;
+  const W = CR.img.naturalWidth, H = CR.img.naturalHeight;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(CR.img, 0, 0);
+  const color = document.getElementById('cr-color').value;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = color; ctx.shadowBlur = 0;
+  Object.entries(CR.pos).forEach(([id, pos]) => {
+    const val = document.getElementById(id)?.value.trim();
+    if (!val) return;
+    const sz = parseInt(document.getElementById('sz-' + id)?.value || 28);
+    ctx.font = `${sz}px ${CR.font}`;
+    ctx.fillText(val, W * pos.x, H * pos.y, W * 0.30);
+  });
+  if (CR.drag) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.5;
+    ctx.setLineDash([4,4]);
+    ctx.strokeRect(CR.pos[CR.drag].x*W - W*.12, CR.pos[CR.drag].y*H - H*.035, W*.24, H*.07);
+    ctx.restore();
+  }
+}
+
+function initDragCredito() {
+  const canvas = document.getElementById('cr-canvas');
+  if (!canvas || canvas._crDrag) return;
+  canvas._crDrag = true;
+  const pt = (e) => {
+    const r = canvas.getBoundingClientRect();
+    const s = e.touches ? e.touches[0] : e;
+    return { x: (s.clientX - r.left) * canvas.width  / r.width,
+             y: (s.clientY - r.top)  * canvas.height / r.height };
+  };
+  const hit = (mx, my) => {
+    const W = canvas.width, H = canvas.height;
+    for (const id of Object.keys(CR.pos)) {
+      if (Math.abs(mx - CR.pos[id].x*W) < W*.13 && Math.abs(my - CR.pos[id].y*H) < H*.045) return id;
+    }
+    return null;
+  };
+  let off = {};
+  canvas.addEventListener('mousedown',  e => { const {x,y}=pt(e); const id=hit(x,y); if(id){CR.drag=id; off={x:x-CR.pos[id].x*canvas.width,y:y-CR.pos[id].y*canvas.height}; e.preventDefault();} });
+  canvas.addEventListener('touchstart', e => { const {x,y}=pt(e); const id=hit(x,y); if(id){CR.drag=id; off={x:x-CR.pos[id].x*canvas.width,y:y-CR.pos[id].y*canvas.height}; e.preventDefault();} }, {passive:false});
+  const move = e => { if(!CR.drag) return; e.preventDefault(); const {x,y}=pt(e); CR.pos[CR.drag].x=(x-off.x)/canvas.width; CR.pos[CR.drag].y=(y-off.y)/canvas.height; renderCredito(); };
+  canvas.addEventListener('mousemove',  move);
+  canvas.addEventListener('touchmove',  move, {passive:false});
+  const end = () => { CR.drag = null; renderCredito(); };
+  canvas.addEventListener('mouseup',    end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchend',   end);
+}
+
+function descargarCredito() {
+  renderCredito();
+  const canvas = document.getElementById('cr-canvas');
+  const manga  = (document.getElementById('cr-manga').value  || 'credito').replace(/\s+/g,'_');
+  const cap    = (document.getElementById('cr-cap').value    || '').replace(/\s+/g,'');
+  const a = document.createElement('a');
+  a.download = `credito_${manga}_cap${cap}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────

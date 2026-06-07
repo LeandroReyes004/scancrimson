@@ -1190,6 +1190,13 @@ switch ($action) {
         echo json_encode(['exito' => true, 'resultados' => $resultados]);
         break;
 
+    // ── IMAGEN PLANTILLA CRÉDITOS ─────────────────────────────────────────
+    case 'getImagenCreditos':
+        $path = __DIR__ . '/creditos.png';
+        if (!file_exists($path)) { echo json_encode(['exito' => false, 'mensaje' => 'Imagen no encontrada']); break; }
+        echo json_encode(['exito' => true, 'data' => 'data:image/png;base64,' . base64_encode(file_get_contents($path))]);
+        break;
+
     // ── NOTIFICAR HOJA DE CRÉDITOS ────────────────────────────────────────
     case 'notificarCreditos':
         requireAdmin();

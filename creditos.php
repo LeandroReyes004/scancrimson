@@ -63,9 +63,12 @@ $imgData = file_exists($imgPath)
   .asig-chip.filled{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.06)}
   .asig-chip.filled .nombre{color:#10b981}
   .inp-row{display:flex;gap:.5rem;align-items:center}
-  .inp-row input[type=text]{flex:1}
-  .inp-sz{width:62px;text-align:center;padding:.65rem .4rem;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:inherit;outline:none}
+  .inp-row input{width:auto !important}
+  .inp-row input[type=text]{flex:1 !important}
+  .inp-sz{width:58px;text-align:center;padding:.6rem .3rem;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:.82rem;font-family:monospace;outline:none;-moz-appearance:textfield}
+  .inp-sz::-webkit-outer-spin-button,.inp-sz::-webkit-inner-spin-button{-webkit-appearance:none}
   .inp-sz:focus{border-color:var(--red)}
+  .sz-label{font-size:.7rem;color:var(--muted);white-space:nowrap;margin-left:-2px}
   .toast-container{position:fixed;bottom:1.5rem;right:1.5rem;z-index:999;display:flex;flex-direction:column;gap:.5rem}
   .toast{background:#1e1e2e;border:1px solid var(--border);border-radius:8px;padding:.55rem 1rem;font-size:.84rem;animation:slideIn .2s ease}
   .toast.ok{border-color:var(--green)}.toast.err{border-color:var(--red)}
@@ -112,47 +115,48 @@ $imgData = file_exists($imgPath)
     <!-- Campos del crédito -->
     <div class="panel">
       <div class="panel-title">✏ Nombres para la hoja</div>
+      <div style="font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:right;padding-right:4px;margin-bottom:.2rem">px</div>
       <div class="field">
         <label>Traductor/A</label>
         <div class="inp-row">
           <input id="inp-trad" type="text" placeholder="Nombre del traductor" oninput="renderCanvas()">
-          <input id="sz-trad" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+          <input id="sz-trad" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()">
         </div>
       </div>
       <div class="field">
         <label>Typesetter</label>
         <div class="inp-row">
           <input id="inp-type" type="text" placeholder="Nombre del typesetter" oninput="renderCanvas()">
-          <input id="sz-type" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+          <input id="sz-type" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()">
         </div>
       </div>
       <div class="field">
         <label>Cleaner / Redrawer</label>
         <div class="inp-row">
           <input id="inp-clean" type="text" placeholder="Nombre del cleaner" oninput="renderCanvas()">
-          <input id="sz-clean" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+          <input id="sz-clean" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()">
         </div>
       </div>
       <div class="field">
         <label>Quality Checker</label>
         <div class="inp-row">
           <input id="inp-qc" type="text" value="STAFF" oninput="renderCanvas()">
-          <input id="sz-qc" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+          <input id="sz-qc" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()">
         </div>
       </div>
       <div class="field">
         <label>Staff de Apoyo</label>
         <div class="inp-row">
           <input id="inp-apoyo" type="text" value="ESCLAVOS CRIMSON'S" oninput="renderCanvas()">
-          <input id="sz-apoyo" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()" title="Tamaño px">
+          <input id="sz-apoyo" type="number" min="8" max="120" value="28" class="inp-sz" oninput="renderCanvas()">
         </div>
       </div>
-      <div class="field" style="margin-top:.75rem">
+      <div class="field" style="margin-top:.9rem">
         <label>Color del texto</label>
-        <div style="display:flex;align-items:center;gap:.75rem">
+        <div style="display:flex;align-items:center;gap:.6rem">
           <input id="inp-color" type="color" value="#ff2484" oninput="updateColor(this.value)"
-            style="width:44px;height:36px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;padding:2px">
-          <span id="color-hex" style="font-size:.82rem;color:var(--muted2);font-family:monospace">#ff2484</span>
+            style="width:40px;height:34px;border:1px solid var(--border);border-radius:8px;background:none;cursor:pointer;padding:2px;flex-shrink:0">
+          <span id="color-hex" style="font-size:.8rem;color:var(--muted2);font-family:monospace">#ff2484</span>
         </div>
       </div>
       <div class="row" style="margin-top:.5rem">

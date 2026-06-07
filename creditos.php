@@ -187,10 +187,17 @@ let POS = {
   apoyo: { x: 0.745, y: 0.760 },
 };
 
+const FONT_FAMILY = '"New Wild Words", "Wild Words", "Bangers", Impact, Arial Black, sans-serif';
+const TEXT_COLOR  = '#000000';
+
 const IMG_SRC = <?= json_encode($imgData) ?>;
 let imgEl = new Image();
 let imgLoaded = false;
-imgEl.onload = () => { imgLoaded = true; renderCanvas(); initDrag(); };
+imgEl.onload = () => {
+  imgLoaded = true;
+  // Esperar a que la fuente esté disponible antes del primer render
+  document.fonts.ready.then(() => { renderCanvas(); initDrag(); });
+};
 imgEl.onerror = () => {
   const canvas = document.getElementById('credito-canvas');
   if (!canvas) return;
@@ -205,7 +212,10 @@ imgEl.onerror = () => {
 };
 imgEl.src = IMG_SRC;
 document.addEventListener('DOMContentLoaded', () => {
-  if (imgEl.complete && imgEl.naturalWidth > 0) { imgLoaded = true; renderCanvas(); initDrag(); }
+  if (imgEl.complete && imgEl.naturalWidth > 0) {
+    imgLoaded = true;
+    document.fonts.ready.then(() => { renderCanvas(); initDrag(); });
+  }
 });
 
 function getCanvasPos(canvas, e) {
@@ -285,13 +295,13 @@ function renderCanvas() {
     apoyo: document.getElementById('inp-apoyo').value.trim() || "ESCLAVOS CRIMSON'S",
   };
 
-  const fontSize = Math.round(W * 0.048);
-  ctx.font         = `bold ${fontSize}px "DM Sans", Arial, sans-serif`;
+  const fontSize = Math.round(W * 0.052);
+  ctx.font         = `${fontSize}px ${FONT_FAMILY}`;
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillStyle    = '#ffffff';
-  ctx.shadowColor  = 'rgba(255,60,120,0.55)';
-  ctx.shadowBlur   = 7;
+  ctx.fillStyle    = TEXT_COLOR;
+  ctx.shadowColor  = 'transparent';
+  ctx.shadowBlur   = 0;
 
   Object.entries(POS).forEach(([key, pos]) => {
     if (campos[key]) {
@@ -302,9 +312,8 @@ function renderCanvas() {
   // Indicador visual del elemento arrastrado
   if (_drag) {
     ctx.save();
-    ctx.shadowBlur = 0;
-    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.lineWidth   = 1;
+    ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+    ctx.lineWidth   = 1.5;
     ctx.setLineDash([4, 4]);
     const tx = POS[_drag.key].x * W, ty = POS[_drag.key].y * H;
     ctx.strokeRect(tx - W*0.12, ty - H*0.035, W*0.24, H*0.07);

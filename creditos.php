@@ -168,7 +168,7 @@ $imgData = file_exists($imgPath)
   <div class="panel preview-wrap">
     <div class="panel-title" style="width:100%;text-align:center">Vista previa — <span style="color:var(--muted);text-transform:none;font-weight:400">edita los campos para actualizar</span></div>
     <canvas id="credito-canvas"></canvas>
-    <div class="canvas-hint">La imagen se actualiza en tiempo real · Click derecho → Guardar imagen también funciona</div>
+    <div class="canvas-hint">Arrastra los textos en la vista previa para moverlos · Click derecho → Guardar imagen</div>
   </div>
 
 </div>
@@ -178,9 +178,8 @@ $imgData = file_exists($imgPath)
 <script>
 const CSRF = '<?= htmlspecialchars($_SESSION['csrf_token'] ?? '') ?>';
 
-/* ── Posiciones del texto (fracción del ancho/alto de la imagen) ──
-   Ajustar si los textos no quedan centrados en los recuadros.      */
-const POS = {
+/* ── Posiciones del texto (fracción del ancho/alto) — arrastrables ── */
+let POS = {
   trad:  { x: 0.390, y: 0.462 },
   type:  { x: 0.770, y: 0.462 },
   clean: { x: 0.450, y: 0.605 },
@@ -188,16 +187,10 @@ const POS = {
   apoyo: { x: 0.745, y: 0.760 },
 };
 
-/* Rectángulos oscuros para tapar el texto por defecto de QC y Apoyo */
-const COVERS = [
-  { x: 0.252, y: 0.726, w: 0.278, h: 0.075 }, // QC "STAFF"
-  { x: 0.578, y: 0.726, w: 0.302, h: 0.075 }, // APOYO "ESCLAVOS CRIMSON'S"
-];
-
 const IMG_SRC = <?= json_encode($imgData) ?>;
 let imgEl = new Image();
 let imgLoaded = false;
-imgEl.onload = () => { imgLoaded = true; renderCanvas(); };
+imgEl.onload = () => { imgLoaded = true; renderCanvas(); initDrag(); };
 imgEl.onerror = () => {
   const canvas = document.getElementById('credito-canvas');
   if (!canvas) return;
@@ -212,8 +205,66 @@ imgEl.onerror = () => {
 };
 imgEl.src = IMG_SRC;
 document.addEventListener('DOMContentLoaded', () => {
-  if (imgEl.complete && imgEl.naturalWidth > 0) { imgLoaded = true; renderCanvas(); }
+  if (imgEl.complete && imgEl.naturalWidth > 0) { imgLoaded = true; renderCanvas(); initDrag(); }
 });
+
+function getCanvasPos(canvas, e) {
+  const rect   = canvas.getBoundingClientRect();
+  const scaleX = canvas.width  / rect.width;
+  const scaleY = canvas.height / rect.height;
+  const src    = e.touches ? e.touches[0] : e;
+  return { x: (src.clientX - rect.left) * scaleX, y: (src.clientY - rect.top) * scaleY };
+}
+
+function hitTest(canvas, mx, my) {
+  const W = canvas.width, H = canvas.height;
+  const HIT_X = W * 0.13, HIT_Y = H * 0.04;
+  for (const key of Object.keys(POS)) {
+    const tx = POS[key].x * W, ty = POS[key].y * H;
+    if (Math.abs(mx - tx) < HIT_X && Math.abs(my - ty) < HIT_Y) return key;
+  }
+  return null;
+}
+
+let _drag = null;
+
+function initDrag() {
+  const canvas = document.getElementById('credito-canvas');
+  if (!canvas || canvas._dragInited) return;
+  canvas._dragInited = true;
+
+  const start = (e) => {
+    const { x, y } = getCanvasPos(canvas, e);
+    const key = hitTest(canvas, x, y);
+    if (!key) return;
+    e.preventDefault();
+    const W = canvas.width, H = canvas.height;
+    _drag = { key, offX: x - POS[key].x * W, offY: y - POS[key].y * H };
+    canvas.style.cursor = 'grabbing';
+  };
+  const move = (e) => {
+    if (!_drag) {
+      const { x, y } = getCanvasPos(canvas, e);
+      canvas.style.cursor = hitTest(canvas, x, y) ? 'grab' : 'default';
+      return;
+    }
+    e.preventDefault();
+    const { x, y } = getCanvasPos(canvas, e);
+    const W = canvas.width, H = canvas.height;
+    POS[_drag.key].x = (x - _drag.offX) / W;
+    POS[_drag.key].y = (y - _drag.offY) / H;
+    renderCanvas();
+  };
+  const end = () => { _drag = null; canvas.style.cursor = 'default'; };
+
+  canvas.addEventListener('mousedown',  start);
+  canvas.addEventListener('mousemove',  move);
+  canvas.addEventListener('mouseup',    end);
+  canvas.addEventListener('mouseleave', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove',  move,  { passive: false });
+  canvas.addEventListener('touchend',   end);
+}
 
 function renderCanvas() {
   const canvas = document.getElementById('credito-canvas');
@@ -225,10 +276,6 @@ function renderCanvas() {
   const ctx = canvas.getContext('2d');
 
   ctx.drawImage(imgEl, 0, 0);
-
-  // Tapar textos por defecto
-  ctx.fillStyle = '#0f0710';
-  COVERS.forEach(c => ctx.fillRect(c.x*W, c.y*H, c.w*W, c.h*H));
 
   const campos = {
     trad:  document.getElementById('inp-trad').value.trim(),
@@ -248,10 +295,21 @@ function renderCanvas() {
 
   Object.entries(POS).forEach(([key, pos]) => {
     if (campos[key]) {
-      const maxW = W * 0.22;
-      ctx.fillText(campos[key], W * pos.x, H * pos.y, maxW);
+      ctx.fillText(campos[key], W * pos.x, H * pos.y, W * 0.25);
     }
   });
+
+  // Indicador visual del elemento arrastrado
+  if (_drag) {
+    ctx.save();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([4, 4]);
+    const tx = POS[_drag.key].x * W, ty = POS[_drag.key].y * H;
+    ctx.strokeRect(tx - W*0.12, ty - H*0.035, W*0.24, H*0.07);
+    ctx.restore();
+  }
 }
 
 function descargarCredito() {

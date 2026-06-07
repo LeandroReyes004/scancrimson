@@ -136,6 +136,15 @@ $imgData = file_exists($imgPath)
           <span id="color-hex" style="font-size:.82rem;color:var(--muted2);font-family:monospace">#ff2484</span>
         </div>
       </div>
+      <div class="field">
+        <label>Tamaño del texto</label>
+        <div style="display:flex;align-items:center;gap:.75rem">
+          <input id="inp-size" type="range" min="10" max="80" value="28"
+            oninput="updateSize(this.value)"
+            style="flex:1;accent-color:var(--red)">
+          <span id="size-val" style="font-size:.82rem;color:var(--muted2);font-family:monospace;min-width:32px;text-align:right">28px</span>
+        </div>
+      </div>
       <div class="row" style="margin-top:.5rem">
         <button class="btn btn-ghost btn-sm" onclick="limpiarCampos()">Limpiar</button>
         <button class="btn btn-sm" style="margin-left:auto" onclick="descargarCredito()">⬇ Descargar PNG</button>
@@ -197,10 +206,17 @@ let POS = {
 
 const FONT_FAMILY = '"New Wild Words", "Wild Words", "Bangers", Impact, Arial Black, sans-serif';
 let TEXT_COLOR = '#ff2484';
+let FONT_SIZE  = 28;
 
 function updateColor(val) {
   TEXT_COLOR = val;
   document.getElementById('color-hex').textContent = val;
+  renderCanvas();
+}
+
+function updateSize(val) {
+  FONT_SIZE = parseInt(val);
+  document.getElementById('size-val').textContent = val + 'px';
   renderCanvas();
 }
 
@@ -309,8 +325,7 @@ function renderCanvas() {
     apoyo: document.getElementById('inp-apoyo').value.trim() || "ESCLAVOS CRIMSON'S",
   };
 
-  const fontSize = Math.round(W * 0.052);
-  ctx.font         = `${fontSize}px ${FONT_FAMILY}`;
+  ctx.font         = `${FONT_SIZE}px ${FONT_FAMILY}`;
   ctx.textAlign    = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle    = TEXT_COLOR;

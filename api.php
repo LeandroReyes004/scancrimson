@@ -1079,7 +1079,7 @@ switch ($action) {
         echo json_encode(['exito' => true, 'data' => $s]);
         break;
 
-    // ── STAFF DISPONIBLE (sin tareas activas) ─────────────────────────────
+    // ── STAFF DISPONIBLE (sin tareas activas, con nombre real) ───────────
     case 'staffDisponible':
         requireAdmin();
         $db   = getDB();
@@ -1089,6 +1089,7 @@ switch ($action) {
                    sd.rol
             FROM staff_discord sd
             WHERE sd.activo = 1
+              AND (NULLIF(sd.nombre_display,'') IS NOT NULL OR NULLIF(sd.usuario_form,'') IS NOT NULL)
               AND NOT EXISTS (
                   SELECT 1 FROM tareas t
                   WHERE t.discord_id = sd.discord_id AND t.estado = 'activa'
@@ -1114,12 +1115,18 @@ switch ($action) {
             ORDER BY t.limite ASC
             LIMIT 20
         ")->fetchAll();
+        // Solo mostrar como "inactivos" a staff que alguna vez tuvieron una tarea
+        // (si nunca fueron asignados, no tienen sentido mostrarlos como "sin actividad")
         $inactivos = $db->query("
             SELECT sd.discord_id,
                    COALESCE(NULLIF(sd.nombre_display,''), NULLIF(sd.usuario_form,''), sd.discord_id) AS nombre_display,
                    sd.rol
             FROM staff_discord sd
             WHERE sd.activo = 1
+              AND EXISTS (
+                  SELECT 1 FROM tareas t2
+                  WHERE t2.discord_id = sd.discord_id
+              )
               AND NOT EXISTS (
                   SELECT 1 FROM tareas t
                   WHERE t.discord_id = sd.discord_id

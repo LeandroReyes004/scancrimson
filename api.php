@@ -518,6 +518,25 @@ switch ($action) {
         echo json_encode(['exito' => true, 'data' => $rows]);
         break;
 
+    // ── EQUIPO (vista para staff, sin datos sensibles) ────────────────────
+    case 'listarEquipo':
+        requireLogin();
+        $db   = getDB();
+        $stmt = $db->query("
+            SELECT
+                COALESCE(NULLIF(sd.nombre_display,''), NULLIF(sd.usuario_form,'')) AS nombre,
+                sd.rol,
+                CASE WHEN EXISTS (
+                    SELECT 1 FROM tareas t WHERE t.discord_id = sd.discord_id AND t.estado = 'activa'
+                ) THEN 1 ELSE 0 END AS ocupado
+            FROM staff_discord sd
+            WHERE sd.activo = 1
+              AND (NULLIF(sd.nombre_display,'') IS NOT NULL OR NULLIF(sd.usuario_form,'') IS NOT NULL)
+            ORDER BY sd.rol, nombre
+        ");
+        echo json_encode(['exito' => true, 'data' => $stmt->fetchAll()]);
+        break;
+
     // ── TOGGLE ACTIVO STAFF DISCORD (directo BD) ──────────────────────────
     case 'toggleStaff':
         requireAdmin();

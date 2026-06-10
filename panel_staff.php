@@ -59,7 +59,7 @@ $csrf_token = csrf_token_generate();
     position: fixed; bottom: 0; left: 0; right: 0; height: var(--tab-h); z-index: 100;
     background: rgba(13,13,25,.96); border-top: 1px solid var(--border);
     backdrop-filter: blur(20px);
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(6, 1fr);
   }
   .tab-item {
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -404,6 +404,20 @@ $csrf_token = csrf_token_generate();
     </div>
   </div>
 
+  <!-- TAB: EQUIPO -->
+  <div class="tab-pane" id="tab-equipo">
+    <div class="card">
+      <div class="card-header">
+        <span class="icon">⚔</span>
+        <span class="title">Nuestro Equipo</span>
+        <button class="btn-sm" style="margin-left:auto;padding:4px 10px" onclick="cargarEquipo()">↺</button>
+      </div>
+      <div class="card-body" id="equipo-list" style="padding-top:.25rem">
+        <div class="empty"><span class="spinner"></span></div>
+      </div>
+    </div>
+  </div>
+
   <!-- TAB: RANKING -->
   <div class="tab-pane" id="tab-ranking">
     <div class="card">
@@ -445,6 +459,11 @@ $csrf_token = csrf_token_generate();
   <button class="tab-item" onclick="switchTab('creditos', this)">
     <span class="tab-icon">✦</span>
     <span>Créditos</span>
+    <span class="tab-dot"></span>
+  </button>
+  <button class="tab-item" onclick="switchTab('equipo', this)">
+    <span class="tab-icon">⚔</span>
+    <span>Equipo</span>
     <span class="tab-dot"></span>
   </button>
 </nav>
@@ -490,6 +509,7 @@ function switchTab(name, btn) {
   if (name === 'ranking')  cargarRanking();
   if (name === 'buscar')   cargarProyectosBuscar();
   if (name === 'creditos') initCreditos();
+  if (name === 'equipo')   cargarEquipo();
 }
 
 // ── Proyectos ────────────────────────────────────────────────────────────────
@@ -962,6 +982,72 @@ function descargarCredito() {
 }
 
 // ── Init ─────────────────────────────────────────────────────────────────────
+
+// ── Equipo ───────────────────────────────────────────────────────────────────
+
+const ROL_COLORES = {
+  'Traductor':   '#3b82f6',
+  'Limpieza':    '#10b981',
+  'Typesetter':  '#f59e0b',
+  'Quality Check': '#a855f7',
+  'Redibujante': '#ec4899',
+};
+
+async function cargarEquipo() {
+  const cont = document.getElementById('equipo-list');
+  if (!cont) return;
+  cont.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  const res = await api('listarEquipo');
+  if (!res.exito || !res.data || !res.data.length) {
+    cont.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div>Sin miembros registrados</div></div>';
+    return;
+  }
+  // Agrupar por rol
+  const grupos = {};
+  for (const m of res.data) {
+    const r = m.rol || 'Staff';
+    if (!grupos[r]) grupos[r] = [];
+    grupos[r].push(m);
+  }
+  const libres  = res.data.filter(m => !parseInt(m.ocupado)).length;
+  const total   = res.data.length;
+  let html = `<div style="display:flex;gap:1rem;margin-bottom:1rem;padding-bottom:.8rem;border-bottom:1px solid var(--border)">
+    <div style="text-align:center;flex:1">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--green);line-height:1">${libres}</div>
+      <div style="font-size:.7rem;color:var(--muted)">Disponibles</div>
+    </div>
+    <div style="text-align:center;flex:1">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--amber);line-height:1">${total - libres}</div>
+      <div style="font-size:.7rem;color:var(--muted)">Ocupados</div>
+    </div>
+    <div style="text-align:center;flex:1">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:2rem;color:var(--text);line-height:1">${total}</div>
+      <div style="font-size:.7rem;color:var(--muted)">Total</div>
+    </div>
+  </div>`;
+  for (const [rol, miembros] of Object.entries(grupos)) {
+    const color = ROL_COLORES[rol] || '#9898b0';
+    html += `<div style="margin-bottom:1.1rem">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+        <div style="width:3px;height:14px;border-radius:2px;background:${color}"></div>
+        <span style="font-size:.68rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)">${rol}</span>
+        <span style="font-size:.65rem;color:var(--muted2);margin-left:auto">${miembros.length}</span>
+      </div>
+      ${miembros.map(m => {
+        const libre   = !parseInt(m.ocupado);
+        const dotColor = libre ? 'var(--green)' : 'var(--amber)';
+        const label   = libre ? 'Libre' : 'Ocupado';
+        const labelColor = libre ? 'var(--green)' : 'var(--amber)';
+        return `<div style="display:flex;align-items:center;gap:.7rem;padding:.5rem 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <div style="width:8px;height:8px;border-radius:50%;background:${dotColor};flex-shrink:0"></div>
+          <div style="font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.nombre}</div>
+          <div style="font-size:.7rem;font-weight:600;color:${labelColor}">${label}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  }
+  cont.innerHTML = html;
+}
 
 cargarProyectos();
 cargarTareas();

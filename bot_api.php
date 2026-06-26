@@ -265,6 +265,28 @@ switch ($action) {
         ]);
         break;
 
+    case 'botSetHiatus':
+        $discord_id = $_POST['discord_id'] ?? '';
+        $hiatus     = intval($_POST['hiatus'] ?? 0);
+
+        if (!$discord_id) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Falta discord_id']);
+            break;
+        }
+
+        $db = getDB();
+        
+        if ($hiatus === 1) {
+            $db->prepare("UPDATE staff_discord SET en_hiatus = 1, fecha_hiatus = NOW() WHERE discord_id = ?")
+               ->execute([$discord_id]);
+            echo json_encode(['exito' => true, 'mensaje' => 'Marcado en hiatus']);
+        } else {
+            $db->prepare("UPDATE staff_discord SET en_hiatus = 0, fecha_hiatus = NULL WHERE discord_id = ?")
+               ->execute([$discord_id]);
+            echo json_encode(['exito' => true, 'mensaje' => 'Hiatus removido']);
+        }
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito'=>false, 'mensaje'=>'Acción no válida']);

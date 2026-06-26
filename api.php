@@ -526,6 +526,8 @@ switch ($action) {
             SELECT
                 COALESCE(NULLIF(sd.nombre_display,''), NULLIF(sd.usuario_form,'')) AS nombre,
                 sd.rol,
+                sd.en_hiatus,
+                sd.fecha_hiatus,
                 CASE WHEN EXISTS (
                     SELECT 1 FROM tareas t WHERE t.discord_id = sd.discord_id AND t.estado = 'activa'
                 ) THEN 1 ELSE 0 END AS ocupado

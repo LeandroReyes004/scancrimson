@@ -214,14 +214,14 @@
       <div class="info-card-icon">📦</div>
       <div class="info-card-body">
         <h4>Formato aceptado</h4>
-        <p>Sube archivos <code>.zip</code>, <code>.rar</code>, <code>.doc</code>, <code>.docx</code>, <code>.odt</code>, imágenes o PDF.</p>
+        <p>Sube archivos <code>.zip</code>, <code>.rar</code>, <code>.7z</code>, <code>.doc</code>, <code>.docx</code>, <code>.odt</code>, imágenes o PDF.</p>
       </div>
     </div>
     <div class="info-card">
       <div class="info-card-icon">🏷️</div>
       <div class="info-card-body">
         <h4>Nombre del archivo RAW</h4>
-        <p>Usa el formato <code>Cap_1.zip</code>, <code>Cap_12.rar</code> para que el buscador lo encuentre.</p>
+        <p>Usa el formato <code>Cap_1.zip</code>, <code>Cap_12.rar</code>, <code>Cap_2.7z</code> para que el buscador lo encuentre.</p>
       </div>
     </div>
     <div class="info-card">
@@ -280,9 +280,9 @@
       <div id="dropZone" style="border: 2px dashed var(--border); border-radius: var(--radius); padding: 4rem 2rem; text-align: center; cursor: pointer; transition: all 0.3s ease; background: rgba(0,0,0,0.2);">
         <div style="font-size: 3rem; margin-bottom: 1rem; color: var(--red);">📥</div>
         <h3 style="font-family: var(--font-head); font-size: 1.8rem; margin-bottom: 0.5rem;">Arrastra tu archivo aquí</h3>
-        <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem;">zip, rar, cbz, pdf, jpg, png, webp, doc, docx, odt</p>
+        <p style="color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem;">zip, rar, 7z, cbz, pdf, jpg, png, webp, doc, docx, odt</p>
         <button class="btn-outline" style="pointer-events: none;">Seleccionar Archivo</button>
-        <input type="file" id="fileInput" accept=".zip,.rar,.cbz,.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.odt,application/zip,application/x-rar-compressed,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text" style="display: none;">
+        <input type="file" id="fileInput" accept=".zip,.rar,.7z,.cbz,.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.odt,application/zip,application/x-rar-compressed,application/x-7z-compressed,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text" style="display: none;">
       </div>
 
       <!-- Progreso -->
@@ -377,9 +377,9 @@
       statusMessage.style.display = 'none';
 
       const ext = file.name.split('.').pop().toLowerCase();
-      const extsPermitidas = ['zip', 'rar', 'cbz', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'odt'];
+      const extsPermitidas = ['zip', 'rar', '7z', 'cbz', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'odt'];
       if(!extsPermitidas.includes(ext)) {
-        return showStatus('Tipo de archivo no permitido. Se permiten: zip, rar, cbz, pdf, imágenes, doc, docx, odt', true);
+        return showStatus('Tipo de archivo no permitido. Se permiten: zip, rar, 7z, cbz, pdf, imágenes, doc, docx, odt', true);
       }
 
       if(!selProyecto.value || !inpCapitulo.value) {

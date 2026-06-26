@@ -269,7 +269,7 @@ $csrf_token = csrf_token_generate();
         <div class="field">
           <label>Archivo</label>
           <div class="drop-zone" id="drop-zone">
-            <input type="file" id="file-input" accept=".zip,.rar,.cbz,.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.odt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text">
+            <input type="file" id="file-input" accept=".zip,.rar,.7z,.cbz,.pdf,.jpg,.jpeg,.png,.webp,.doc,.docx,.odt,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.oasis.opendocument.text,application/x-7z-compressed">
             <div class="dz-icon">📁</div>
             <div class="dz-text" id="dz-label">Toca para seleccionar archivo</div>
           </div>

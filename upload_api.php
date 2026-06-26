@@ -24,11 +24,11 @@ if ($action === 'initUpload') {
     
     // 2. Validar tipo / extensión de archivo (Seguridad en subida)
     $nombreArchivo = $data['filename'] ?? '';
-    $extensionesPermitidas = ['zip', 'rar', 'cbz', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'odt'];
+    $extensionesPermitidas = ['zip', 'rar', '7z', 'cbz', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'odt'];
     $ext = strtolower(pathinfo($nombreArchivo, PATHINFO_EXTENSION));
 
     if (!in_array($ext, $extensionesPermitidas, true)) {
-        echo json_encode(['exito' => false, 'mensaje' => 'Tipo de archivo no permitido. Se permiten: zip, rar, cbz, pdf, imágenes, doc, docx, odt']);
+        echo json_encode(['exito' => false, 'mensaje' => 'Tipo de archivo no permitido. Se permiten: zip, rar, 7z, cbz, pdf, imágenes, doc, docx, odt']);
         exit;
     }
     

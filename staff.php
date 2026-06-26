@@ -380,6 +380,9 @@ function renderStaff() {
   }
   tbody.innerHTML = lista.map(m => {
     const activo    = parseInt(m.activo);
+    const enHiatus  = parseInt(m.en_hiatus) === 1;
+    const hiatusFec = m.fecha_hiatus ? m.fecha_hiatus.substring(0, 10) : '';
+    const badgeHiat = enHiatus ? `<span class="badge" style="background: rgba(245,158,11,.15); color: var(--amber); border: 1px solid var(--amber); margin-left: 5px;">Hiatus desde ${hiatusFec}</span>` : '';
     const fecha     = (m.creado || '').substring(0, 10);
     const rolActual = m.rol || 'Staff';
     const rolColor  = ROLES_COLOR[rolActual] || '#6e6e82';
@@ -387,7 +390,7 @@ function renderStaff() {
       `<option value="${r}" ${r === rolActual ? 'selected' : ''}>${r}</option>`
     ).join('');
     return `<tr data-discord-id="${esc(m.discord_id)}">
-      <td style="font-weight:600">${esc(m.nombre_display) || '<span style="color:var(--muted);font-style:italic">sin registro</span>'}</td>
+      <td style="font-weight:600">${esc(m.nombre_display) || '<span style="color:var(--muted);font-style:italic">sin registro</span>'}${badgeHiat}</td>
       <td style="color:var(--muted2)">${esc(m.usuario_form) || '—'}</td>
       <td>
         <select class="rol-sel" data-id="${esc(m.discord_id)}" onchange="cambiarRol(this)"

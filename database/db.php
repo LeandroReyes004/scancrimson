@@ -72,6 +72,8 @@ function getDB(): PDO {
                 nombre_display VARCHAR(100) NULL,
                 rol VARCHAR(50) DEFAULT 'Staff',
                 activo TINYINT(1) DEFAULT 1,
+                en_hiatus TINYINT(1) DEFAULT 0,
+                fecha_hiatus DATETIME NULL,
                 puntos_mes INT DEFAULT 0,
                 creado DATETIME DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -80,6 +82,8 @@ function getDB(): PDO {
         foreach ([
             "ALTER TABLE staff_discord ADD COLUMN rol       VARCHAR(50) DEFAULT 'Staff'",
             "ALTER TABLE staff_discord ADD COLUMN puntos_mes INT DEFAULT 0",
+            "ALTER TABLE staff_discord ADD COLUMN en_hiatus TINYINT(1) DEFAULT 0",
+            "ALTER TABLE staff_discord ADD COLUMN fecha_hiatus DATETIME NULL",
         ] as $m) {
             try { $pdo->exec($m); } catch (PDOException $e) { }
         }

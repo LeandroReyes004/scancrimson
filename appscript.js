@@ -165,8 +165,9 @@ function initUpload(data) {
   var eFolders = pFolder.getFoldersByName(data.etapa);
   var eFolder  = eFolders.hasNext() ? eFolders.next() : pFolder.createFolder(data.etapa);
 
-  // Buscar o crear subcarpeta "Capítulo N" (en todas las etapas, incluido RAWs)
-  var capNombre = 'Capítulo ' + data.capitulo;
+  // Normalizar número de capítulo (quitar ceros a la izquierda para evitar '01' y '1')
+  var numCap = String(data.capitulo).replace(/^0+(?=\d)/, '');
+  var capNombre = 'Capítulo ' + numCap;
   var cFolders  = eFolder.getFoldersByName(capNombre);
   var destino   = cFolders.hasNext() ? cFolders.next() : eFolder.createFolder(capNombre);
 

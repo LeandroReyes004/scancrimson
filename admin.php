@@ -264,6 +264,9 @@
         <button class="btn btn-ghost btn-sm" onclick="cargarHistorialFull()">↺ Refrescar</button>
       </div>
       <div class="panel">
+        <div style="padding: 1rem; border-bottom: 1px solid var(--border);">
+          <input type="text" id="historial-search" class="field-input" placeholder="Buscar por manga, etapa, fecha..." oninput="filtrarHistorial(this.value)" style="max-width:400px">
+        </div>
         <div class="table-scroll">
           <table class="data-table">
             <thead><tr><th>Manga</th><th>Cap.</th><th>Etapa</th><th>Fecha</th><th>Estado</th><th>Acciones</th></tr></thead>
@@ -1030,6 +1033,16 @@
         '</tr>'
       ].join('');
     }).join('');
+  };
+
+  window.filtrarHistorial = function(termino) {
+    termino = termino.toLowerCase();
+    const rows = document.querySelectorAll('#historial-full-body tr');
+    rows.forEach(row => {
+      if (row.querySelector('.empty-msg') || row.querySelector('.loading-cell')) return;
+      const text = row.textContent.toLowerCase();
+      row.style.display = text.includes(termino) ? '' : 'none';
+    });
   };
 
 })();

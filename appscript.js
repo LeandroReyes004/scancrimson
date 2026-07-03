@@ -170,6 +170,12 @@ function initUpload(data) {
   var cFolders  = eFolder.getFoldersByName(capNombre);
   var destino   = cFolders.hasNext() ? cFolders.next() : eFolder.createFolder(capNombre);
 
+  // BORRAR ARCHIVOS PREVIOS PARA EVITAR DUPLICADOS
+  var files = destino.getFiles();
+  while (files.hasNext()) {
+    files.next().setTrashed(true);
+  }
+
   var metadata = { name: data.filename, parents: [destino.getId()] };
   var options  = {
     method:          'post',

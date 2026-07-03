@@ -1091,6 +1091,7 @@ switch ($action) {
         $s['staff_disponible']  = (int)$db->query("
             SELECT COUNT(*) FROM staff_discord sd
             WHERE sd.activo = 1
+              AND (sd.hiatus_hasta IS NULL OR sd.hiatus_hasta <= NOW())
               AND NOT EXISTS (SELECT 1 FROM tareas t WHERE t.discord_id = sd.discord_id AND t.estado = 'activa')
         ")->fetchColumn();
         $s['tareas_activas']    = (int)$db->query("SELECT COUNT(*) FROM tareas WHERE estado='activa'")->fetchColumn();
@@ -1110,6 +1111,7 @@ switch ($action) {
                    sd.rol
             FROM staff_discord sd
             WHERE sd.activo = 1
+              AND (sd.hiatus_hasta IS NULL OR sd.hiatus_hasta <= NOW())
               AND (NULLIF(sd.nombre_display,'') IS NOT NULL OR NULLIF(sd.usuario_form,'') IS NOT NULL)
               AND NOT EXISTS (
                   SELECT 1 FROM tareas t
@@ -1144,6 +1146,7 @@ switch ($action) {
                    sd.rol
             FROM staff_discord sd
             WHERE sd.activo = 1
+              AND (sd.hiatus_hasta IS NULL OR sd.hiatus_hasta <= NOW())
               AND EXISTS (
                   SELECT 1 FROM tareas t2
                   WHERE t2.discord_id = sd.discord_id

@@ -153,6 +153,7 @@ function getDB(): PDO {
         foreach ([
             "ALTER TABLE tareas ADD COLUMN capitulo_id INT NULL",
             "ALTER TABLE tareas ADD COLUMN canal_id    BIGINT NULL",
+            "ALTER TABLE staff_discord ADD COLUMN hiatus_hasta DATETIME NULL",
         ] as $m) {
             try { $pdo->exec($m); } catch (PDOException $e) { }
         }

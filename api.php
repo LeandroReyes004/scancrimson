@@ -514,7 +514,13 @@ switch ($action) {
     case 'listarStaff':
         requireAdmin();
         $db   = getDB();
-        $rows = $db->query("SELECT * FROM staff_discord ORDER BY activo DESC, nombre_display ASC")->fetchAll();
+        $rows = $db->query("
+            SELECT sd.*, 
+                   (sd.hiatus_hasta IS NOT NULL AND sd.hiatus_hasta > NOW()) AS en_hiatus,
+                   sd.hiatus_hasta AS fecha_hiatus
+            FROM staff_discord sd
+            ORDER BY activo DESC, nombre_display ASC
+        ")->fetchAll();
         echo json_encode(['exito' => true, 'data' => $rows]);
         break;
 
@@ -526,8 +532,8 @@ switch ($action) {
             SELECT
                 COALESCE(NULLIF(sd.nombre_display,''), NULLIF(sd.usuario_form,'')) AS nombre,
                 sd.rol,
-                sd.en_hiatus,
-                sd.fecha_hiatus,
+                (sd.hiatus_hasta IS NOT NULL AND sd.hiatus_hasta > NOW()) AS en_hiatus,
+                sd.hiatus_hasta AS fecha_hiatus,
                 CASE WHEN EXISTS (
                     SELECT 1 FROM tareas t WHERE t.discord_id = sd.discord_id AND t.estado = 'activa'
                 ) THEN 1 ELSE 0 END AS ocupado
@@ -1160,6 +1166,19 @@ switch ($action) {
             LIMIT 20
         ")->fetchAll();
         echo json_encode(['exito' => true, 'atrasadas' => $atrasadas, 'inactivos' => $inactivos]);
+        break;
+
+    case 'quitarHiatus':
+        requireAdmin();
+        $discord_id = $_POST['discord_id'] ?? '';
+        if (!$discord_id) {
+            echo json_encode(['exito' => false, 'mensaje' => 'ID inválido']);
+            exit;
+        }
+        $db = getDB();
+        // Se establece a una fecha pasada para que el loop del bot lo detecte, le quite el rol en Discord y lo ponga en NULL
+        $db->prepare("UPDATE staff_discord SET hiatus_hasta = '2000-01-01 00:00:00' WHERE discord_id = ?")->execute([$discord_id]);
+        echo json_encode(['exito' => true]);
         break;
 
     // ── ANUNCIAR SUBIDA (Discord webhook + Telegram) ──────────────────────

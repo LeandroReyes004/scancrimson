@@ -16,7 +16,8 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['rol'] !== 'admin') {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Staff Discord · Crimson Scan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg:         #0a0a0e;
@@ -34,8 +35,8 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['rol'] !== 'admin') {
   body {
     background: var(--bg);
     color: var(--text);
-    font-family: 'DM Sans', sans-serif;
-    font-size: .9rem;
+    font-family: 'Outfit', sans-serif;
+    font-size: .95rem;
     padding: 1.5rem;
   }
 
@@ -405,6 +406,7 @@ function renderStaff() {
         <button class="act-btn ${activo ? 'danger' : ''}" onclick="toggleStaff('${esc(m.discord_id)}', ${activo ? 0 : 1}, this)">
           ${activo ? 'Desactivar' : 'Activar'}
         </button>
+        ${enHiatus ? `<button class="act-btn" style="margin-top:4px" onclick="quitarHiatus('${esc(m.discord_id)}', this)">Quitar Hiatus</button>` : ''}
       </td>
     </tr>`;
   }).join('');
@@ -447,6 +449,19 @@ async function toggleStaff(discordId, nuevoActivo, btn) {
     if (m) m.activo = nuevoActivo;
     toast(nuevoActivo ? 'Miembro activado' : 'Miembro desactivado');
     renderStaff();
+  } else {
+    toast(res.mensaje || 'Error', 'err');
+    btn.disabled = false;
+  }
+}
+
+async function quitarHiatus(discordId, btn) {
+  if (!confirm('¿Seguro que quieres forzar el fin del hiatus?')) return;
+  btn.disabled = true;
+  const res = await api('quitarHiatus', { post: { discord_id: discordId } });
+  if (res.exito) {
+    toast('Hiatus marcado para finalizar. El bot le quitará el rol en unos minutos.');
+    cargarStaff(); // Recargar datos del servidor
   } else {
     toast(res.mensaje || 'Error', 'err');
     btn.disabled = false;

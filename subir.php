@@ -7,15 +7,17 @@
 <title>Subir Archivo · Crimson Scan</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="assets/style.css">
 <style>
   .upload-hero { padding: 3rem 0 1.5rem; }
 
   .form-wrapper {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
+    background: rgba(18, 18, 26, 0.6);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
     overflow: hidden;
     margin-bottom: 3rem;
     box-shadow: 0 0 60px rgba(0,0,0,.5);

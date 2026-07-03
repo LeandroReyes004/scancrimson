@@ -12,10 +12,10 @@
   --text:       #f0f0f5;
   --muted:      #6e6e80;
   --muted2:     #a0a0b0;
-  --font-head:  'Bebas Neue', sans-serif;
-  --font-body:  'DM Sans', sans-serif;
-  --radius:     14px;
-  --radius-sm:  8px;
+  --font-head:  'Bebas Neue', 'Outfit', sans-serif;
+  --font-body:  'Outfit', sans-serif;
+  --radius:     16px;
+  --radius-sm:  10px;
   --header-h:   58px;
   --c1: #ef4444; --c1b: rgba(239, 68, 68, 0.15);
   --c2: #3b82f6; --c2b: rgba(59, 130, 246, 0.15);
@@ -63,14 +63,15 @@ button, input, select, textarea { font-family: inherit; }
 
 .login-card {
   position: relative;
-  background: rgba(18, 18, 26, 0.8);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--border2);
+  background: rgba(18, 18, 26, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 24px;
   padding: 3rem 2.5rem;
   width: 100%; max-width: 400px;
-  box-shadow: 0 40px 80px rgba(0,0,0,0.7);
-  animation: fadeUp .5s ease;
+  box-shadow: 0 40px 80px rgba(0,0,0,0.7), inset 0 0 0 1px rgba(255,255,255,0.05);
+  animation: fadeUp .6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .login-card::before {
   content: '';
@@ -277,10 +278,20 @@ button, input, select, textarea { font-family: inherit; }
 .projects-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1.25rem;
 }
-.project-card {
-  background: var(--card); border: 1px solid var(--border);
-  border-radius: 18px; padding: 1.25rem;
-  transition: all .22s; display: flex; flex-direction: column; gap: .75rem;
+.project-c.panel {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.panel:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(0,0,0,0.4);
 }
 .project-card:hover { transform: translateY(-4px); border-color: var(--border2); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
 .project-icon { font-size: 2rem; }

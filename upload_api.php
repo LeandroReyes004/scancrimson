@@ -150,6 +150,59 @@ if ($action === 'initUpload') {
         exit;
     }
 
+    // --- AUTO-COMPLETAR TAREA ---
+    try {
+        // 1. Obtener discord_id
+        $drow = $db->prepare("SELECT discord_id FROM staff_discord WHERE usuario_form = ?");
+        $drow->execute([$usuario]);
+        $st = $drow->fetch();
+        if ($st && $st['discord_id']) {
+            $discord_id = $st['discord_id'];
+            // 2. Buscar tarea activa que coincida con obra y cap (ignoramos rol exacto, solo que sea activa para este user/capitulo)
+            $stmt_tarea = $db->prepare("SELECT id, capitulo_id, rol FROM tareas WHERE discord_id = ? AND obra = ? AND cap = ? AND estado = 'activa' LIMIT 1");
+            $stmt_tarea->execute([$discord_id, $proyecto, $capitulo]);
+            $tarea = $stmt_tarea->fetch();
+            
+            if ($tarea) {
+                $tarea_id = $tarea['id'];
+                $cap_id = $tarea['capitulo_id'];
+                $rol_tarea = $tarea['rol'];
+                
+                // 3. Marcar como entregada
+                $db->prepare("UPDATE tareas SET estado='entregada' WHERE id=?")->execute([$tarea_id]);
+                
+                // 4. Sumar punto
+                $mes = (int)date('n');
+                $anio = (int)date('Y');
+                $db->prepare("INSERT INTO expedientes (discord_id, puntos, mes, anio) VALUES (?, 1, ?, ?) ON DUPLICATE KEY UPDATE puntos = puntos + 1")
+                   ->execute([$discord_id, $mes, $anio]);
+                   
+                // 5. Marcar etapa en capitulos
+                $etapa_map = [
+                    "Traductor"   => ["traduccion", "trad_fecha"],
+                    "Cleaner"     => ["limpieza",   "clean_fecha"],
+                    "Typer"       => ["typer",      "type_fecha"],
+                    "Proofreader" => ["proof",      "proof_fecha"]
+                ];
+                if ($cap_id && isset($etapa_map[$rol_tarea])) {
+                    $c_bool = $etapa_map[$rol_tarea][0];
+                    $c_fec  = $etapa_map[$rol_tarea][1];
+                    $db->prepare("UPDATE capitulos SET $c_bool=1, $c_fec=NOW() WHERE id=?")->execute([$cap_id]);
+                    
+                    // Verificar si todo terminó
+                    $crow = $db->prepare("SELECT trad_fecha, clean_fecha, type_fecha, proof_fecha FROM capitulos WHERE id=?");
+                    $crow->execute([$cap_id]);
+                    $cdata = $crow->fetch();
+                    if ($cdata && $cdata['trad_fecha'] && $cdata['clean_fecha'] && $cdata['type_fecha'] && $cdata['proof_fecha']) {
+                        $db->prepare("UPDATE capitulos SET estado='Terminado' WHERE id=?")->execute([$cap_id]);
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error auto-completando tarea: " . $e->getMessage());
+    }
+
     // 4. Notificar Discord directamente desde PHP
     // Webhook: primero buscar en BD (configurable desde panel), fallback a config.php
     $webhook = '';

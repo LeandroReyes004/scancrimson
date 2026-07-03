@@ -11,10 +11,10 @@
   --text:      #e4e4f0;
   --muted:     #6a6a85;
   --faint:     #2a2a40;
-  --font-head: 'Bebas Neue', sans-serif;
-  --font-body: 'DM Sans', sans-serif;
-  --radius:    12px;
-  --radius-sm: 8px;
+  --font-head: 'Bebas Neue', 'Outfit', sans-serif;
+  --font-body: 'Outfit', sans-serif;
+  --radius:    16px;
+  --radius-sm: 10px;
 }
 
 /* ─── RESET ──────────────────────────────────────────────────────────────── */

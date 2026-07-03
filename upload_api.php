@@ -85,17 +85,19 @@ if ($action === 'initUpload') {
         $ch2 = curl_init($locationUrl);
         curl_setopt_array($ch2, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_FOLLOWLOCATION => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_USERAGENT      => 'CrimsonScan/2.0',
         ]);
         $response = curl_exec($ch2);
+        $curlErr2 = curl_error($ch2);
         $httpCode = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
         curl_close($ch2);
     } else {
         $response = substr($raw, $hdrSize);
+        $curlErr2 = '';
     }
 
     if ($httpCode === 200 && $response) {
@@ -105,11 +107,11 @@ if ($action === 'initUpload') {
         if ($httpCode === 401 || $httpCode === 403) {
             $detalle = "Apps Script requiere autenticación (HTTP $httpCode). Ve a Apps Script → Implementar → Editar → Acceso: 'Cualquier persona'.";
         } elseif ($httpCode === 0) {
-            $detalle = "Sin respuesta del servidor. Verifica que APPS_SCRIPT_URL esté configurada en Vercel.";
+            $detalle = "Error de red en el redirect (HTTP 0): " . ($curlErr2 ? $curlErr2 : "Verifica tu conexión a internet o SSL local.");
         } else {
             $detalle = "HTTP $httpCode — " . ($preview ?: 'respuesta vacía');
         }
-        error_log("Apps Script initUpload — HTTP $httpCode: $preview");
+        error_log("Apps Script initUpload — HTTP $httpCode: $preview | Err2: $curlErr2");
         echo json_encode(['exito' => false, 'mensaje' => $detalle]);
     }
     

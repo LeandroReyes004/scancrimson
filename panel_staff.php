@@ -828,7 +828,8 @@ function renderMercado() {
   list.innerHTML = Object.entries(grouped).map(([proyecto, capitulos]) => {
     const capsHTML = capitulos.map(c => {
       const raw_listo = parseInt(c.estado_raw) === 1;
-      const trad_listo = parseInt(c.estado_trad) === 1 || c.trad_fecha;
+      const trad_listo = parseInt(c.estado_trad) === 1 || !!c.trad_fecha;
+      const clean_listo = parseInt(c.estado_clean) === 1 || !!c.clean_fecha;
       const type_listo = parseInt(c.estado_type) === 1 || !!c.type_fecha;
       
       let progress = [];

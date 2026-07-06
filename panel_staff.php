@@ -37,7 +37,7 @@ $csrf_token = csrf_token_generate();
   .header-logo { font-family: 'Bebas Neue', sans-serif; font-size: 1.3rem; letter-spacing: .08em; }
   .header-logo span { color: var(--red-bright); }
   .header-right { display: flex; align-items: center; gap: .75rem; }
-  .header-user { font-size: .78rem; color: var(--muted2); }
+  .header-user { font-size: 0.95rem; color: var(--muted2); text-transform: capitalize; }
   .header-user strong { color: var(--text); }
   .logout-btn {
     background: rgba(220,32,32,.12); border: 1px solid rgba(220,32,32,.3);
@@ -59,9 +59,10 @@ $csrf_token = csrf_token_generate();
     position: fixed; bottom: 0; left: 0; right: 0; height: var(--tab-h); z-index: 100;
     background: rgba(13,13,25,.96); border-top: 1px solid var(--border);
     backdrop-filter: blur(20px);
-    display: grid; grid-template-columns: repeat(6, 1fr);
+    display: flex; justify-content: space-evenly; align-items: center;
   }
   .tab-item {
+    flex: 1; max-width: 80px;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 3px; cursor: pointer; color: var(--muted); transition: color .15s;
     font-size: .68rem; font-weight: 500; letter-spacing: .03em; padding: .4rem 0;
@@ -675,7 +676,7 @@ async function cargarTareas() {
   }
   if (!res.data.length) {
     document.getElementById('tareas-count').style.display = 'none';
-    list.innerHTML = '<div class="empty"><div class="empty-icon">✅</div><div>Sin tareas activas por ahora.</div></div>';
+    list.innerHTML = '<div class="empty"><div class="empty-icon" style="color:var(--muted); opacity:0.7;"><svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div><div style="margin-top: 10px; color: var(--muted); font-weight: 500;">No tienes tareas activas por ahora. ¡Buen trabajo!</div></div>';
     return;
   }
   const cnt = document.getElementById('tareas-count');

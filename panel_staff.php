@@ -772,36 +772,50 @@ async function cargarMercado() {
     return;
   }
 
-  list.innerHTML = disponibles.map(c => {
-    // Determinar qué falta y qué se puede tomar
-    const raw_listo = parseInt(c.estado_raw) === 1;
-    const trad_listo = parseInt(c.estado_trad) === 1 || c.trad_fecha;
-    const clean_listo = parseInt(c.estado_clean) === 1 || c.clean_fecha;
-    
-    // Progreso
-    let progress = [];
-    if (raw_listo) progress.push('Raw ✅');
-    if (trad_listo) progress.push('Trad ✅');
-    if (clean_listo) progress.push('Clean ✅');
-    if (c.type_fecha) progress.push('Type ✅');
+  const grouped = {};
+  disponibles.forEach(c => {
+    if (!grouped[c.proyecto_nombre]) grouped[c.proyecto_nombre] = [];
+    grouped[c.proyecto_nombre].push(c);
+  });
 
-    // Botones de roles
-    let btnTrad = raw_listo && !c.trad_fecha ? `<button class="btn-sm" style="background:#3b82f6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Traductor', this)">Tomar Traducción</button>` : '';
-    let btnClean = raw_listo && !c.clean_fecha ? `<button class="btn-sm" style="background:#8b5cf6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Cleaner', this)">Tomar Limpieza</button>` : '';
-    let btnType = trad_listo && clean_listo && !c.type_fecha ? `<button class="btn-sm" style="background:#f59e0b" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Typer', this)">Tomar Typeo</button>` : '';
-    
-    // Si no hay botones porque las dependencias no están listas pero falta ese rol, mostrar bloqueado
-    if (!btnTrad && !c.trad_fecha && !raw_listo) btnTrad = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Traducción 🔒</button>`;
-    if (!btnClean && !c.clean_fecha && !raw_listo) btnClean = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Limpieza 🔒</button>`;
-    if (!btnType && !c.type_fecha && (!trad_listo || !clean_listo)) btnType = `<button class="btn-sm" disabled style="opacity:0.5" title="Falta Traducción o Limpieza">Typeo 🔒</button>`;
+  list.innerHTML = Object.entries(grouped).map(([proyecto, capitulos]) => {
+    const capsHTML = capitulos.map(c => {
+      const raw_listo = parseInt(c.estado_raw) === 1;
+      const trad_listo = parseInt(c.estado_trad) === 1 || c.trad_fecha;
+      const clean_listo = parseInt(c.estado_clean) === 1 || c.clean_fecha;
+      
+      let progress = [];
+      if (raw_listo) progress.push('Raw ✅');
+      if (trad_listo) progress.push('Trad ✅');
+      if (clean_listo) progress.push('Clean ✅');
+      if (c.type_fecha) progress.push('Type ✅');
 
-    return `<div class="card" style="padding:1rem; margin-bottom:0; display:flex; flex-direction:column; gap:0.5rem;">
-      <div style="font-weight:bold; font-size:1.1rem">${c.proyecto_nombre} <span style="color:var(--red-bright)">#${c.numero}</span></div>
-      <div style="font-size:0.8rem; color:var(--muted)">Progreso: ${progress.join(' | ') || 'Nada iniciado'}</div>
-      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">
-        ${btnTrad} ${btnClean} ${btnType}
+      let btnTrad = raw_listo && !c.trad_fecha ? `<button class="btn-sm" style="background:#3b82f6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Traductor', this)">Tomar Traducción</button>` : '';
+      let btnClean = raw_listo && !c.clean_fecha ? `<button class="btn-sm" style="background:#8b5cf6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Cleaner', this)">Tomar Limpieza</button>` : '';
+      let btnType = trad_listo && clean_listo && !c.type_fecha ? `<button class="btn-sm" style="background:#f59e0b" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Typer', this)">Tomar Typeo</button>` : '';
+      
+      if (!btnTrad && !c.trad_fecha && !raw_listo) btnTrad = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Traducción 🔒</button>`;
+      if (!btnClean && !c.clean_fecha && !raw_listo) btnClean = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Limpieza 🔒</button>`;
+      if (!btnType && !c.type_fecha && (!trad_listo || !clean_listo)) btnType = `<button class="btn-sm" disabled style="opacity:0.5" title="Falta Traducción o Limpieza">Typeo 🔒</button>`;
+
+      return `<div style="padding:0.8rem; background:rgba(255,255,255,0.03); border-radius:8px; display:flex; flex-direction:column; gap:0.5rem; border:1px solid var(--border)">
+        <div style="font-weight:bold; font-size:1.05rem"><span style="color:var(--red-bright)">Capítulo #${c.numero}</span></div>
+        <div style="font-size:0.8rem; color:var(--muted)">Progreso: ${progress.join(' | ') || 'Nada iniciado'}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.2rem;">
+          ${btnTrad} ${btnClean} ${btnType}
+        </div>
+      </div>`;
+    }).join('');
+
+    return `<details class="card" style="margin-bottom:0; padding:0; overflow:hidden;" open>
+      <summary style="font-weight:bold; font-size:1.1rem; cursor:pointer; outline:none; user-select:none; padding:1rem; display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02)">
+        <span>${proyecto} <span style="color:var(--muted); font-size:0.9rem; font-weight:normal">(${capitulos.length} disponibles)</span></span>
+        <span style="color:var(--muted); font-size:0.8rem;">▼</span>
+      </summary>
+      <div style="padding:1rem; display:flex; flex-direction:column; gap:10px; border-top:1px solid var(--border);">
+        ${capsHTML}
       </div>
-    </div>`;
+    </details>`;
   }).join('');
 }
 

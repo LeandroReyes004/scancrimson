@@ -336,7 +336,7 @@
           <div style="display: flex; gap: 10px;">
             <input type="text" id="cfg-discord-subidas" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
             <button class="btn btn-ghost" onclick="probarWebhook('cfg-discord-subidas', 'tareas')">Probar</button>
-            <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_subidas', document.getElementById('cfg-discord-subidas').value)">Guardar</button>
+            <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_subidas', document.getElementById('cfg-discord-subidas').value, this)">Guardar</button>
           </div>
         </div>
 
@@ -346,7 +346,7 @@
           <div style="display: flex; gap: 10px;">
             <input type="text" id="cfg-discord-anuncios" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
             <button class="btn btn-ghost" onclick="probarWebhook('cfg-discord-anuncios', 'anuncios')">Probar</button>
-            <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_anuncios', document.getElementById('cfg-discord-anuncios').value)">Guardar</button>
+            <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_anuncios', document.getElementById('cfg-discord-anuncios').value, this)">Guardar</button>
           </div>
         </div>
 
@@ -355,11 +355,11 @@
           <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Si tienes un bot de Telegram, configura el Token y el ID del Chat para enviar anuncios de capítulos publicados.</p>
           <div style="display: flex; gap: 10px; margin-bottom: 10px;">
             <input type="text" id="cfg-telegram-token" class="input-text" placeholder="Token (ej: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)" style="flex: 1;">
-            <button class="btn btn-primary" onclick="guardarConfig('telegram_token', document.getElementById('cfg-telegram-token').value)">Guardar</button>
+            <button class="btn btn-primary" onclick="guardarConfig('telegram_token', document.getElementById('cfg-telegram-token').value, this)">Guardar</button>
           </div>
           <div style="display: flex; gap: 10px;">
             <input type="text" id="cfg-telegram-chat" class="input-text" placeholder="Chat ID (ej: -1001234567890)" style="flex: 1;">
-            <button class="btn btn-primary" onclick="guardarConfig('telegram_chat_id', document.getElementById('cfg-telegram-chat').value)">Guardar</button>
+            <button class="btn btn-primary" onclick="guardarConfig('telegram_chat_id', document.getElementById('cfg-telegram-chat').value, this)">Guardar</button>
           </div>
         </div>
       </div>
@@ -1182,7 +1182,12 @@
     } catch(e) { console.error(e); }
   };
 
-  window.guardarConfig = async function(clave, valor) {
+  window.guardarConfig = async function(clave, valor, btn) {
+    if (btn) {
+      btn.disabled = true;
+      btn.dataset.originalText = btn.textContent;
+      btn.textContent = 'Guardando...';
+    }
     const fd = new FormData();
     fd.append('clave', clave);
     fd.append('valor', valor);
@@ -1194,7 +1199,14 @@
       } else {
         toast('Error al guardar: ' + res.mensaje, 'err');
       }
-    } catch(e) { toast('Error de red al guardar.', 'err'); }
+    } catch(e) { 
+      console.error("Error en guardarConfig:", e);
+      toast('Error de red al guardar.', 'err'); 
+    }
+    if (btn) {
+      btn.disabled = false;
+      btn.textContent = btn.dataset.originalText;
+    }
   };
 
   window.probarWebhook = async function(inputId, tipo) {

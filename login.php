@@ -10,6 +10,21 @@ if ($u = auth_get_user()) {
     exit;
 }
 
+// --- DEV PREVIEW BYPASS (Toggle Mode) ---
+if (isset($_GET['dev_preview'])) {
+    if ($_GET['dev_preview'] === 'admin2026') {
+        auth_set_cookie(['id' => 1, 'usuario' => 'Admin Preview', 'rol' => 'admin']);
+        header('Location: admin.php');
+        exit;
+    }
+    if ($_GET['dev_preview'] === 'staff2026') {
+        auth_set_cookie(['id' => 2, 'usuario' => 'Staff Preview', 'rol' => 'Staff']); // Rol needs to trigger staff features, panel_staff accepts anything not admin
+        header('Location: panel_staff.php');
+        exit;
+    }
+}
+// ----------------------------------------
+
 $csrf_token = csrf_token_generate();
 
 $error = '';

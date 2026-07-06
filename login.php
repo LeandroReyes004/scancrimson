@@ -4,12 +4,6 @@ require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config.php';
 require_once __DIR__ . '/database/db.php';
 
-// Si ya está autenticado, redirigir según rol
-if ($u = auth_get_user()) {
-    header('Location: ' . ($u['rol'] === 'admin' ? 'admin.php' : 'panel_staff.php'));
-    exit;
-}
-
 // --- DEV PREVIEW BYPASS (Toggle Mode) ---
 if (isset($_GET['dev_preview'])) {
     if ($_GET['dev_preview'] === 'admin2026') {
@@ -24,6 +18,12 @@ if (isset($_GET['dev_preview'])) {
     }
 }
 // ----------------------------------------
+
+// Si ya está autenticado, redirigir según rol
+if ($u = auth_get_user()) {
+    header('Location: ' . ($u['rol'] === 'admin' ? 'admin.php' : 'panel_staff.php'));
+    exit;
+}
 
 $csrf_token = csrf_token_generate();
 

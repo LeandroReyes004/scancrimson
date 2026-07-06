@@ -44,6 +44,7 @@
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <button class="htab" id="htab-usuarios" onclick="switchTab('usuarios')">👤 Usuarios</button>
       <button class="htab" id="htab-staff" onclick="switchTab('staff')">⚔ Staff Discord</button>
+      <button class="htab" id="htab-tareasadmin" onclick="switchTab('tareasadmin')">📋 Tareas</button>
       <?php endif; ?>
       <a class="htab" href="subir.php">↑ Subir</a>
       <a class="htab" href="creditos.php">✦ Créditos</a>
@@ -290,6 +291,30 @@
         <button class="btn btn-ghost btn-sm" onclick="cargarStaff()">↺ Refrescar</button>
       </div>
       <iframe src="staff.php" id="staff-iframe" style="width:100%;border:none;min-height:700px;border-radius:12px;"></iframe>
+    </div>
+    
+    <!-- ══ TAB: TAREAS ADMIN ══ -->
+    <div id="tab-tareasadmin" class="tab-content">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Mercado y Tareas</p>
+          <h1 class="page-title">Gestión de <span>Tareas</span></h1>
+        </div>
+        <div>
+          <button class="btn btn-primary err" onclick="penalizarVencidas()" style="background:transparent; border:1px solid var(--red); color:var(--red);">Penalizar Vencidas</button>
+          <button class="btn btn-ghost btn-sm" onclick="cargarTareasAdmin()">↺ Refrescar</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="table-scroll">
+          <table class="data-table">
+            <thead><tr><th>Obra</th><th>Cap</th><th>Staff</th><th>Rol</th><th>Límite</th><th>Acciones</th></tr></thead>
+            <tbody id="tareas-admin-body">
+              <tr><td colspan="6" class="loading-cell"><span class="spinner"></span></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
     <?php endif; ?>
 
@@ -1045,6 +1070,60 @@
       row.style.display = text.includes(termino) ? '' : 'none';
     });
   };
+
+  window.cargarTareasAdmin = async function() {
+    const tbody = document.getElementById('tareas-admin-body');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="6" class="loading-cell"><span class="spinner"></span></td></tr>';
+    
+    try {
+      const res = await (await fetch('api.php?action=getTodasTareas')).json();
+      if (!res.exito) { tbody.innerHTML = '<tr><td colspan="6" class="empty-msg" style="color:red">Error al cargar tareas</td></tr>'; return; }
+      if (!res.datos.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No hay tareas activas en este momento.</td></tr>'; return; }
+      
+      const ahora = Date.now();
+      tbody.innerHTML = res.datos.map(t => {
+        const d = new Date(t.limite);
+        const diff = (d - ahora) / 3600000;
+        const colorLim = diff < 0 ? 'var(--red)' : diff <= 24 ? 'var(--orange)' : 'var(--text)';
+        const limStr = diff < 0 ? `Vencida hace ${Math.abs(Math.round(diff))}h` : `En ${Math.round(diff)}h`;
+        
+        const extHTML = parseInt(t.extension_solicitada) === 1 
+          ? `<button class="act-btn" style="color:var(--orange); border-color:var(--orange);" onclick="aprobarExtension(${t.id})">Aprobar Extensión</button>`
+          : '';
+
+        return `<tr>
+          <td><strong style="color:var(--red-bright)">${t.obra}</strong></td>
+          <td>Cap #${t.cap}</td>
+          <td>${t.nombre_display || t.discord_id}</td>
+          <td><span style="font-size:0.75rem; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${t.rol}</span></td>
+          <td style="color:${colorLim}">${limStr}</td>
+          <td class="actions-cell">${extHTML}</td>
+        </tr>`;
+      }).join('');
+    } catch (e) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-msg" style="color:red">Error de red</td></tr>';
+    }
+  };
+
+  window.aprobarExtension = async function(id) {
+    const dias = prompt("¿Cuántos días extra quieres darle a esta tarea?", "2");
+    if (!dias) return;
+    const fd = new FormData(); fd.append('tarea_id', id); fd.append('dias', dias);
+    const res = await (await fetch('api.php?action=adminAprobarExtension', {method:'POST', body:fd})).json();
+    alert(res.mensaje);
+    if (res.exito) cargarTareasAdmin();
+  };
+
+  window.penalizarVencidas = async function() {
+    if (!confirm("¿Revisar todas las tareas activas y descontar 1 punto a las que estén vencidas?")) return;
+    const res = await (await fetch('api.php?action=adminPenalizarVencidas')).json();
+    alert(res.mensaje);
+    if (res.exito) cargarTareasAdmin();
+  };
+
+  // Cargar Tareas al iniciar si estamos en esa tab (no estamos por defecto, pero por si acaso)
+  cargarTareasAdmin();
 
 })();
 </script>

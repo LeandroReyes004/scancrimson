@@ -243,6 +243,18 @@ $csrf_token = csrf_token_generate();
 <!-- CONTENT -->
 <main class="content">
 
+  <!-- DISPONIBLES (Mercado de Tareas) -->
+  <div class="tab-pane" id="tab-mercado">
+    <div class="flex-center" style="justify-content:space-between; margin-bottom:.5rem;">
+      <h2 style="font-size:1.1rem; color:var(--text);"><span style="color:var(--red-bright)">⚑</span> Disponibles</h2>
+      <button class="btn btn-ghost btn-sm" onclick="cargarMercado()" style="font-size:1.1rem">↺</button>
+    </div>
+    <div class="hint" style="margin-bottom:1rem; font-size:0.85rem;">Toma capítulos disponibles. Dependiendo de tu rol, algunas opciones pueden estar bloqueadas hasta que se completen etapas anteriores.</div>
+    <div id="mercado-list" style="display:flex; flex-direction:column; gap:10px;">
+      <div class="empty"><span class="spinner"></span></div>
+    </div>
+  </div>
+
   <!-- TAB: SUBIR -->
   <div class="tab-pane active" id="tab-subir">
     <div class="card">
@@ -440,6 +452,11 @@ $csrf_token = csrf_token_generate();
 
 <!-- BOTTOM TAB BAR -->
 <nav class="tab-bar">
+  <button class="tab-item" onclick="switchTab('mercado', this); cargarMercado();">
+    <span class="tab-icon">⚑</span>
+    <span>Disponibles</span>
+    <span class="tab-dot"></span>
+  </button>
   <button class="tab-item active" onclick="switchTab('subir', this)">
     <span class="tab-icon">📤</span>
     <span>Subir</span>
@@ -693,6 +710,10 @@ async function cargarTareas() {
       : diff <= 24 ? `⚠️ Vence en ${Math.round(diff)}h`
       : `✅ Vence ${limite.toLocaleDateString('es', {day:'numeric',month:'short'})}`;
     const color = ROL_COLORS[t.rol] || '#6e6e82';
+    const btnExt = t.extension_solicitada == 1 
+      ? `<span style="font-size:0.75rem; color:var(--muted)">Extensión pedida</span>`
+      : `<button class="btn-sm" style="background:transparent; border:1px solid var(--border); color:var(--text)" onclick="solicitarExtension('${t.id}', this)">Extender</button>`;
+    
     return `<div class="task-item">
       <div class="task-header">
         <div>
@@ -701,12 +722,101 @@ async function cargarTareas() {
         </div>
         <span class="task-rol rol-${t.rol}" style="background:${color}22;color:${color}">${t.rol}</span>
       </div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:.5rem; margin-top:.5rem;">
         <div class="task-deadline ${clsTime}">${txtTime}</div>
+      </div>
+      <div style="display:flex; gap:0.5rem; margin-top:0.7rem; justify-content:flex-end;">
+        <button class="btn-sm err" style="background:transparent; color:var(--red); border:1px solid rgba(255,0,0,0.3);" onclick="cancelarTarea('${t.id}', this)">Cancelar</button>
+        ${btnExt}
         <button class="btn-sm ok" onclick="entregarTarea('${t.id}', this)">Entregar</button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function solicitarExtension(tareaId, btn) {
+  if (!confirm('¿Seguro que necesitas más tiempo? Se enviará un aviso a los líderes.')) return;
+  btn.disabled = true; btn.textContent = '...';
+  const res = await api('solicitarExtension', { tarea_id: tareaId });
+  if (res.exito) { toast('Extensión solicitada.'); cargarTareas(); }
+  else { toast('Error al solicitar.', 'err'); btn.disabled = false; }
+}
+
+async function cancelarTarea(tareaId, btn) {
+  if (!confirm('¿Seguro que quieres abandonar esta tarea? (Esto avisará a los líderes)')) return;
+  btn.disabled = true; btn.textContent = '...';
+  const res = await api('cancelarTarea', { tarea_id: tareaId });
+  if (res.exito) { toast('Tarea cancelada.'); cargarTareas(); }
+  else { toast('Error al cancelar.', 'err'); btn.disabled = false; }
+}
+
+async function cargarMercado() {
+  const list = document.getElementById('mercado-list');
+  if (!list) return;
+  list.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  const res = await api('getMercadoTareas');
+  if (!res.exito) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div>Error al cargar el mercado.</div></div>';
+    return;
+  }
+  if (!res.datos || !res.datos.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🛌</div><div>No hay capítulos disponibles por ahora.</div></div>';
+    return;
+  }
+
+  // Filtrar los que ya están totalmente terminados o no
+  const disponibles = res.datos.filter(c => !(c.trad_fecha && c.clean_fecha && c.type_fecha && c.proof_fecha));
+  
+  if (!disponibles.length) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🛌</div><div>No hay tareas disponibles.</div></div>';
+    return;
+  }
+
+  list.innerHTML = disponibles.map(c => {
+    // Determinar qué falta y qué se puede tomar
+    const raw_listo = parseInt(c.estado_raw) === 1;
+    const trad_listo = parseInt(c.estado_trad) === 1 || c.trad_fecha;
+    const clean_listo = parseInt(c.estado_clean) === 1 || c.clean_fecha;
+    
+    // Progreso
+    let progress = [];
+    if (raw_listo) progress.push('Raw ✅');
+    if (trad_listo) progress.push('Trad ✅');
+    if (clean_listo) progress.push('Clean ✅');
+    if (c.type_fecha) progress.push('Type ✅');
+
+    // Botones de roles
+    let btnTrad = raw_listo && !c.trad_fecha ? `<button class="btn-sm" style="background:#3b82f6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Traductor', this)">Tomar Traducción</button>` : '';
+    let btnClean = raw_listo && !c.clean_fecha ? `<button class="btn-sm" style="background:#8b5cf6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Cleaner', this)">Tomar Limpieza</button>` : '';
+    let btnType = trad_listo && clean_listo && !c.type_fecha ? `<button class="btn-sm" style="background:#f59e0b" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Typer', this)">Tomar Typeo</button>` : '';
+    
+    // Si no hay botones porque las dependencias no están listas pero falta ese rol, mostrar bloqueado
+    if (!btnTrad && !c.trad_fecha && !raw_listo) btnTrad = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Traducción 🔒</button>`;
+    if (!btnClean && !c.clean_fecha && !raw_listo) btnClean = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Limpieza 🔒</button>`;
+    if (!btnType && !c.type_fecha && (!trad_listo || !clean_listo)) btnType = `<button class="btn-sm" disabled style="opacity:0.5" title="Falta Traducción o Limpieza">Typeo 🔒</button>`;
+
+    return `<div class="card" style="padding:1rem; margin-bottom:0; display:flex; flex-direction:column; gap:0.5rem;">
+      <div style="font-weight:bold; font-size:1.1rem">${c.proyecto_nombre} <span style="color:var(--red-bright)">#${c.numero}</span></div>
+      <div style="font-size:0.8rem; color:var(--muted)">Progreso: ${progress.join(' | ') || 'Nada iniciado'}</div>
+      <div style="display:flex; flex-wrap:wrap; gap:0.5rem; margin-top:0.5rem;">
+        ${btnTrad} ${btnClean} ${btnType}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function tomarMercadoTarea(capId, obra, cap, rol, btn) {
+  if (!confirm(`¿Tomar tarea de ${rol} para ${obra} #${cap}? Tienes 3 días para entregar.`)) return;
+  btn.disabled = true; btn.textContent = '...';
+  const res = await api('tomarTarea', { capitulo_id: capId, proyecto: obra, capitulo: cap, rol: rol });
+  if (res.exito) {
+    toast(`Has tomado la tarea de ${rol}.`);
+    cargarMercado();
+    cargarTareas(); // Actualizar mis tareas
+  } else {
+    toast(res.mensaje || 'Error al tomar tarea.', 'err');
+    btn.disabled = false;
+  }
 }
 
 async function entregarTarea(tareaId, btn) {

@@ -1298,6 +1298,189 @@ switch ($action) {
         }
         break;
 
+    // ── NUEVAS RUTAS DE TAREAS (AUTOASIGNACIÓN, EXTENSIÓN, CANCELAR) ────────
+
+    case 'getMercadoTareas':
+        $db = getDB();
+        $stmt = $db->query("
+            SELECT c.*, p.nombre AS proyecto_nombre
+            FROM capitulos c
+            JOIN proyectos p ON c.proyecto_id = p.id
+            WHERE p.estado = 'activo' AND c.estado_general != 'Publicado'
+            ORDER BY p.nombre, c.numero ASC
+        ");
+        $capitulos = $stmt->fetchAll();
+        echo json_encode(['exito' => true, 'datos' => $capitulos]);
+        break;
+
+    case 'tomarTarea':
+        $u = auth_get_user();
+        if (!$u) { echo json_encode(['exito' => false, 'mensaje' => 'No autorizado']); break; }
+        
+        $db = getDB();
+        $proyecto   = trim($_POST['proyecto'] ?? '');
+        $capitulo   = trim($_POST['capitulo'] ?? '');
+        $rol_tomar  = trim($_POST['rol'] ?? '');
+        $cap_id     = (int)($_POST['capitulo_id'] ?? 0);
+        
+        if (!$proyecto || !$capitulo || !$rol_tomar || !$cap_id) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Datos incompletos']);
+            break;
+        }
+
+        $drow = $db->prepare("SELECT discord_id, nombre_display FROM staff_discord WHERE usuario_form = ?");
+        $drow->execute([$u['usuario']]);
+        $st = $drow->fetch();
+        if (!$st || !$st['discord_id']) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Tu cuenta no está vinculada a Discord.']);
+            break;
+        }
+        $discord_id = $st['discord_id'];
+        $nombre_display = $st['nombre_display'] ?? $u['usuario'];
+
+        // Verificar si la tarea ya existe y está activa
+        $chk = $db->prepare("SELECT id FROM tareas WHERE capitulo_id = ? AND rol = ? AND estado = 'activa'");
+        $chk->execute([$cap_id, $rol_tomar]);
+        if ($chk->fetch()) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Esta tarea ya está siendo trabajada por alguien.']);
+            break;
+        }
+
+        // Asignar 3 días por defecto
+        $limite = date('Y-m-d H:i:s', strtotime('+3 days'));
+        
+        $stmt = $db->prepare("INSERT INTO tareas (discord_id, obra, cap, rol, estado, limite, capitulo_id) VALUES (?, ?, ?, ?, 'activa', ?, ?)");
+        $stmt->execute([$discord_id, $proyecto, $capitulo, $rol_tomar, $limite, $cap_id]);
+        
+        // Notificar por Discord webhook
+        $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_subidas'")->fetchColumn();
+        if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
+        if ($webhookUrl) {
+            $payload = json_encode([
+                'embeds' => [[
+                    'title'       => '🤝 Tarea Asignada (Mercado de Tareas)',
+                    'description' => "**{$nombre_display}** ha tomado la tarea de **{$rol_tomar}**.",
+                    'color'       => 5814783,
+                    'fields'      => [
+                        ['name' => 'Proyecto', 'value' => $proyecto, 'inline' => true],
+                        ['name' => 'Capítulo', 'value' => $capitulo, 'inline' => true],
+                        ['name' => 'Límite',   'value' => 'En 3 días', 'inline' => true],
+                    ],
+                    'footer' => ['text' => 'Crimson Scan']
+                ]]
+            ]);
+            $ch = curl_init($webhookUrl);
+            curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+            curl_exec($ch); curl_close($ch);
+        }
+
+        echo json_encode(['exito' => true, 'mensaje' => 'Tarea tomada con éxito.']);
+        break;
+
+    case 'solicitarExtension':
+        $u = auth_get_user();
+        if (!$u) { echo json_encode(['exito' => false]); break; }
+        
+        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $db = getDB();
+        $db->prepare("UPDATE tareas SET extension_solicitada = 1 WHERE id = ? AND estado = 'activa'")->execute([$tarea_id]);
+        
+        // Notificar
+        $tarea = $db->prepare("SELECT obra, cap, rol, discord_id FROM tareas WHERE id = ?");
+        $tarea->execute([$tarea_id]);
+        $tdata = $tarea->fetch();
+        if ($tdata) {
+            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_subidas'")->fetchColumn();
+            if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
+            if ($webhookUrl) {
+                $payload = json_encode(['content' => "⚠️ El usuario con ID {$tdata['discord_id']} ha solicitado **Extensión de Tiempo** para {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). ¡Revisar el Panel Admin!"]);
+                $ch = curl_init($webhookUrl);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_exec($ch); curl_close($ch);
+            }
+        }
+        echo json_encode(['exito' => true, 'mensaje' => 'Extensión solicitada.']);
+        break;
+
+    case 'cancelarTarea':
+        $u = auth_get_user();
+        if (!$u) { echo json_encode(['exito' => false]); break; }
+        
+        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $db = getDB();
+        
+        // Lo marcamos como cancelada y desactivamos la tarea
+        $db->prepare("UPDATE tareas SET cancelada = 1, estado = 'cancelada' WHERE id = ? AND estado = 'activa'")->execute([$tarea_id]);
+        
+        // Notificar
+        $tarea = $db->prepare("SELECT obra, cap, rol, discord_id FROM tareas WHERE id = ?");
+        $tarea->execute([$tarea_id]);
+        $tdata = $tarea->fetch();
+        if ($tdata) {
+            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_subidas'")->fetchColumn();
+            if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
+            if ($webhookUrl) {
+                $payload = json_encode(['content' => "🚨 El usuario con ID {$tdata['discord_id']} ha **Cancelado** su tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). La tarea vuelve a estar disponible."]);
+                $ch = curl_init($webhookUrl);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_exec($ch); curl_close($ch);
+            }
+        }
+        echo json_encode(['exito' => true, 'mensaje' => 'Tarea cancelada.']);
+        break;
+
+    case 'getTodasTareas':
+        requireAdmin();
+        $db = getDB();
+        $stmt = $db->query("
+            SELECT t.*, s.nombre_display 
+            FROM tareas t 
+            LEFT JOIN staff_discord s ON t.discord_id = s.discord_id 
+            WHERE t.estado = 'activa' 
+            ORDER BY t.extension_solicitada DESC, t.limite ASC
+        ");
+        echo json_encode(['exito' => true, 'datos' => $stmt->fetchAll()]);
+        break;
+
+    case 'adminAprobarExtension':
+        requireAdmin();
+        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $dias     = (int)($_POST['dias'] ?? 0);
+        if (!$tarea_id || $dias <= 0) { echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos.']); break; }
+        
+        $db = getDB();
+        // Sumar los días al límite y quitar la solicitud
+        $db->prepare("UPDATE tareas SET limite = DATE_ADD(limite, INTERVAL ? DAY), extension_solicitada = 0 WHERE id = ? AND estado = 'activa'")->execute([$dias, $tarea_id]);
+        
+        echo json_encode(['exito' => true, 'mensaje' => "Extensión de $dias días aprobada."]);
+        break;
+
+    case 'adminPenalizarVencidas':
+        requireAdmin();
+        $db = getDB();
+        
+        // Buscar todas las tareas activas cuyo límite ya pasó
+        $stmt = $db->query("SELECT id, discord_id FROM tareas WHERE estado = 'activa' AND limite < NOW()");
+        $vencidas = $stmt->fetchAll();
+        
+        $penalizadas = 0;
+        $mes = (int)date('n');
+        $anio = (int)date('Y');
+        
+        foreach ($vencidas as $t) {
+            $did = $t['discord_id'];
+            
+            $db->prepare("INSERT INTO expedientes (discord_id, puntos, mes, anio) VALUES (?, -1, ?, ?) ON DUPLICATE KEY UPDATE puntos = puntos - 1")
+               ->execute([$did, $mes, $anio]);
+               
+            // Marcar tarea como vencida/penalizada
+            $db->prepare("UPDATE tareas SET estado = 'penalizada' WHERE id = ?")->execute([$t['id']]);
+            $penalizadas++;
+        }
+        
+        echo json_encode(['exito' => true, 'mensaje' => "Se penalizaron $penalizadas tareas vencidas."]);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);

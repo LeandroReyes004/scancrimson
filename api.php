@@ -1038,6 +1038,36 @@ switch ($action) {
         echo json_encode(['exito' => true]);
         break;
 
+    case 'probarWebhook':
+        requireAdmin();
+        $url = trim($_POST['url'] ?? '');
+        $tipo = trim($_POST['tipo'] ?? '');
+        if (!$url || !filter_var($url, FILTER_VALIDATE_URL)) {
+            echo json_encode(['exito' => false, 'mensaje' => 'URL inválida']);
+            break;
+        }
+
+        $payload = ['content' => "🔔 **Webhook Test** exitoso para la integración de *$tipo* en Crimson Scan!"];
+        
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => 5
+        ]);
+        $response = curl_exec($ch);
+        $httpcode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($httpcode >= 200 && $httpcode < 300) {
+            echo json_encode(['exito' => true, 'mensaje' => '¡Prueba enviada y recibida con éxito en Discord!']);
+        } else {
+            echo json_encode(['exito' => false, 'mensaje' => "Error al probar: HTTP $httpcode. Revisa la URL."]);
+        }
+        break;
+
     // ── ASIGNACIONES DE UN CAPÍTULO ───────────────────────────────────────
     case 'capituloAsignaciones':
         requireLogin();

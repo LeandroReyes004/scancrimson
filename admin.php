@@ -335,6 +335,7 @@
           <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar cuando alguien toma una tarea, pide extensión, cancela o cuando suben un capítulo.</p>
           <div style="display: flex; gap: 10px;">
             <input type="text" id="cfg-discord-subidas" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
+            <button class="btn btn-ghost" onclick="probarWebhook('cfg-discord-subidas', 'tareas')">Probar</button>
             <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_subidas', document.getElementById('cfg-discord-subidas').value)">Guardar</button>
           </div>
         </div>
@@ -344,6 +345,7 @@
           <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar la publicación de capítulos finales.</p>
           <div style="display: flex; gap: 10px;">
             <input type="text" id="cfg-discord-anuncios" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
+            <button class="btn btn-ghost" onclick="probarWebhook('cfg-discord-anuncios', 'anuncios')">Probar</button>
             <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_anuncios', document.getElementById('cfg-discord-anuncios').value)">Guardar</button>
           </div>
         </div>
@@ -1191,6 +1193,23 @@
         alert('Error al guardar: ' + res.mensaje);
       }
     } catch(e) { alert('Error de red al guardar.'); }
+  };
+
+  window.probarWebhook = async function(inputId, tipo) {
+    const webhookUrl = document.getElementById(inputId).value;
+    if (!webhookUrl) return alert('Por favor, ingresa una URL primero.');
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '...';
+    try {
+      const fd = new FormData();
+      fd.append('url', webhookUrl);
+      fd.append('tipo', tipo);
+      const res = await (await fetch('api.php?action=probarWebhook', {method:'POST', body:fd})).json();
+      alert(res.mensaje);
+    } catch(e) { alert('Error al enviar la prueba.'); }
+    btn.disabled = false;
+    btn.textContent = 'Probar';
   };
 
   // Cargar llamadas iniciales adicionales

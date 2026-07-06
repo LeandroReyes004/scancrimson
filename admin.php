@@ -331,8 +331,8 @@
 
       <div class="panel" style="max-width: 800px;">
         <div style="margin-bottom: 2rem;">
-          <h3 style="margin-bottom: 0.5rem; color: var(--text);">Discord Webhook (Subidas y Tareas)</h3>
-          <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar cuando alguien toma una tarea, pide extensión, cancela o cuando suben un capítulo.</p>
+          <h3 style="margin-bottom: 0.5rem; color: var(--text);">Discord Webhook (Subidas de Capítulos)</h3>
+          <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar cuando un capítulo completo ha sido subido/publicado.</p>
           <div style="display: flex; gap: 10px;">
             <input type="text" id="cfg-discord-subidas" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
             <button class="btn btn-ghost" onclick="probarWebhook('cfg-discord-subidas', 'tareas')">Probar</button>
@@ -341,8 +341,8 @@
         </div>
 
         <div style="margin-bottom: 2rem;">
-          <h3 style="margin-bottom: 0.5rem; color: var(--text);">Discord Webhook (Anuncios)</h3>
-          <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar la publicación de capítulos finales.</p>
+          <h3 style="margin-bottom: 0.5rem; color: var(--text);">Discord Webhook (Tareas, Extensiones y Cancelaciones)</h3>
+          <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar cuando el Staff toma, cancela o pide extensión de una tarea.</p>
           <div style="display: flex; gap: 10px;">
             <input type="text" id="cfg-discord-anuncios" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
             <button class="btn btn-ghost" onclick="probarWebhook('cfg-discord-anuncios', 'anuncios')">Probar</button>

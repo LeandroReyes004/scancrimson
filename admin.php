@@ -547,7 +547,7 @@
     if (e.key === 'Escape') closeMobileNav();
   });
 </script>
-<script src="assets/admin.js?v=5"></script>
+<script src="assets/admin.js?v=6"></script>
 <script>
 // ─── PARCHES INLINE v3: índices correctos de la hoja ─────────────────────────
 // Estructura de la hoja de cálculo:

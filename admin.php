@@ -1156,7 +1156,7 @@
   window.aprobarExtension = async function(id) {
     const dias = prompt("¿Cuántos días extra quieres darle a esta tarea?", "2");
     if (!dias) return;
-    const fd = new FormData(); fd.append('tarea_id', id); fd.append('dias', dias);
+    const fd = new FormData(); fd.append('tarea_id', id); fd.append('dias', dias); fd.append('csrf_token', window.csrfToken);
     const res = await (await fetch('api.php?action=adminAprobarExtension', {method:'POST', body:fd})).json();
     alert(res.mensaje);
     if (res.exito) cargarTareasAdmin();
@@ -1164,7 +1164,8 @@
 
   window.penalizarVencidas = async function() {
     if (!confirm("¿Revisar todas las tareas activas y descontar 1 punto a las que estén vencidas?")) return;
-    const res = await (await fetch('api.php?action=adminPenalizarVencidas')).json();
+    const fd = new FormData(); fd.append('csrf_token', window.csrfToken);
+    const res = await (await fetch('api.php?action=adminPenalizarVencidas', {method:'POST', body:fd})).json();
     alert(res.mensaje);
     if (res.exito) cargarTareasAdmin();
   };
@@ -1185,6 +1186,7 @@
     const fd = new FormData();
     fd.append('clave', clave);
     fd.append('valor', valor);
+    fd.append('csrf_token', window.csrfToken);
     try {
       const res = await (await fetch('api.php?action=setConfigSistema', {method:'POST', body:fd})).json();
       if (res.exito) {
@@ -1205,6 +1207,7 @@
       const fd = new FormData();
       fd.append('url', webhookUrl);
       fd.append('tipo', tipo);
+      fd.append('csrf_token', window.csrfToken);
       const res = await (await fetch('api.php?action=probarWebhook', {method:'POST', body:fd})).json();
       alert(res.mensaje);
     } catch(e) { alert('Error al enviar la prueba.'); }

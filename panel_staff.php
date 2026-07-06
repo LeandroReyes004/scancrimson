@@ -204,6 +204,9 @@ $csrf_token = csrf_token_generate();
   <div class="header-logo">CRIMSON <span>SCAN</span></div>
   <div class="header-right">
     <div class="header-user"><strong><?= htmlspecialchars($user['usuario']) ?></strong></div>
+    <?php if (strpos($user['usuario'], 'Preview') !== false): ?>
+    <a href="login.php?dev_preview=admin2026" class="logout-btn" style="background:rgba(245,158,11,.15);border-color:transparent;color:#f59e0b;text-decoration:none;margin-right:8px;" title="Volver a Modo Admin">👑 Modo Admin</a>
+    <?php endif; ?>
     <button class="logout-btn" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--muted2)" onclick="abrirCambiarPass()">🔑</button>
     <form action="logout.php" method="post" style="margin:0">
       <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">

@@ -1126,7 +1126,7 @@ switch ($action) {
                    t.discord_id, t.estado, t.limite
             FROM tareas t
             LEFT JOIN staff_discord s ON s.discord_id = t.discord_id
-            WHERE t.obra = ? AND t.cap = ?
+            WHERE t.obra = ? AND t.cap = ? AND t.estado = 'activa'
             ORDER BY t.creado DESC
         ");
         $stmt->execute([$manga, $cap]);
@@ -1385,6 +1385,34 @@ switch ($action) {
             ORDER BY p.nombre, c.numero ASC
         ");
         $capitulos = $stmt->fetchAll();
+
+        // Obtener tareas activas para mapearlas a los capítulos
+        $stmtTareas = $db->query("
+            SELECT t.capitulo_id, t.rol, s.nombre_display, s.usuario_form
+            FROM tareas t
+            LEFT JOIN staff_discord s ON s.discord_id = t.discord_id
+            WHERE t.estado = 'activa'
+        ");
+        $tareasActivas = $stmtTareas->fetchAll();
+        
+        $asignaciones = [];
+        foreach ($tareasActivas as $t) {
+            $capId = $t['capitulo_id'];
+            if (!isset($asignaciones[$capId])) $asignaciones[$capId] = ['trad'=>null, 'clean'=>null, 'type'=>null, 'proof'=>null];
+            
+            $nombre = $t['nombre_display'] ?: $t['usuario_form'];
+            $rol = mb_strtolower($t['rol']);
+            
+            if (str_contains($rol, 'trad')) $asignaciones[$capId]['trad'] = $nombre;
+            if (str_contains($rol, 'clean') || str_contains($rol, 'limpia')) $asignaciones[$capId]['clean'] = $nombre;
+            if (str_contains($rol, 'type') || str_contains($rol, 'typer') || str_contains($rol, 'typeset')) $asignaciones[$capId]['type'] = $nombre;
+            if (str_contains($rol, 'proof') || str_contains($rol, 'qc') || str_contains($rol, 'calidad')) $asignaciones[$capId]['proof'] = $nombre;
+        }
+
+        foreach ($capitulos as &$cap) {
+            $cap['asignaciones'] = $asignaciones[$cap['id']] ?? ['trad'=>null, 'clean'=>null, 'type'=>null, 'proof'=>null];
+        }
+
         echo json_encode(['exito' => true, 'datos' => $capitulos]);
         break;
 
@@ -1428,7 +1456,7 @@ switch ($action) {
         $stmt->execute([$discord_id, $proyecto, $capitulo, $rol_tomar, $limite, $cap_id]);
         
         // Notificar por Discord webhook
-        $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_subidas'")->fetchColumn();
+        $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
         if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
         if ($webhookUrl) {
             $payload = json_encode([
@@ -1465,7 +1493,7 @@ switch ($action) {
         $tarea->execute([$tarea_id]);
         $tdata = $tarea->fetch();
         if ($tdata) {
-            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_subidas'")->fetchColumn();
+            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
             if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "⚠️ El usuario con ID {$tdata['discord_id']} ha solicitado **Extensión de Tiempo** para {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). ¡Revisar el Panel Admin!"]);
@@ -1492,7 +1520,7 @@ switch ($action) {
         $tarea->execute([$tarea_id]);
         $tdata = $tarea->fetch();
         if ($tdata) {
-            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_subidas'")->fetchColumn();
+            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
             if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "🚨 El usuario con ID {$tdata['discord_id']} ha **Cancelado** su tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). La tarea vuelve a estar disponible."]);

@@ -179,10 +179,10 @@ if ($action === 'initUpload') {
                    
                 // 5. Marcar etapa en capitulos
                 $etapa_map = [
-                    "Traductor"   => ["traduccion", "trad_fecha"],
-                    "Cleaner"     => ["limpieza",   "clean_fecha"],
-                    "Typer"       => ["typer",      "type_fecha"],
-                    "Proofreader" => ["proof",      "proof_fecha"]
+                    "Traductor"   => ["estado_trad", "trad_fecha"],
+                    "Cleaner"     => ["estado_clean","clean_fecha"],
+                    "Typer"       => ["estado_type", "type_fecha"],
+                    "Proofreader" => ["estado_proof","proof_fecha"]
                 ];
                 if ($cap_id && isset($etapa_map[$rol_tarea])) {
                     $c_bool = $etapa_map[$rol_tarea][0];

@@ -764,8 +764,12 @@ async function cargarMercado() {
     return;
   }
 
-  // Filtrar los que ya están totalmente terminados o no
-  const disponibles = res.datos.filter(c => !(c.trad_fecha && c.clean_fecha && c.type_fecha && c.proof_fecha));
+  // Filtrar los que ya están totalmente terminados o no (ignorando proofreader si no es obligatorio para todos)
+  const disponibles = res.datos.filter(c => {
+    const isCompleted = (c.estado_general === 'Terminado' || c.estado_general === 'Publicado') || 
+                        (c.trad_fecha && c.clean_fecha && c.type_fecha);
+    return !isCompleted;
+  });
   
   if (!disponibles.length) {
     list.innerHTML = '<div class="empty"><div class="empty-icon">🛌</div><div>No hay tareas disponibles.</div></div>';

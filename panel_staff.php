@@ -764,10 +764,14 @@ async function cargarMercado() {
     return;
   }
 
-  // Filtrar los que ya están totalmente terminados o no (ignorando proofreader si no es obligatorio para todos)
+  // Filtrar los que ya están totalmente terminados o no
   const disponibles = res.datos.filter(c => {
+    const trad_listo = parseInt(c.estado_trad) === 1 || !!c.trad_fecha;
+    const clean_listo = parseInt(c.estado_clean) === 1 || !!c.clean_fecha;
+    const type_listo = parseInt(c.estado_type) === 1 || !!c.type_fecha;
+    
     const isCompleted = (c.estado_general === 'Terminado' || c.estado_general === 'Publicado') || 
-                        (c.trad_fecha && c.clean_fecha && c.type_fecha);
+                        (trad_listo && clean_listo && type_listo);
     return !isCompleted;
   });
   
@@ -786,21 +790,21 @@ async function cargarMercado() {
     const capsHTML = capitulos.map(c => {
       const raw_listo = parseInt(c.estado_raw) === 1;
       const trad_listo = parseInt(c.estado_trad) === 1 || c.trad_fecha;
-      const clean_listo = parseInt(c.estado_clean) === 1 || c.clean_fecha;
+      const type_listo = parseInt(c.estado_type) === 1 || !!c.type_fecha;
       
       let progress = [];
       if (raw_listo) progress.push('Raw ✅');
       if (trad_listo) progress.push('Trad ✅');
       if (clean_listo) progress.push('Clean ✅');
-      if (c.type_fecha) progress.push('Type ✅');
+      if (type_listo) progress.push('Type ✅');
 
-      let btnTrad = raw_listo && !c.trad_fecha ? `<button class="btn-sm" style="background:#3b82f6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Traductor', this)">Tomar Traducción</button>` : '';
-      let btnClean = raw_listo && !c.clean_fecha ? `<button class="btn-sm" style="background:#8b5cf6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Cleaner', this)">Tomar Limpieza</button>` : '';
-      let btnType = trad_listo && clean_listo && !c.type_fecha ? `<button class="btn-sm" style="background:#f59e0b" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Typer', this)">Tomar Typeo</button>` : '';
+      let btnTrad = raw_listo && !trad_listo ? `<button class="btn-sm" style="background:#3b82f6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Traductor', this)">Tomar Traducción</button>` : '';
+      let btnClean = raw_listo && !clean_listo ? `<button class="btn-sm" style="background:#8b5cf6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Cleaner', this)">Tomar Limpieza</button>` : '';
+      let btnType = trad_listo && clean_listo && !type_listo ? `<button class="btn-sm" style="background:#f59e0b" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Typer', this)">Tomar Typeo</button>` : '';
       
-      if (!btnTrad && !c.trad_fecha && !raw_listo) btnTrad = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Traducción 🔒</button>`;
-      if (!btnClean && !c.clean_fecha && !raw_listo) btnClean = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Limpieza 🔒</button>`;
-      if (!btnType && !c.type_fecha && (!trad_listo || !clean_listo)) btnType = `<button class="btn-sm" disabled style="opacity:0.5" title="Falta Traducción o Limpieza">Typeo 🔒</button>`;
+      if (!btnTrad && !trad_listo && !raw_listo) btnTrad = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Traducción 🔒</button>`;
+      if (!btnClean && !clean_listo && !raw_listo) btnClean = `<button class="btn-sm" disabled style="opacity:0.5" title="Faltan los RAWs">Limpieza 🔒</button>`;
+      if (!btnType && !type_listo && (!trad_listo || !clean_listo)) btnType = `<button class="btn-sm" disabled style="opacity:0.5" title="Falta Traducción o Limpieza">Typeo 🔒</button>`;
 
       return `<div style="padding:0.8rem; background:rgba(255,255,255,0.03); border-radius:8px; display:flex; flex-direction:column; gap:0.5rem; border:1px solid var(--border)">
         <div style="font-weight:bold; font-size:1.05rem"><span style="color:var(--red-bright)">Capítulo #${c.numero}</span></div>

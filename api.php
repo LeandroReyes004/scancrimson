@@ -121,6 +121,16 @@ function folderIdByName(string $parentId, string $name): ?string {
     return null;
 }
 
+function folderIdByChapterNum(string $parentId, float $capNum): ?string {
+    $all = driveQ("'{$parentId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false", 'files(id,name)', 200);
+    foreach ($all as $f) {
+        if (preg_match('/(?:cap[ií]tulo|cap)\s*0*([1-9]\d*(?:\.\d+)?|0(?:\.\d+)?)/i', $f['name'], $m)) {
+            if ((float)$m[1] == $capNum) return $f['id'];
+        }
+    }
+    return null;
+}
+
 function downloadUrl(string $fileId): string {
     return "https://drive.google.com/uc?export=download&id={$fileId}";
 }
@@ -164,11 +174,25 @@ switch ($action) {
             $asUrl = APPS_SCRIPT_URL . '?' . http_build_query([
                 'action'            => 'buscarCapituloConEnlaces',
                 'proyecto_drive_id' => $carpetaDriveId,
-                'capitulo'          => $capitulo,
+                'capitulo'          => (string)$capitulo,
                 'etapa'             => $etapaBuscada,
             ]);
             $asRes = httpGet($asUrl, 30);
-            if (!empty($asRes['exito'])) {
+            
+            // Fallback para nombres como "02" en lugar de "2"
+            $asResAlt = null;
+            if (is_numeric($capitulo) && $capitulo > 0 && $capitulo < 10) {
+                $capStr2 = '0' . (int)$capitulo;
+                $asUrlAlt = APPS_SCRIPT_URL . '?' . http_build_query([
+                    'action'            => 'buscarCapituloConEnlaces',
+                    'proyecto_drive_id' => $carpetaDriveId,
+                    'capitulo'          => $capStr2,
+                    'etapa'             => $etapaBuscada,
+                ]);
+                $asResAlt = httpGet($asUrlAlt, 30);
+            }
+
+            if (!empty($asRes['exito']) || !empty($asResAlt['exito'])) {
                 $mapaEtapas = [
                     'raw'   => '01. RAWs',
                     'trad'  => '02. Traducción',
@@ -177,12 +201,20 @@ switch ($action) {
                     'proof' => '05. Control de Calidad',
                 ];
                 $resultados = [];
-                foreach ($asRes['etapas'] as $clave => $info) {
+                
+                foreach ($mapaEtapas as $clave => $nombreEtapa) {
+                    $info = $asRes['etapas'][$clave] ?? [];
+                    $infoAlt = $asResAlt['etapas'][$clave] ?? [];
+                    
                     if (!empty($info['encontrado']) && !empty($info['id'])) {
-                        $nombreEtapa = $mapaEtapas[$clave] ?? $clave;
                         $resultados[$nombreEtapa] = [
                             'nombre' => $info['nombre'],
                             'url'    => downloadUrl($info['id']),
+                        ];
+                    } elseif (!empty($infoAlt['encontrado']) && !empty($infoAlt['id'])) {
+                        $resultados[$nombreEtapa] = [
+                            'nombre' => $infoAlt['nombre'],
+                            'url'    => downloadUrl($infoAlt['id']),
                         ];
                     }
                 }
@@ -711,8 +743,18 @@ switch ($action) {
              . '&proyecto_drive_id=' . urlencode($folderId)
              . '&capitulo=' . urlencode((string)$capNum);
         $res = httpGet($url);
+        
+        // Fallback para nombres como "02" en lugar de "2"
+        $resAlt = null;
+        if (is_numeric($capNum) && $capNum > 0 && $capNum < 10) {
+            $capStr2 = '0' . (int)$capNum;
+            $urlAlt = APPS_SCRIPT_URL . '?action=verificarCapitulo'
+                 . '&proyecto_drive_id=' . urlencode($folderId)
+                 . '&capitulo=' . urlencode($capStr2);
+            $resAlt = httpGet($urlAlt);
+        }
 
-        if (empty($res['exito'])) {
+        if (empty($res['exito']) && empty($resAlt['exito'])) {
             echo json_encode(['exito' => false, 'mensaje' => $res['mensaje'] ?? 'Error en Apps Script']);
             break;
         }
@@ -726,7 +768,10 @@ switch ($action) {
         ];
         $resultado    = [];
         $dbActualizar = [];
-        foreach ($res['etapas'] as $clave => $encontrado) {
+        
+        $claves = array_keys($etapasDb);
+        foreach ($claves as $clave) {
+            $encontrado = !empty($res['etapas'][$clave]) || !empty($resAlt['etapas'][$clave]);
             $resultado[$clave] = ['encontrado' => (bool)$encontrado, 'nombre' => $encontrado ? 'Capítulo ' . $capNum : null];
             if ($encontrado && isset($etapasDb[$clave])) $dbActualizar[$etapasDb[$clave]] = 1;
         }

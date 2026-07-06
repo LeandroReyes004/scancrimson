@@ -811,10 +811,10 @@ async function cargarMercado() {
       </div>`;
     }).join('');
 
-    return `<details class="card" style="margin-bottom:0; padding:0; overflow:hidden;" open>
+    return `<details class="card" style="margin-bottom:0; padding:0; overflow:hidden;">
       <summary style="font-weight:bold; font-size:1.1rem; cursor:pointer; outline:none; user-select:none; padding:1rem; display:flex; justify-content:space-between; align-items:center; background:rgba(255,255,255,0.02)">
         <span>${proyecto} <span style="color:var(--muted); font-size:0.9rem; font-weight:normal">(${capitulos.length} disponibles)</span></span>
-        <span style="color:var(--muted); font-size:0.8rem;">▼</span>
+        <span style="color:var(--muted); font-size:0.8rem;">▼ / ▲</span>
       </summary>
       <div style="padding:1rem; display:flex; flex-direction:column; gap:10px; border-top:1px solid var(--border);">
         ${capsHTML}

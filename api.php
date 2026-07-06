@@ -1275,7 +1275,7 @@ switch ($action) {
             if (!$webhookUrl) {
                 $resultados['discord'] = false;
             } else {
-                $ch = curl_init($webhookUrl);
+                $ch = curl_init(trim($webhookUrl));
                 curl_setopt_array($ch, [
                     CURLOPT_RETURNTRANSFER => true,
                     CURLOPT_POST           => true,
@@ -1353,7 +1353,7 @@ switch ($action) {
         $partes[] = $link;
         $mensaje = implode("\n", $partes);
 
-        $ch = curl_init($webhookUrl);
+        $ch = curl_init(trim($webhookUrl));
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_POST           => true,
@@ -1472,7 +1472,7 @@ switch ($action) {
                     'footer' => ['text' => 'Crimson Scan']
                 ]]
             ]);
-            $ch = curl_init($webhookUrl);
+            $ch = curl_init(trim($webhookUrl));
             curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
             curl_exec($ch); curl_close($ch);
         }
@@ -1497,7 +1497,7 @@ switch ($action) {
             if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "⚠️ El usuario con ID {$tdata['discord_id']} ha solicitado **Extensión de Tiempo** para {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). ¡Revisar el Panel Admin!"]);
-                $ch = curl_init($webhookUrl);
+                $ch = curl_init(trim($webhookUrl));
                 curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
                 curl_exec($ch); curl_close($ch);
             }
@@ -1524,7 +1524,7 @@ switch ($action) {
             if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "🚨 El usuario con ID {$tdata['discord_id']} ha **Cancelado** su tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). La tarea vuelve a estar disponible."]);
-                $ch = curl_init($webhookUrl);
+                $ch = curl_init(trim($webhookUrl));
                 curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
                 curl_exec($ch); curl_close($ch);
             }

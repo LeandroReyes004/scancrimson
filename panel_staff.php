@@ -240,6 +240,28 @@ $csrf_token = csrf_token_generate();
   </div>
 </div>
 
+<div id="modal-filtros" style="display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.7);align-items:center;justify-content:center;padding:1rem">
+  <div style="background:#13131f;border:1px solid var(--border);border-radius:16px;padding:1.5rem;width:100%;max-width:340px; display:flex; flex-direction:column; max-height:80vh;">
+    <div style="font-weight:700;margin-bottom:1.2rem;display:flex;justify-content:space-between">
+      <span>⚙️ Filtros del Mercado</span>
+      <span style="cursor:pointer;color:var(--muted)" onclick="document.getElementById('modal-filtros').style.display='none'">✕</span>
+    </div>
+    <div style="margin-bottom:1rem">
+      <div style="font-size:0.9rem; color:var(--muted); margin-bottom:0.5rem">Selecciona los proyectos en los que deseas trabajar (los demás se ocultarán):</div>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <button class="btn-sm" style="flex:1" onclick="toggleFiltros(true)">Marcar Todos</button>
+        <button class="btn-sm" style="flex:1" onclick="toggleFiltros(false)">Ninguno</button>
+      </div>
+      <div id="filtros-proyectos-list" style="display:flex; flex-direction:column; gap:8px; max-height:40vh; overflow-y:auto; padding-right:5px; border-top:1px solid var(--border); padding-top:10px;">
+        <!-- dinamico -->
+      </div>
+    </div>
+    <div style="display:flex;gap:.75rem; margin-top:auto;">
+      <button class="upload-btn" onclick="aplicarFiltros()">Aplicar y Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- CONTENT -->
 <main class="content">
 
@@ -247,7 +269,10 @@ $csrf_token = csrf_token_generate();
   <div class="tab-pane" id="tab-mercado">
     <div class="flex-center" style="justify-content:space-between; margin-bottom:.5rem;">
       <h2 style="font-size:1.1rem; color:var(--text);"><span style="color:var(--red-bright)">⚑</span> Disponibles</h2>
-      <button class="btn btn-ghost btn-sm" onclick="cargarMercado()" style="font-size:1.1rem">↺</button>
+      <div style="display:flex; gap:0.5rem;">
+        <button class="btn btn-ghost btn-sm" onclick="abrirFiltrosMercado()" style="font-size:1.1rem" title="Filtrar Proyectos">⚙️</button>
+        <button class="btn btn-ghost btn-sm" onclick="cargarMercado()" style="font-size:1.1rem" title="Recargar">↺</button>
+      </div>
     </div>
     <div class="hint" style="margin-bottom:1rem; font-size:0.85rem;">Toma capítulos disponibles. Dependiendo de tu rol, algunas opciones pueden estar bloqueadas hasta que se completen etapas anteriores.</div>
     <div id="mercado-list" style="display:flex; flex-direction:column; gap:10px;">
@@ -750,6 +775,9 @@ async function cancelarTarea(tareaId, btn) {
   else { toast('Error al cancelar.', 'err'); btn.disabled = false; }
 }
 
+window.mercadoCache = [];
+window.proyectosOcultos = JSON.parse(localStorage.getItem('crimson_filtros_mercado_ocultos')) || [];
+
 async function cargarMercado() {
   const list = document.getElementById('mercado-list');
   if (!list) return;
@@ -764,8 +792,19 @@ async function cargarMercado() {
     return;
   }
 
-  // Filtrar los que ya están totalmente terminados o no
-  const disponibles = res.datos.filter(c => {
+  window.mercadoCache = res.datos;
+  renderMercado();
+}
+
+function renderMercado() {
+  const list = document.getElementById('mercado-list');
+  if (!window.mercadoCache) return;
+
+  // Filtrar terminados y proyectos ocultos
+  const disponibles = window.mercadoCache.filter(c => {
+    // Filtro por proyecto oculto por el usuario
+    if (window.proyectosOcultos.includes(c.proyecto_nombre)) return false;
+
     const trad_listo = parseInt(c.estado_trad) === 1 || !!c.trad_fecha;
     const clean_listo = parseInt(c.estado_clean) === 1 || !!c.clean_fecha;
     const type_listo = parseInt(c.estado_type) === 1 || !!c.type_fecha;
@@ -825,6 +864,42 @@ async function cargarMercado() {
       </div>
     </details>`;
   }).join('');
+}
+
+function abrirFiltrosMercado() {
+  if (!window.mercadoCache) return;
+  const list = document.getElementById('filtros-proyectos-list');
+  const uniqueProyectos = [...new Set(window.mercadoCache.map(c => c.proyecto_nombre))].sort();
+  
+  if (uniqueProyectos.length === 0) {
+    list.innerHTML = '<div style="color:var(--muted); font-size:0.9rem;">No hay proyectos disponibles en el mercado.</div>';
+  } else {
+    list.innerHTML = uniqueProyectos.map(p => {
+      const isChecked = !window.proyectosOcultos.includes(p);
+      return `<label style="display:flex; gap:8px; align-items:center; cursor:pointer; font-size:0.95rem;">
+        <input type="checkbox" value="${p}" class="chk-filtro-proy" ${isChecked ? 'checked' : ''}>
+        ${p}
+      </label>`;
+    }).join('');
+  }
+  document.getElementById('modal-filtros').style.display = 'flex';
+}
+
+function toggleFiltros(marcar) {
+  const chks = document.querySelectorAll('.chk-filtro-proy');
+  chks.forEach(chk => chk.checked = marcar);
+}
+
+function aplicarFiltros() {
+  const chks = document.querySelectorAll('.chk-filtro-proy');
+  const ocultos = [];
+  chks.forEach(chk => {
+    if (!chk.checked) ocultos.push(chk.value);
+  });
+  window.proyectosOcultos = ocultos;
+  localStorage.setItem('crimson_filtros_mercado_ocultos', JSON.stringify(ocultos));
+  document.getElementById('modal-filtros').style.display = 'none';
+  renderMercado();
 }
 
 async function tomarMercadoTarea(capId, obra, cap, rol, btn) {

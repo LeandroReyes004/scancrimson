@@ -459,16 +459,6 @@ $csrf_token = csrf_token_generate();
     <span>Buscar</span>
     <span class="tab-dot"></span>
   </button>
-  <button class="tab-item" onclick="switchTab('creditos', this)">
-    <span class="tab-icon">✦</span>
-    <span>Créditos</span>
-    <span class="tab-dot"></span>
-  </button>
-  <button class="tab-item" onclick="switchTab('equipo', this)">
-    <span class="tab-icon">⚔</span>
-    <span>Equipo</span>
-    <span class="tab-dot"></span>
-  </button>
 </nav>
 
 <div class="toast-container" id="toast-container"></div>

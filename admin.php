@@ -45,6 +45,7 @@
       <button class="htab" id="htab-usuarios" onclick="switchTab('usuarios')">👤 Usuarios</button>
       <button class="htab" id="htab-staff" onclick="switchTab('staff')">⚔ Staff Discord</button>
       <button class="htab" id="htab-tareasadmin" onclick="switchTab('tareasadmin')">📋 Tareas</button>
+      <button class="htab" id="htab-config" onclick="switchTab('config')">⚙ Integraciones</button>
       <?php endif; ?>
       <a class="htab" href="subir.php">↑ Subir</a>
       <a class="htab" href="creditos.php">✦ Créditos</a>
@@ -317,6 +318,50 @@
       </div>
     </div>
     <?php endif; ?>
+
+    <!-- ══ TAB: INTEGRACIONES / CONFIG ══ -->
+    <div id="tab-config" class="tab-content">
+      <div class="page-header">
+        <div>
+          <p class="page-sub">Ajustes</p>
+          <h1 class="page-title">Integraciones <span>y Webhooks</span></h1>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="cargarConfig()">↺ Refrescar</button>
+      </div>
+
+      <div class="panel" style="max-width: 800px;">
+        <div style="margin-bottom: 2rem;">
+          <h3 style="margin-bottom: 0.5rem; color: var(--text);">Discord Webhook (Subidas y Tareas)</h3>
+          <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar cuando alguien toma una tarea, pide extensión, cancela o cuando suben un capítulo.</p>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="cfg-discord-subidas" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
+            <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_subidas', document.getElementById('cfg-discord-subidas').value)">Guardar</button>
+          </div>
+        </div>
+
+        <div style="margin-bottom: 2rem;">
+          <h3 style="margin-bottom: 0.5rem; color: var(--text);">Discord Webhook (Anuncios)</h3>
+          <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Se utiliza para notificar la publicación de capítulos finales.</p>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="cfg-discord-anuncios" class="input-text" placeholder="https://discord.com/api/webhooks/..." style="flex: 1;">
+            <button class="btn btn-primary" onclick="guardarConfig('discord_webhook_anuncios', document.getElementById('cfg-discord-anuncios').value)">Guardar</button>
+          </div>
+        </div>
+
+        <div>
+          <h3 style="margin-bottom: 0.5rem; color: var(--text);">Telegram Bot</h3>
+          <p style="font-size: 0.85rem; color: var(--muted); margin-bottom: 1rem;">Si tienes un bot de Telegram, configura el Token y el ID del Chat para enviar anuncios de capítulos publicados.</p>
+          <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+            <input type="text" id="cfg-telegram-token" class="input-text" placeholder="Token (ej: 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11)" style="flex: 1;">
+            <button class="btn btn-primary" onclick="guardarConfig('telegram_token', document.getElementById('cfg-telegram-token').value)">Guardar</button>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <input type="text" id="cfg-telegram-chat" class="input-text" placeholder="Chat ID (ej: -1001234567890)" style="flex: 1;">
+            <button class="btn btn-primary" onclick="guardarConfig('telegram_chat_id', document.getElementById('cfg-telegram-chat').value)">Guardar</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <!-- ══ TAB: USUARIOS ══ -->
     <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
@@ -1122,8 +1167,35 @@
     if (res.exito) cargarTareasAdmin();
   };
 
-  // Cargar Tareas al iniciar si estamos en esa tab (no estamos por defecto, pero por si acaso)
+  window.cargarConfig = async function() {
+    try {
+      const res = await (await fetch('api.php?action=getConfigSistema')).json();
+      if (res.exito && res.config) {
+        if (document.getElementById('cfg-discord-subidas')) document.getElementById('cfg-discord-subidas').value = res.config.discord_webhook_subidas || '';
+        if (document.getElementById('cfg-discord-anuncios')) document.getElementById('cfg-discord-anuncios').value = res.config.discord_webhook_anuncios || '';
+        if (document.getElementById('cfg-telegram-token')) document.getElementById('cfg-telegram-token').value = res.config.telegram_token || '';
+        if (document.getElementById('cfg-telegram-chat')) document.getElementById('cfg-telegram-chat').value = res.config.telegram_chat_id || '';
+      }
+    } catch(e) { console.error(e); }
+  };
+
+  window.guardarConfig = async function(clave, valor) {
+    const fd = new FormData();
+    fd.append('clave', clave);
+    fd.append('valor', valor);
+    try {
+      const res = await (await fetch('api.php?action=setConfigSistema', {method:'POST', body:fd})).json();
+      if (res.exito) {
+        alert('Configuración guardada correctamente.');
+      } else {
+        alert('Error al guardar: ' + res.mensaje);
+      }
+    } catch(e) { alert('Error de red al guardar.'); }
+  };
+
+  // Cargar llamadas iniciales adicionales
   cargarTareasAdmin();
+  cargarConfig();
 
 })();
 </script>

@@ -1,20 +1,76 @@
 /* ─── VARIABLES ─────────────────────────────────────────────────────────── */
 :root {
-  --bg:        #09080f;
-  --bg2:       #0e0d18;
-  --card:      #13111e;
-  --card2:     #1a1829;
-  --border:    #25233a;
-  --red:       #DC143C;
+  /* --- BRAND COLORS --- */
+  --color-primary:       #DC143C;
+  --color-primary-hover: #E93356;
+  --color-primary-glow:  rgba(220, 20, 60, 0.25);
+  
+  /* --- SURFACES (Backgrounds & Cards) --- */
+  --surface-ground:      #09080F;
+  --surface-base:        #0E0D18;
+  --surface-card:        #13111E;
+  --surface-card-hover:  #1A1829;
+  
+  /* --- TEXT & BORDERS --- */
+  --text-primary:        #E4E4F0;
+  --text-secondary:      #8A8A9D;
+  --text-muted:          #6A6A85;
+  --border-subtle:       #25233A;
+  --border-strong:       #383552;
+  
+  /* --- SEMANTIC FEEDBACK --- */
+  --color-success:       #10B981;
+  --color-warning:       #F59E0B;
+  --color-danger:        #EF4444;
+
+  /* --- TYPOGRAPHY --- */
+  --font-display:        'Bebas Neue', 'Outfit', sans-serif;
+  --font-body:           'Outfit', sans-serif;
+  
+  --text-xs:             0.75rem;   /* 12px */
+  --text-sm:             0.875rem;  /* 14px */
+  --text-base:           1rem;      /* 16px */
+  --text-lg:             1.125rem;  /* 18px */
+  --text-xl:             1.25rem;   /* 20px */
+  --text-2xl:            1.5rem;    /* 24px */
+  --text-3xl:            2rem;      /* 32px */
+
+  /* --- SPACING (8pt Grid) --- */
+  --space-1:             0.25rem;   /* 4px */
+  --space-2:             0.5rem;    /* 8px */
+  --space-3:             0.75rem;   /* 12px */
+  --space-4:             1rem;      /* 16px */
+  --space-6:             1.5rem;    /* 24px */
+  --space-8:             2rem;      /* 32px */
+  --space-12:            3rem;      /* 48px */
+
+  /* --- RADIUS & SHADOWS --- */
+  --radius-sm:           6px;
+  --radius-md:           10px;
+  --radius-lg:           16px;
+  
+  --shadow-sm:           0 2px 4px rgba(0,0,0,0.2);
+  --shadow-md:           0 4px 12px rgba(0,0,0,0.3);
+  --shadow-glow:         0 0 20px var(--color-primary-glow);
+
+  /* --- TRANSITIONS --- */
+  --transition-fast:     150ms ease-in-out;
+  --transition-smooth:   300ms cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* --- BACKWARD COMPATIBILITY (Old Variables) --- */
+  --bg:        var(--surface-ground);
+  --bg2:       var(--surface-base);
+  --card:      var(--surface-card);
+  --card2:     var(--surface-card-hover);
+  --border:    var(--border-subtle);
+  --red:       var(--color-primary);
   --red-dim:   #7A0022;
-  --red-glow:  rgba(220,20,60,0.18);
-  --text:      #e4e4f0;
-  --muted:     #6a6a85;
-  --faint:     #2a2a40;
-  --font-head: 'Bebas Neue', 'Outfit', sans-serif;
-  --font-body: 'Outfit', sans-serif;
-  --radius:    16px;
-  --radius-sm: 10px;
+  --red-glow:  var(--color-primary-glow);
+  --text:      var(--text-primary);
+  --muted:     var(--text-muted);
+  --faint:     var(--surface-base);
+  --font-head: var(--font-display);
+  --radius:    var(--radius-lg);
 }
 
 /* ─── RESET ──────────────────────────────────────────────────────────────── */

@@ -1190,16 +1190,16 @@
     try {
       const res = await (await fetch('api.php?action=setConfigSistema', {method:'POST', body:fd})).json();
       if (res.exito) {
-        alert('Configuración guardada correctamente.');
+        toast('Configuración guardada correctamente.');
       } else {
-        alert('Error al guardar: ' + res.mensaje);
+        toast('Error al guardar: ' + res.mensaje, 'err');
       }
-    } catch(e) { alert('Error de red al guardar.'); }
+    } catch(e) { toast('Error de red al guardar.', 'err'); }
   };
 
   window.probarWebhook = async function(inputId, tipo) {
     const webhookUrl = document.getElementById(inputId).value;
-    if (!webhookUrl) return alert('Por favor, ingresa una URL primero.');
+    if (!webhookUrl) return toast('Por favor, ingresa una URL primero.', 'err');
     const btn = event.target;
     btn.disabled = true;
     btn.textContent = '...';
@@ -1209,8 +1209,8 @@
       fd.append('tipo', tipo);
       fd.append('csrf_token', window.csrfToken);
       const res = await (await fetch('api.php?action=probarWebhook', {method:'POST', body:fd})).json();
-      alert(res.mensaje);
-    } catch(e) { alert('Error al enviar la prueba.'); }
+      toast(res.mensaje, res.exito ? 'ok' : 'err');
+    } catch(e) { toast('Error al enviar la prueba.', 'err'); }
     btn.disabled = false;
     btn.textContent = 'Probar';
   };

@@ -2,6 +2,7 @@
 // ─── JWT + CSRF stateless helpers ────────────────────────────────────────────
 // Vercel is serverless — PHP sessions are not reliable across invocations.
 // Auth state lives in a signed HttpOnly JWT cookie; CSRF uses HMAC time-windows.
+require_once __DIR__ . '/config.php';
 
 function _auth_secret(): string {
     $s = getenv('AUTH_SECRET');

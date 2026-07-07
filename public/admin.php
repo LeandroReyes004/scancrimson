@@ -168,11 +168,11 @@
             </div>
             <div class="field-group" style="margin-bottom:0">
               <label class="field-label">Capítulo</label>
-              <input id="anuncio-cap" type="text" class="field-input" placeholder="Ej: 15" oninput="anuncioActualizarMensaje()" autocomplete="off">
+              <input id="anuncio-cap" type="text" class="field-input" placeholder="Ej: 15" oninput="anuncioActualizarMensaje()" autocomplete="new-password" spellcheck="false" data-lpignore="true">
             </div>
             <div class="field-group" style="margin-bottom:0">
               <label class="field-label">Link</label>
-              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…" oninput="anuncioActualizarMensaje()" autocomplete="off">
+              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…" oninput="anuncioActualizarMensaje()" autocomplete="new-password" spellcheck="false" data-lpignore="true">
             </div>
           </div>
           <div class="field-group" style="margin-bottom:12px">
@@ -372,7 +372,7 @@
           <h1 class="page-title">Gestión de <span>Usuarios</span></h1>
         </div>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <input type="text" id="filter-usuarios" class="field-input" placeholder="Buscar usuario..." oninput="renderUsuarios()" style="min-width: 250px;">
+          <input type="text" id="filter-usuarios" class="field-input" placeholder="Buscar usuario..." oninput="renderUsuarios()" style="min-width: 250px;" autocomplete="new-password" spellcheck="false" data-lpignore="true">
           <button class="btn btn-primary" onclick="openNuevoUsuario()">+ Nuevo usuario</button>
         </div>
       </div>

@@ -742,20 +742,11 @@ switch ($action) {
         $url = APPS_SCRIPT_URL . '?action=verificarCapitulo'
              . '&proyecto_drive_id=' . urlencode($folderId)
              . '&capitulo=' . urlencode((string)$capNum);
-        $res = httpGet($url);
+        $res = httpGet($url, 30); // Aumentar timeout a 30s
         
-        // Fallback para nombres como "02" en lugar de "2"
-        $resAlt = null;
-        if (is_numeric($capNum) && $capNum > 0 && $capNum < 10) {
-            $capStr2 = '0' . (int)$capNum;
-            $urlAlt = APPS_SCRIPT_URL . '?action=verificarCapitulo'
-                 . '&proyecto_drive_id=' . urlencode($folderId)
-                 . '&capitulo=' . urlencode($capStr2);
-            $resAlt = httpGet($urlAlt);
-        }
-
-        if (empty($res['exito']) && empty($resAlt['exito'])) {
-            echo json_encode(['exito' => false, 'mensaje' => $res['mensaje'] ?? 'Error en Apps Script']);
+        if (empty($res['exito'])) {
+            $errDetalle = $res['__curl_error'] ?? $res['mensaje'] ?? 'Error de timeout o conexión';
+            echo json_encode(['exito' => false, 'mensaje' => 'Error en Apps Script: ' . $errDetalle]);
             break;
         }
 
@@ -771,7 +762,7 @@ switch ($action) {
         
         $claves = array_keys($etapasDb);
         foreach ($claves as $clave) {
-            $encontrado = !empty($res['etapas'][$clave]) || !empty($resAlt['etapas'][$clave]);
+            $encontrado = !empty($res['etapas'][$clave]);
             $resultado[$clave] = ['encontrado' => (bool)$encontrado, 'nombre' => $encontrado ? 'Capítulo ' . $capNum : null];
             if ($encontrado && isset($etapasDb[$clave])) $dbActualizar[$etapasDb[$clave]] = 1;
         }

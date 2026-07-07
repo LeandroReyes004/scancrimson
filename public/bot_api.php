@@ -235,17 +235,24 @@ switch ($action) {
             'traductor'  => 'Traductor',  'translator' => 'Traductor',
         ];
         // Prioridad: Lider > Supervisor > QC > Typesetter > Limpiador > Traductor > Staff
+        // Prioridad para saber cuál es el "principal", pero guardaremos todos
         $prioridad  = ['Lider', 'Supervisor', 'QC', 'Typesetter', 'Limpiador', 'Traductor', 'Staff'];
         $rolFinal   = 'Staff';
         $priIdx     = count($prioridad);
+        
+        $rolesValidos = [];
         foreach ($roles as $r) {
             $key  = strtolower(trim($r));
             $norm = $mapa[$key] ?? null;
             if ($norm) {
+                if (!in_array($norm, $rolesValidos)) $rolesValidos[] = $norm;
                 $idx = array_search($norm, $prioridad);
                 if ($idx !== false && $idx < $priIdx) { $priIdx = $idx; $rolFinal = $norm; }
             }
         }
+        
+        if (empty($rolesValidos)) $rolesValidos[] = 'Staff';
+        $rolString = implode(', ', $rolesValidos);
 
         $db = getDB();
         $db->prepare("
@@ -256,12 +263,12 @@ switch ($action) {
               usuario_form   = VALUES(usuario_form),
               rol            = VALUES(rol),
               activo         = 1
-        ")->execute([$discord_id, $nombre_display, $usuario_form, $rolFinal]);
+        ")->execute([$discord_id, $nombre_display, $usuario_form, $rolString]);
 
         echo json_encode([
             'exito'        => true,
-            'rol_asignado' => $rolFinal,
-            'mensaje'      => "✅ ¡Registrado como **{$rolFinal}**! Nombre: {$nombre_display} | Usuario panel: {$usuario_form}",
+            'rol_asignado' => $rolString,
+            'mensaje'      => "✅ ¡Registrado con los roles: **{$rolString}**! Nombre: {$nombre_display} | Usuario panel: {$usuario_form}",
         ]);
         break;
 

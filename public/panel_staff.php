@@ -6,6 +6,11 @@ $user = auth_get_user();
 if (!$user) { header('Location: login.php'); exit; }
 if ($user['rol'] === 'admin') { header('Location: admin.php'); exit; }
 
+$db = getDB();
+$drow = $db->prepare("SELECT rol FROM staff_discord WHERE usuario_form = ?");
+$drow->execute([$user['usuario']]);
+$userDiscordRole = $drow->fetchColumn() ?: 'Staff';
+
 $csrf_token = csrf_token_generate();
 ?>
 <!DOCTYPE html>
@@ -784,6 +789,18 @@ async function cancelarTarea(tareaId, btn) {
 
 window.mercadoCache = [];
 window.proyectosOcultos = JSON.parse(localStorage.getItem('crimson_filtros_mercado_ocultos')) || [];
+window.userDiscordRole = "<?= addslashes(mb_strtolower($userDiscordRole)) ?>";
+
+function canTakeRole(reqRole) {
+  const r = window.userDiscordRole;
+  if (r.includes('admin') || r.includes('lider') || r.includes('líder') || r.includes('staff')) return true;
+  reqRole = reqRole.toLowerCase();
+  if (reqRole.includes('trad') && (r.includes('trad') || r.includes('t/c'))) return true;
+  if (reqRole.includes('clean') && (r.includes('clean') || r.includes('limpia') || r.includes('t/c') || r.includes('redraw'))) return true;
+  if (reqRole.includes('type') && (r.includes('type') || r.includes('edito'))) return true;
+  if (reqRole.includes('proof') && (r.includes('proof') || r.includes('qc') || r.includes('calidad'))) return true;
+  return false;
+}
 
 async function cargarMercado() {
   const list = document.getElementById('mercado-list');
@@ -848,24 +865,25 @@ function renderMercado() {
       let btnTrad = '';
       if (raw_listo && !trad_listo) {
         if (c.asignaciones && c.asignaciones.trad) btnTrad = `<span class="badge" style="background:#3b82f6; opacity:0.8; padding:0.4rem 0.8rem; border-radius:4px; font-size:0.8rem">Traducción ⏳ ${c.asignaciones.trad}</span>`;
-        else btnTrad = `<button class="btn-sm" style="background:#3b82f6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Traductor', this)">Tomar Traducción</button>`;
+        else if (canTakeRole('Traductor')) btnTrad = `<button class="btn-sm" style="background:#3b82f6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Traductor', this)">Tomar Traducción</button>`;
       }
 
       let btnClean = '';
       if (raw_listo && !clean_listo) {
         if (c.asignaciones && c.asignaciones.clean) btnClean = `<span class="badge" style="background:#8b5cf6; opacity:0.8; padding:0.4rem 0.8rem; border-radius:4px; font-size:0.8rem">Limpieza ⏳ ${c.asignaciones.clean}</span>`;
-        else btnClean = `<button class="btn-sm" style="background:#8b5cf6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Cleaner', this)">Tomar Limpieza</button>`;
+        else if (canTakeRole('Cleaner')) btnClean = `<button class="btn-sm" style="background:#8b5cf6" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Cleaner', this)">Tomar Limpieza</button>`;
       }
 
       let btnType = '';
       if (trad_listo && clean_listo && !type_listo) {
         if (c.asignaciones && c.asignaciones.type) btnType = `<span class="badge" style="background:#f59e0b; opacity:0.8; padding:0.4rem 0.8rem; border-radius:4px; font-size:0.8rem">Typeo ⏳ ${c.asignaciones.type}</span>`;
-        else btnType = `<button class="btn-sm" style="background:#f59e0b" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Typer', this)">Tomar Typeo</button>`;
+        else if (canTakeRole('Typer')) btnType = `<button class="btn-sm" style="background:#f59e0b" onclick="tomarMercadoTarea(${c.id}, '${c.proyecto_nombre}', '${c.numero}', 'Typer', this)">Tomar Typeo</button>`;
       }
       
-      if (!btnTrad && !trad_listo && !raw_listo) btnTrad = `<button class="btn-sm" disabled style="opacity:0.5; cursor:not-allowed" title="Faltan los RAWs">Traducción 🔒</button>`;
-      if (!btnClean && !clean_listo && !raw_listo) btnClean = `<button class="btn-sm" disabled style="opacity:0.5; cursor:not-allowed" title="Faltan los RAWs">Limpieza 🔒</button>`;
-      if (!btnType && !type_listo && (!trad_listo || !clean_listo)) btnType = `<button class="btn-sm" disabled style="opacity:0.5; cursor:not-allowed" title="Falta Traducción o Limpieza">Typeo 🔒</button>`;
+      // If the user has the role but it's locked by dependencies:
+      if (!btnTrad && !trad_listo && !raw_listo && canTakeRole('Traductor')) btnTrad = `<button class="btn-sm" disabled style="opacity:0.5; cursor:not-allowed" title="Faltan los RAWs">Traducción 🔒</button>`;
+      if (!btnClean && !clean_listo && !raw_listo && canTakeRole('Cleaner')) btnClean = `<button class="btn-sm" disabled style="opacity:0.5; cursor:not-allowed" title="Faltan los RAWs">Limpieza 🔒</button>`;
+      if (!btnType && !type_listo && (!trad_listo || !clean_listo) && canTakeRole('Typer')) btnType = `<button class="btn-sm" disabled style="opacity:0.5; cursor:not-allowed" title="Falta Traducción o Limpieza">Typeo 🔒</button>`;
 
       return `<div style="padding:0.8rem; background:rgba(255,255,255,0.03); border-radius:8px; display:flex; flex-direction:column; gap:0.5rem; border:1px solid var(--border)">
         <div style="font-weight:bold; font-size:1.05rem"><span style="color:var(--red-bright)">Capítulo #${c.numero}</span></div>

@@ -1432,7 +1432,7 @@ switch ($action) {
             break;
         }
 
-        $drow = $db->prepare("SELECT discord_id, nombre_display FROM staff_discord WHERE usuario_form = ?");
+        $drow = $db->prepare("SELECT discord_id, nombre_display, rol FROM staff_discord WHERE usuario_form = ?");
         $drow->execute([$u['usuario']]);
         $st = $drow->fetch();
         if (!$st || !$st['discord_id']) {
@@ -1441,6 +1441,23 @@ switch ($action) {
         }
         $discord_id = $st['discord_id'];
         $nombre_display = $st['nombre_display'] ?? $u['usuario'];
+        $userRoles = mb_strtolower($st['rol'] ?? '');
+        $requestedRoleLower = mb_strtolower($rol_tomar);
+
+        $canTake = false;
+        if (str_contains($userRoles, 'staff') || str_contains($userRoles, 'admin') || str_contains($userRoles, 'lider') || str_contains($userRoles, 'líder')) {
+            $canTake = true;
+        } else {
+            if (str_contains($requestedRoleLower, 'trad') && (str_contains($userRoles, 'trad') || str_contains($userRoles, 't/c'))) $canTake = true;
+            if (str_contains($requestedRoleLower, 'clean') && (str_contains($userRoles, 'clean') || str_contains($userRoles, 'limpia') || str_contains($userRoles, 't/c') || str_contains($userRoles, 'redraw'))) $canTake = true;
+            if (str_contains($requestedRoleLower, 'type') && (str_contains($userRoles, 'type') || str_contains($userRoles, 'edito'))) $canTake = true;
+            if (str_contains($requestedRoleLower, 'proof') && (str_contains($userRoles, 'proof') || str_contains($userRoles, 'qc') || str_contains($userRoles, 'calidad'))) $canTake = true;
+        }
+
+        if (!$canTake) {
+            echo json_encode(['exito' => false, 'mensaje' => 'No tienes el rol de ' . $rol_tomar . ' necesario para tomar esta tarea.']);
+            break;
+        }
 
         // Verificar si la tarea ya existe y está activa
         $chk = $db->prepare("SELECT id FROM tareas WHERE capitulo_id = ? AND rol = ? AND estado = 'activa'");

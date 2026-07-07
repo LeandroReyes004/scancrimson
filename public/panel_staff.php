@@ -772,7 +772,11 @@ async function solicitarExtension(tareaId, btn) {
 }
 
 async function cancelarTarea(tareaId, btn) {
-  if (!confirm('¿Seguro que quieres abandonar esta tarea? (Esto avisará a los líderes)')) return;
+  if (!tareaId || tareaId === 'undefined' || tareaId === '') {
+      toast('ERROR: El ID llegó vacío al botón. tareaId="' + tareaId + '"', 'err');
+      return;
+  }
+  if (!confirm('¿Seguro que quieres abandonar la tarea ID ' + tareaId + '? (Esto avisará a los líderes)')) return;
   btn.disabled = true; btn.textContent = '...';
   const res = await api('cancelarTarea', { tarea_id: tareaId }, 'tarea_id=' + tareaId);
   if (res.exito) { toast(res.mensaje || 'Solicitud enviada.'); cargarTareas(); }

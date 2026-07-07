@@ -1542,7 +1542,8 @@ switch ($action) {
                 $debugMsg = " [Webhook URL está vacío o no configurado]";
             }
         } else {
-            $debugMsg = " [Tarea ID $tarea_id no encontrada en DB para notificar]";
+            $post_debug = json_encode($_POST);
+            $debugMsg = " [Tarea ID $tarea_id no encontrada. POST: $post_debug]";
         }
         echo json_encode(['exito' => true, 'mensaje' => 'Solicitud de cancelación enviada a los líderes.' . $debugMsg]);
         break;

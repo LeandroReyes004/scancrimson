@@ -1519,17 +1519,30 @@ switch ($action) {
         $tarea = $db->prepare("SELECT obra, cap, rol, discord_id FROM tareas WHERE id = ?");
         $tarea->execute([$tarea_id]);
         $tdata = $tarea->fetch();
+        $debugMsg = '';
         if ($tdata) {
             $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
             if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "⚠️ El usuario con ID <@{$tdata['discord_id']}> ha solicitado **CANCELAR** su tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}).\nLos líderes deben aceptarla o rechazarla desde el panel."]);
                 $ch = curl_init(trim($webhookUrl));
-                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
-                curl_exec($ch); curl_close($ch);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 5, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
+                
+                $resp = curl_exec($ch);
+                $err = curl_error($ch);
+                $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_close($ch);
+                
+                if ($err) {
+                    $debugMsg = " [cURL Error: $err]";
+                } elseif ($code >= 400) {
+                    $debugMsg = " [Discord HTTP $code: " . substr($resp, 0, 100) . "]";
+                }
+            } else {
+                $debugMsg = " [Webhook URL está vacío o no configurado]";
             }
         }
-        echo json_encode(['exito' => true, 'mensaje' => 'Solicitud de cancelación enviada a los líderes.']);
+        echo json_encode(['exito' => true, 'mensaje' => 'Solicitud de cancelación enviada a los líderes.' . $debugMsg]);
         break;
 
     case 'getTodasTareas':

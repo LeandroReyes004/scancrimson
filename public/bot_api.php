@@ -287,6 +287,56 @@ switch ($action) {
         }
         break;
 
+    case 'botTareasActivas':
+        $discord_id = $_GET['discord_id'] ?? '';
+        if (!$discord_id) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Falta discord_id']);
+            break;
+        }
+        $db = getDB();
+        $stmt = $db->prepare("SELECT id, obra, cap, rol, limite FROM tareas WHERE discord_id=? AND estado='activa'");
+        $stmt->execute([$discord_id]);
+        $tareas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        echo json_encode(['exito' => true, 'tareas' => $tareas]);
+        break;
+
+    case 'botTareaCancelar':
+        $tarea_id = $_POST['tarea_id'] ?? '';
+        $discord_id = $_POST['discord_id'] ?? '';
+
+        if (!$tarea_id || !$discord_id) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Faltan parámetros (tarea_id, discord_id)']);
+            break;
+        }
+
+        $db = getDB();
+        $stmt = $db->prepare("SELECT * FROM tareas WHERE id=? AND discord_id=? AND estado='activa'");
+        $stmt->execute([$tarea_id, $discord_id]);
+        $tarea = $stmt->fetch();
+
+        if (!$tarea) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Tarea no encontrada o no te pertenece.']);
+            break;
+        }
+
+        // Marcar la tarea como cancelación solicitada (igual que en la web)
+        $db->prepare("UPDATE tareas SET cancelacion_solicitada = 1 WHERE id=?")
+           ->execute([$tarea_id]);
+
+        // Opcional: Notificar al canal de líderes (el bot puede hacerlo por su cuenta, pero lo hacemos aquí por si acaso)
+        $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
+        if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
+        if ($webhookUrl) {
+            $payload = json_encode(['content' => "⚠️ El usuario con ID <@{$tarea['discord_id']}> ha solicitado **CANCELAR** su tarea de {$tarea['obra']} Cap {$tarea['cap']} ({$tarea['rol']}) **DESDE EL BOT DE DISCORD**.\nLos líderes deben aceptarla o rechazarla desde el panel web."]);
+            $ch = curl_init(trim($webhookUrl));
+            curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
+            curl_exec($ch); curl_close($ch);
+        }
+
+        echo json_encode(['exito' => true, 'mensaje' => 'Solicitud de cancelación enviada a los líderes.']);
+        break;
+
     default:
         http_response_code(400);
         echo json_encode(['exito'=>false, 'mensaje'=>'Acción no válida']);

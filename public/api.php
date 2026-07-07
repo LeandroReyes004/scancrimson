@@ -1473,7 +1473,7 @@ switch ($action) {
                 ]]
             ]);
             $ch = curl_init(trim($webhookUrl));
-            curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+            curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
             curl_exec($ch); curl_close($ch);
         }
 
@@ -1498,7 +1498,7 @@ switch ($action) {
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "⚠️ El usuario con ID {$tdata['discord_id']} ha solicitado **Extensión de Tiempo** para {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). ¡Revisar el Panel Admin!"]);
                 $ch = curl_init(trim($webhookUrl));
-                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
                 curl_exec($ch); curl_close($ch);
             }
         }
@@ -1525,7 +1525,7 @@ switch ($action) {
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "⚠️ El usuario con ID <@{$tdata['discord_id']}> ha solicitado **CANCELAR** su tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}).\nLos líderes deben aceptarla o rechazarla desde el panel."]);
                 $ch = curl_init(trim($webhookUrl));
-                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
                 curl_exec($ch); curl_close($ch);
             }
         }
@@ -1575,7 +1575,7 @@ switch ($action) {
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "✅ Se ha **Aprobado** la cancelación de la tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}) para el usuario <@{$tdata['discord_id']}>. La tarea vuelve a estar disponible."]);
                 $ch = curl_init(trim($webhookUrl));
-                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
                 curl_exec($ch); curl_close($ch);
             }
         }
@@ -1599,7 +1599,7 @@ switch ($action) {
             if ($webhookUrl) {
                 $payload = json_encode(['content' => "❌ Se ha **Rechazado** la cancelación de la tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}) para el usuario <@{$tdata['discord_id']}>. Debes terminarla."]);
                 $ch = curl_init(trim($webhookUrl));
-                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
                 curl_exec($ch); curl_close($ch);
             }
         }

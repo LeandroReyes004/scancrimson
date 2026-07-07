@@ -1509,7 +1509,7 @@ switch ($action) {
         $u = auth_get_user();
         if (!$u) { echo json_encode(['exito' => false]); break; }
         
-        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $tarea_id = (int)($_POST['tarea_id'] ?? $_GET['tarea_id'] ?? 0);
         $db = getDB();
         
         // Solicitamos cancelación

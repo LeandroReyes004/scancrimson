@@ -1158,8 +1158,9 @@ switch ($action) {
         $chk->execute([$discord_id]);
         if (!$chk->fetch()) { echo json_encode(['exito'=>false,'mensaje'=>'Staff no encontrado o inactivo']); break; }
         $limiteVal = $limite ?: null;
-        $db->prepare("INSERT INTO tareas (discord_id, obra, cap, rol, estado, limite) VALUES (?,?,?,?,'activa',?)")
-           ->execute([$discord_id, $manga, $cap, $rol, $limiteVal]);
+        $tid = 'W-' . time() . '-' . rand(100,999);
+        $db->prepare("INSERT INTO tareas (id, discord_id, obra, cap, rol, estado, limite) VALUES (?,?,?,?,?,'activa',?)")
+           ->execute([$tid, $discord_id, $manga, $cap, $rol, $limiteVal]);
         echo json_encode(['exito'=>true]);
         break;
 
@@ -1452,8 +1453,9 @@ switch ($action) {
         // Asignar 3 días por defecto
         $limite = date('Y-m-d H:i:s', strtotime('+3 days'));
         
-        $stmt = $db->prepare("INSERT INTO tareas (discord_id, obra, cap, rol, estado, limite, capitulo_id) VALUES (?, ?, ?, ?, 'activa', ?, ?)");
-        $stmt->execute([$discord_id, $proyecto, $capitulo, $rol_tomar, $limite, $cap_id]);
+        $tid = 'W-' . time() . '-' . rand(100,999);
+        $stmt = $db->prepare("INSERT INTO tareas (id, discord_id, obra, cap, rol, estado, limite, capitulo_id) VALUES (?, ?, ?, ?, ?, 'activa', ?, ?)");
+        $stmt->execute([$tid, $discord_id, $proyecto, $capitulo, $rol_tomar, $limite, $cap_id]);
         
         // Notificar por Discord webhook
         $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
@@ -1484,7 +1486,7 @@ switch ($action) {
         $u = auth_get_user();
         if (!$u) { echo json_encode(['exito' => false]); break; }
         
-        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $tarea_id = trim($_POST['tarea_id'] ?? $_GET['tarea_id'] ?? '');
         $db = getDB();
         $db->prepare("UPDATE tareas SET extension_solicitada = 1 WHERE id = ? AND estado = 'activa'")->execute([$tarea_id]);
         
@@ -1509,7 +1511,7 @@ switch ($action) {
         $u = auth_get_user();
         if (!$u) { echo json_encode(['exito' => false]); break; }
         
-        $tarea_id = (int)($_POST['tarea_id'] ?? $_GET['tarea_id'] ?? 0);
+        $tarea_id = trim($_POST['tarea_id'] ?? $_GET['tarea_id'] ?? '');
         $db = getDB();
         
         // Solicitamos cancelación

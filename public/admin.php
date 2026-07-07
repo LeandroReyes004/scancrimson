@@ -114,7 +114,6 @@
           <p class="page-sub">Panel de control</p>
           <h1 class="page-title">Crimson <span>Control</span></h1>
         </div>
-        <button class="btn btn-primary" onclick="switchTab('nuevo')">+ Nuevo proyecto</button>
       </div>
 
       <div class="stats-grid">
@@ -175,11 +174,11 @@
             </div>
             <div class="field-group" style="margin-bottom:0">
               <label class="field-label">Capítulo</label>
-              <input id="anuncio-cap" type="text" class="field-input" placeholder="Ej: 15" oninput="anuncioActualizarMensaje()">
+              <input id="anuncio-cap" type="text" class="field-input" placeholder="Ej: 15" oninput="anuncioActualizarMensaje()" autocomplete="off">
             </div>
             <div class="field-group" style="margin-bottom:0">
               <label class="field-label">Link</label>
-              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…" oninput="anuncioActualizarMensaje()">
+              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…" oninput="anuncioActualizarMensaje()" autocomplete="off">
             </div>
           </div>
           <div class="field-group" style="margin-bottom:12px">
@@ -210,7 +209,12 @@
           <p class="page-sub">Flujo de Producción</p>
           <h1 class="page-title">Gestión de <span>Proyectos</span></h1>
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="cargarProyectos()">↺ Refrescar</button>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <button class="btn btn-ghost btn-sm" onclick="cargarProyectos()">↺ Refrescar</button>
+          <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+          <button class="btn btn-primary" onclick="switchTab('nuevo')">+ Nuevo proyecto</button>
+          <?php endif; ?>
+        </div>
       </div>
       <div class="panel">
         <div class="panel-header">

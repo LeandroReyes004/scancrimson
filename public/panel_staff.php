@@ -774,8 +774,7 @@ async function solicitarExtension(tareaId, btn) {
 
 async function cancelarTarea(tareaId, btn) {
   if (!tareaId || tareaId === 'undefined' || tareaId === '') {
-      toast('ERROR: El ID llegó vacío al botón. tareaId="' + tareaId + '"', 'err');
-      return;
+      // Dejamos pasar para que puedan cancelar las tareas fantasma
   }
   if (!confirm('¿Seguro que quieres abandonar la tarea ID ' + tareaId + '? (Esto avisará a los líderes)')) return;
   btn.disabled = true; btn.textContent = '...';

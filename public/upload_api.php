@@ -140,7 +140,7 @@ if ($action === 'initUpload') {
 
     // 3. Guardar en MySQL (tabla subidas)
     try {
-        require_once __DIR__ . '/database/db.php';
+        require_once __DIR__ . '/../src/database/db.php';
         $db = getDB();
         $db->prepare("INSERT INTO subidas (proyecto, capitulo, etapa, archivo, usuario) VALUES (?, ?, ?, ?, ?)")
            ->execute([$proyecto, $capitulo, $etapa, $filename, $usuario]);

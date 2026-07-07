@@ -22,6 +22,11 @@ if (!defined('APPS_SCRIPT_URL')) {
     define('APPS_SCRIPT_URL', $appsScriptUrl);
 }
 
+// Generar una ruta base dinámica para cargar assets sin importar si es Vercel, Hostinger o Local
+$base_url = isset($_SERVER['PHP_SELF']) ? dirname($_SERVER['PHP_SELF']) : '';
+if ($base_url === '/' || $base_url === '\\') $base_url = '';
+if (!defined('BASE_URL')) define('BASE_URL', $base_url);
+
 // --- BASE DE DATOS MySQL ---
 if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
 if (!defined('DB_PORT')) define('DB_PORT', getenv('DB_PORT') ?: '3306');

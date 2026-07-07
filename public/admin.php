@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/admin.css?v=4">
+<link rel="stylesheet" href="<?= BASE_URL ?>/assets/admin.css?v=4">
 <style>
 /* Override de seguridad: garantizar layout correcto */
 #app-shell { display: flex !important; flex-direction: column !important; }
@@ -547,7 +547,8 @@
     if (e.key === 'Escape') closeMobileNav();
   });
 </script>
-<script src="assets/admin.js?v=6"></script>
+<!-- SCRIPT GLOBAL DEL PANEL ADMIN -->
+<script src="<?= BASE_URL ?>/assets/admin.js?v=6"></script>
 <script>
 // ─── PARCHES INLINE v3: índices correctos de la hoja ─────────────────────────
 // Estructura de la hoja de cálculo:

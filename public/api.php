@@ -1498,7 +1498,7 @@ switch ($action) {
             $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
             if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
             if ($webhookUrl) {
-                $payload = json_encode(['content' => "⚠️ El usuario con ID {$tdata['discord_id']} ha solicitado **Extensión de Tiempo** para {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). ¡Revisar el Panel Admin!"]);
+                $payload = json_encode(['content' => "⚠️ El usuario <@{$tdata['discord_id']}> ha solicitado **Extensión de Tiempo** para {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). ¡Revisar el Panel Admin!"]);
                 $ch = curl_init(trim($webhookUrl));
                 curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
                 curl_exec($ch); curl_close($ch);
@@ -1572,6 +1572,20 @@ switch ($action) {
         $db = getDB();
         // Sumar los días al límite y quitar la solicitud
         $db->prepare("UPDATE tareas SET limite = DATE_ADD(limite, INTERVAL ? DAY), extension_solicitada = 0 WHERE id = ? AND estado = 'activa'")->execute([$dias, $tarea_id]);
+        
+        $tarea = $db->prepare("SELECT obra, cap, rol, discord_id FROM tareas WHERE id = ?");
+        $tarea->execute([$tarea_id]);
+        $tdata = $tarea->fetch();
+        if ($tdata) {
+            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
+            if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
+            if ($webhookUrl) {
+                $payload = json_encode(['content' => "✅ Se ha **Aprobado** una extensión de **$dias días** para la tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}) del usuario <@{$tdata['discord_id']}>."]);
+                $ch = curl_init(trim($webhookUrl));
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3, CURLOPT_SSL_VERIFYPEER => false, CURLOPT_SSL_VERIFYHOST => 0]);
+                curl_exec($ch); curl_close($ch);
+            }
+        }
         
         echo json_encode(['exito' => true, 'mensaje' => "Extensión de $dias días aprobada."]);
         break;

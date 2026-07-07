@@ -88,7 +88,8 @@ if ($action === 'initUpload') {
             CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_TIMEOUT        => 45,
+            CURLOPT_CONNECTTIMEOUT => 15,
             CURLOPT_USERAGENT      => 'CrimsonScan/2.0',
         ]);
         $response = curl_exec($ch2);

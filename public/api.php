@@ -1534,9 +1534,9 @@ switch ($action) {
                 curl_close($ch);
                 
                 if ($err) {
-                    $debugMsg = " [cURL Error: $err]";
-                } elseif ($code >= 400) {
-                    $debugMsg = " [Discord HTTP $code: " . substr($resp, 0, 100) . "]";
+                    $debugMsg = " [cURL Error: $err | Code: $code]";
+                } else {
+                    $debugMsg = " [Discord HTTP $code]";
                 }
             } else {
                 $debugMsg = " [Webhook URL está vacío o no configurado]";

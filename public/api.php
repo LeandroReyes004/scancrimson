@@ -1512,8 +1512,8 @@ switch ($action) {
         $tarea_id = (int)($_POST['tarea_id'] ?? 0);
         $db = getDB();
         
-        // Lo marcamos como cancelada y desactivamos la tarea
-        $db->prepare("UPDATE tareas SET cancelada = 1, estado = 'cancelada' WHERE id = ? AND estado = 'activa'")->execute([$tarea_id]);
+        // Solicitamos cancelación
+        $db->prepare("UPDATE tareas SET cancelacion_solicitada = 1 WHERE id = ? AND estado = 'activa'")->execute([$tarea_id]);
         
         // Notificar
         $tarea = $db->prepare("SELECT obra, cap, rol, discord_id FROM tareas WHERE id = ?");
@@ -1523,13 +1523,13 @@ switch ($action) {
             $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
             if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
             if ($webhookUrl) {
-                $payload = json_encode(['content' => "🚨 El usuario con ID {$tdata['discord_id']} ha **Cancelado** su tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}). La tarea vuelve a estar disponible."]);
+                $payload = json_encode(['content' => "⚠️ El usuario con ID <@{$tdata['discord_id']}> ha solicitado **CANCELAR** su tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}).\nLos líderes deben aceptarla o rechazarla desde el panel."]);
                 $ch = curl_init(trim($webhookUrl));
                 curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
                 curl_exec($ch); curl_close($ch);
             }
         }
-        echo json_encode(['exito' => true, 'mensaje' => 'Tarea cancelada.']);
+        echo json_encode(['exito' => true, 'mensaje' => 'Solicitud de cancelación enviada a los líderes.']);
         break;
 
     case 'getTodasTareas':
@@ -1556,6 +1556,54 @@ switch ($action) {
         $db->prepare("UPDATE tareas SET limite = DATE_ADD(limite, INTERVAL ? DAY), extension_solicitada = 0 WHERE id = ? AND estado = 'activa'")->execute([$dias, $tarea_id]);
         
         echo json_encode(['exito' => true, 'mensaje' => "Extensión de $dias días aprobada."]);
+        break;
+
+    case 'adminAprobarCancelacion':
+        requireAdmin();
+        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        if (!$tarea_id) { echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos.']); break; }
+        
+        $db = getDB();
+        $db->prepare("UPDATE tareas SET cancelada = 1, cancelacion_solicitada = 0, estado = 'cancelada' WHERE id = ? AND estado = 'activa'")->execute([$tarea_id]);
+        
+        $tarea = $db->prepare("SELECT obra, cap, rol, discord_id FROM tareas WHERE id = ?");
+        $tarea->execute([$tarea_id]);
+        $tdata = $tarea->fetch();
+        if ($tdata) {
+            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
+            if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
+            if ($webhookUrl) {
+                $payload = json_encode(['content' => "✅ Se ha **Aprobado** la cancelación de la tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}) para el usuario <@{$tdata['discord_id']}>. La tarea vuelve a estar disponible."]);
+                $ch = curl_init(trim($webhookUrl));
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_exec($ch); curl_close($ch);
+            }
+        }
+        echo json_encode(['exito' => true, 'mensaje' => 'Cancelación aprobada.']);
+        break;
+
+    case 'adminRechazarCancelacion':
+        requireAdmin();
+        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        if (!$tarea_id) { echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos.']); break; }
+        
+        $db = getDB();
+        $db->prepare("UPDATE tareas SET cancelacion_solicitada = 0 WHERE id = ? AND estado = 'activa'")->execute([$tarea_id]);
+        
+        $tarea = $db->prepare("SELECT obra, cap, rol, discord_id FROM tareas WHERE id = ?");
+        $tarea->execute([$tarea_id]);
+        $tdata = $tarea->fetch();
+        if ($tdata) {
+            $webhookUrl = $db->query("SELECT valor FROM config_bot WHERE clave='discord_webhook_anuncios'")->fetchColumn();
+            if (!$webhookUrl && defined('DISCORD_WEBHOOK')) $webhookUrl = DISCORD_WEBHOOK;
+            if ($webhookUrl) {
+                $payload = json_encode(['content' => "❌ Se ha **Rechazado** la cancelación de la tarea de {$tdata['obra']} Cap {$tdata['cap']} ({$tdata['rol']}) para el usuario <@{$tdata['discord_id']}>. Debes terminarla."]);
+                $ch = curl_init(trim($webhookUrl));
+                curl_setopt_array($ch, [CURLOPT_POST => true, CURLOPT_POSTFIELDS => $payload, CURLOPT_HTTPHEADER => ['Content-Type: application/json'], CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 3]);
+                curl_exec($ch); curl_close($ch);
+            }
+        }
+        echo json_encode(['exito' => true, 'mensaje' => 'Cancelación rechazada.']);
         break;
 
     case 'adminPenalizarVencidas':

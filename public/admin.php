@@ -1138,6 +1138,10 @@
         const extHTML = parseInt(t.extension_solicitada) === 1 
           ? `<button class="act-btn" style="color:var(--orange); border-color:var(--orange);" onclick="aprobarExtension(${t.id})">Aprobar Extensión</button>`
           : '';
+        const cancHTML = parseInt(t.cancelacion_solicitada) === 1
+          ? `<button class="act-btn" style="color:var(--red); border-color:var(--red); margin-left: 5px;" onclick="aprobarCancelacion(${t.id})">Aprobar Cancelación</button>
+             <button class="act-btn" style="color:var(--muted); border-color:var(--muted); margin-left: 5px;" onclick="rechazarCancelacion(${t.id})">Rechazar</button>`
+          : '';
 
         return `<tr>
           <td><strong style="color:var(--red-bright)">${t.obra}</strong></td>
@@ -1145,7 +1149,7 @@
           <td>${t.nombre_display || t.discord_id}</td>
           <td><span style="font-size:0.75rem; background:rgba(255,255,255,0.1); padding:2px 6px; border-radius:4px;">${t.rol}</span></td>
           <td style="color:${colorLim}">${limStr}</td>
-          <td class="actions-cell">${extHTML}</td>
+          <td class="actions-cell">${extHTML}${cancHTML}</td>
         </tr>`;
       }).join('');
     } catch (e) {
@@ -1158,6 +1162,22 @@
     if (!dias) return;
     const fd = new FormData(); fd.append('tarea_id', id); fd.append('dias', dias); fd.append('csrf_token', window.csrfToken);
     const res = await (await fetch('api.php?action=adminAprobarExtension', {method:'POST', body:fd})).json();
+    alert(res.mensaje);
+    if (res.exito) cargarTareasAdmin();
+  };
+
+  window.aprobarCancelacion = async function(id) {
+    if (!confirm("¿Seguro que quieres APROBAR la cancelación de esta tarea? La tarea quedará cancelada.")) return;
+    const fd = new FormData(); fd.append('tarea_id', id); fd.append('csrf_token', window.csrfToken);
+    const res = await (await fetch('api.php?action=adminAprobarCancelacion', {method:'POST', body:fd})).json();
+    alert(res.mensaje);
+    if (res.exito) cargarTareasAdmin();
+  };
+
+  window.rechazarCancelacion = async function(id) {
+    if (!confirm("¿Seguro que quieres RECHAZAR la cancelación? El staff deberá terminar la tarea.")) return;
+    const fd = new FormData(); fd.append('tarea_id', id); fd.append('csrf_token', window.csrfToken);
+    const res = await (await fetch('api.php?action=adminRechazarCancelacion', {method:'POST', body:fd})).json();
     alert(res.mensaje);
     if (res.exito) cargarTareasAdmin();
   };

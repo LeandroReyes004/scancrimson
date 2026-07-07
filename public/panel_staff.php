@@ -738,6 +738,10 @@ async function cargarTareas() {
     const btnExt = t.extension_solicitada == 1 
       ? `<span style="font-size:0.75rem; color:var(--muted)">Extensión pedida</span>`
       : `<button class="btn-sm" style="background:transparent; border:1px solid var(--border); color:var(--text)" onclick="solicitarExtension('${t.id}', this)">Extender</button>`;
+      
+    const btnCanc = t.cancelacion_solicitada == 1
+      ? `<button class="btn-sm err" style="background:transparent; color:var(--muted); border:1px solid rgba(255,255,255,0.1);" disabled>Cancelación Pendiente</button>`
+      : `<button class="btn-sm err" style="background:transparent; color:var(--red); border:1px solid rgba(255,0,0,0.3);" onclick="cancelarTarea('${t.id}', this)">Cancelar</button>`;
     
     return `<div class="task-item">
       <div class="task-header">
@@ -751,7 +755,7 @@ async function cargarTareas() {
         <div class="task-deadline ${clsTime}">${txtTime}</div>
       </div>
       <div style="display:flex; gap:0.5rem; margin-top:0.7rem; justify-content:flex-end;">
-        <button class="btn-sm err" style="background:transparent; color:var(--red); border:1px solid rgba(255,0,0,0.3);" onclick="cancelarTarea('${t.id}', this)">Cancelar</button>
+        ${btnCanc}
         ${btnExt}
         <button class="btn-sm ok" onclick="entregarTarea('${t.id}', this)">Entregar</button>
       </div>
@@ -771,7 +775,7 @@ async function cancelarTarea(tareaId, btn) {
   if (!confirm('¿Seguro que quieres abandonar esta tarea? (Esto avisará a los líderes)')) return;
   btn.disabled = true; btn.textContent = '...';
   const res = await api('cancelarTarea', { tarea_id: tareaId });
-  if (res.exito) { toast('Tarea cancelada.'); cargarTareas(); }
+  if (res.exito) { toast('Solicitud de cancelación enviada.'); cargarTareas(); }
   else { toast('Error al cancelar.', 'err'); btn.disabled = false; }
 }
 

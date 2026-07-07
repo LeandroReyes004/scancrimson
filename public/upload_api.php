@@ -1,0 +1,254 @@
+<?php
+require_once __DIR__ . '/../src/auth.php'; // Requiere sesión segura activa y valida tokens CSRF
+require_once __DIR__ . '/../src/config.php';
+
+header('Content-Type: application/json; charset=utf-8');
+
+$action = $_GET['action'] ?? '';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode(['exito' => false, 'mensaje' => 'Método no permitido. Solo se admite POST.']);
+    exit;
+}
+
+if ($action === 'initUpload') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
+    // 1. Validar Token CSRF
+    if (!csrf_token_verify($data['csrf_token'] ?? '')) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Token CSRF inválido o ausente.']);
+        exit;
+    }
+    
+    // 2. Validar tipo / extensión de archivo (Seguridad en subida)
+    $nombreArchivo = $data['filename'] ?? '';
+    $extensionesPermitidas = ['zip', 'rar', '7z', 'cbz', 'pdf', 'jpg', 'jpeg', 'png', 'webp', 'doc', 'docx', 'odt'];
+    $ext = strtolower(pathinfo($nombreArchivo, PATHINFO_EXTENSION));
+
+    if (!in_array($ext, $extensionesPermitidas, true)) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Tipo de archivo no permitido. Se permiten: zip, rar, 7z, cbz, pdf, imágenes, doc, docx, odt']);
+        exit;
+    }
+    
+    // 3. Limpiar el token de CSRF para enviarlo limpio a Apps Script
+    unset($data['csrf_token']);
+    $payloadClean = json_encode($data);
+    
+    // Verifica que tengamos la URL de Apps Script configurada
+    if (!APPS_SCRIPT_URL) {
+        echo json_encode(['exito' => false, 'mensaje' => 'APPS_SCRIPT_URL no está configurada en config.php']);
+        exit;
+    }
+    
+    // Paso 1: POST a Apps Script sin seguir redirects para preservar la URL exacta del echo
+    $ch = curl_init(APPS_SCRIPT_URL);
+    curl_setopt_array($ch, [
+        CURLOPT_POST            => true,
+        CURLOPT_POSTFIELDS      => $payloadClean,
+        CURLOPT_RETURNTRANSFER  => true,
+        CURLOPT_SSL_VERIFYPEER  => true,
+        CURLOPT_SSL_VERIFYHOST  => 2,
+        CURLOPT_FOLLOWLOCATION  => false,
+        CURLOPT_HEADER          => true,
+        CURLOPT_TIMEOUT         => 30,
+        CURLOPT_CONNECTTIMEOUT  => 10,
+        CURLOPT_USERAGENT       => 'CrimsonScan/2.0',
+        CURLOPT_HTTPHEADER      => [
+            'Content-Type: application/json',
+            'Content-Length: ' . strlen($payloadClean),
+        ],
+    ]);
+    $raw      = curl_exec($ch);
+    $curlErr  = curl_error($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $hdrSize  = curl_getinfo($ch, CURLINFO_HEADER_SIZE);
+    curl_close($ch);
+
+    if ($curlErr) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Error de red: ' . $curlErr]);
+        exit;
+    }
+
+    // Paso 2: Si Apps Script devuelve un redirect, seguirlo manualmente como GET
+    if ($httpCode >= 300 && $httpCode < 400) {
+        $responseHeaders = substr($raw, 0, $hdrSize);
+        preg_match('/^Location:\s*(.+)$/mi', $responseHeaders, $m);
+        $locationUrl = trim($m[1] ?? '');
+
+        if (!$locationUrl) {
+            echo json_encode(['exito' => false, 'mensaje' => "Redirect HTTP $httpCode sin Location header."]);
+            exit;
+        }
+
+        $ch2 = curl_init($locationUrl);
+        curl_setopt_array($ch2, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_USERAGENT      => 'CrimsonScan/2.0',
+        ]);
+        $response = curl_exec($ch2);
+        $curlErr2 = curl_error($ch2);
+        $httpCode = curl_getinfo($ch2, CURLINFO_HTTP_CODE);
+        curl_close($ch2);
+    } else {
+        $response = substr($raw, $hdrSize);
+        $curlErr2 = '';
+    }
+
+    if ($httpCode === 200 && $response) {
+        echo $response;
+    } else {
+        $preview = substr($response ?: '', 0, 300);
+        if ($httpCode === 401 || $httpCode === 403) {
+            $detalle = "Apps Script requiere autenticación (HTTP $httpCode). Ve a Apps Script → Implementar → Editar → Acceso: 'Cualquier persona'.";
+        } elseif ($httpCode === 0) {
+            $detalle = "Error de red en el redirect (HTTP 0): " . ($curlErr2 ? $curlErr2 : "Verifica tu conexión a internet o SSL local.");
+        } else {
+            $detalle = "HTTP $httpCode — " . ($preview ?: 'respuesta vacía');
+        }
+        error_log("Apps Script initUpload — HTTP $httpCode: $preview | Err2: $curlErr2");
+        echo json_encode(['exito' => false, 'mensaje' => $detalle]);
+    }
+    
+} elseif ($action === 'registrarSubida') {
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
+    // 1. Validar Token CSRF
+    if (!csrf_token_verify($data['csrf_token'] ?? '')) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Token CSRF inválido o ausente.']);
+        exit;
+    }
+
+    // 2. Obtener usuario autenticado desde JWT (más fiable que $_SESSION en serverless)
+    $currentUser = auth_get_user();
+    $usuario     = $currentUser['usuario'] ?? '';
+    $proyecto  = trim($data['proyecto']  ?? '');
+    $capitulo  = trim($data['capitulo']  ?? '');
+    $etapa     = trim($data['etapa']     ?? '');
+    $filename  = trim($data['filename']  ?? '');
+
+    if (!$proyecto || !$capitulo || !$etapa || !$filename) {
+        echo json_encode(['exito' => false, 'mensaje' => 'Faltan campos requeridos.']);
+        exit;
+    }
+
+    // 3. Guardar en MySQL (tabla subidas)
+    try {
+        require_once __DIR__ . '/database/db.php';
+        $db = getDB();
+        $db->prepare("INSERT INTO subidas (proyecto, capitulo, etapa, archivo, usuario) VALUES (?, ?, ?, ?, ?)")
+           ->execute([$proyecto, $capitulo, $etapa, $filename, $usuario]);
+    } catch (PDOException $e) {
+        error_log("MySQL registrarSubida error: " . $e->getMessage());
+        echo json_encode(['exito' => false, 'mensaje' => 'Error al guardar en base de datos.']);
+        exit;
+    }
+
+    // --- AUTO-COMPLETAR TAREA ---
+    try {
+        // 1. Obtener discord_id
+        $drow = $db->prepare("SELECT discord_id FROM staff_discord WHERE usuario_form = ?");
+        $drow->execute([$usuario]);
+        $st = $drow->fetch();
+        if ($st && $st['discord_id']) {
+            $discord_id = $st['discord_id'];
+            // 2. Buscar tarea activa que coincida con obra y cap (ignoramos rol exacto, solo que sea activa para este user/capitulo)
+            $stmt_tarea = $db->prepare("SELECT id, capitulo_id, rol FROM tareas WHERE discord_id = ? AND obra = ? AND cap = ? AND estado = 'activa' LIMIT 1");
+            $stmt_tarea->execute([$discord_id, $proyecto, $capitulo]);
+            $tarea = $stmt_tarea->fetch();
+            
+            if ($tarea) {
+                $tarea_id = $tarea['id'];
+                $cap_id = $tarea['capitulo_id'];
+                $rol_tarea = $tarea['rol'];
+                
+                // 3. Marcar como entregada
+                $db->prepare("UPDATE tareas SET estado='entregada' WHERE id=?")->execute([$tarea_id]);
+                
+                // 4. Sumar punto
+                $mes = (int)date('n');
+                $anio = (int)date('Y');
+                $db->prepare("INSERT INTO expedientes (discord_id, puntos, mes, anio) VALUES (?, 1, ?, ?) ON DUPLICATE KEY UPDATE puntos = puntos + 1")
+                   ->execute([$discord_id, $mes, $anio]);
+                   
+                // 5. Marcar etapa en capitulos
+                $etapa_map = [
+                    "Traductor"   => ["estado_trad", "trad_fecha"],
+                    "Cleaner"     => ["estado_clean","clean_fecha"],
+                    "Typer"       => ["estado_type", "type_fecha"],
+                    "Proofreader" => ["estado_proof","proof_fecha"]
+                ];
+                if ($cap_id && isset($etapa_map[$rol_tarea])) {
+                    $c_bool = $etapa_map[$rol_tarea][0];
+                    $c_fec  = $etapa_map[$rol_tarea][1];
+                    $db->prepare("UPDATE capitulos SET $c_bool=1, $c_fec=NOW() WHERE id=?")->execute([$cap_id]);
+                    
+                    // Verificar si todo terminó
+                    $crow = $db->prepare("SELECT trad_fecha, clean_fecha, type_fecha, proof_fecha FROM capitulos WHERE id=?");
+                    $crow->execute([$cap_id]);
+                    $cdata = $crow->fetch();
+                    if ($cdata && $cdata['trad_fecha'] && $cdata['clean_fecha'] && $cdata['type_fecha'] && $cdata['proof_fecha']) {
+                        $db->prepare("UPDATE capitulos SET estado='Terminado' WHERE id=?")->execute([$cap_id]);
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error auto-completando tarea: " . $e->getMessage());
+    }
+
+    // 4. Notificar Discord directamente desde PHP
+    // Webhook: primero buscar en BD (configurable desde panel), fallback a config.php
+    $webhook = '';
+    try {
+        $wrow = $db->prepare("SELECT valor FROM config_bot WHERE clave = 'discord_webhook_subidas'");
+        $wrow->execute();
+        $wval = $wrow->fetch();
+        if ($wval && $wval['valor']) $webhook = $wval['valor'];
+    } catch (Exception $e) { }
+    if (!$webhook) $webhook = defined('DISCORD_WEBHOOK') ? DISCORD_WEBHOOK : '';
+    if ($webhook) {
+        try {
+            $payload = json_encode([
+                'embeds' => [[
+                    'title'       => '📤 Nueva Subida — Crimson Scan',
+                    'description' => 'Archivo procesado desde el Panel Web.',
+                    'color'       => 15158332,
+                    'fields'      => [
+                        ['name' => 'Proyecto',   'value' => $proyecto,  'inline' => true],
+                        ['name' => 'Capítulo',   'value' => $capitulo,  'inline' => true],
+                        ['name' => 'Etapa',      'value' => $etapa,     'inline' => true],
+                        ['name' => 'Archivo',    'value' => $filename,  'inline' => false],
+                        ['name' => 'Subido por', 'value' => $usuario ?: 'Desconocido', 'inline' => true],
+                    ],
+                    'footer'    => ['text' => 'Crimson Scan'],
+                    'timestamp' => date('c'),
+                ]]
+            ]);
+            $ch = curl_init($webhook);
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $payload,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
+                CURLOPT_TIMEOUT        => 5,
+            ]);
+            curl_exec($ch);
+            curl_close($ch);
+        } catch (Exception $e) {
+            error_log("Discord webhook error: " . $e->getMessage());
+        }
+    }
+
+    echo json_encode(['exito' => true, 'mensaje' => 'Registro completado correctamente.']);
+} else {
+    echo json_encode(['exito' => false, 'mensaje' => 'Acción no válida.']);
+}

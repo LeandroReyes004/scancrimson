@@ -1,5 +1,5 @@
 <?php
-require_once 'auth.php';
+require_once __DIR__ . '/../src/auth.php';
 $imgPath = __DIR__ . '/creditos.png';
 $imgData = file_exists($imgPath)
     ? 'data:image/png;base64,' . base64_encode(file_get_contents($imgPath))

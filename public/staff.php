@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../src/auth.php';
+require_once __DIR__ . '/../src/config.php';
 
 // Solo admin
 if (!isset($_SESSION['user']) || $_SESSION['user']['rol'] !== 'admin') {

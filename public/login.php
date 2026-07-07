@@ -1,8 +1,8 @@
 <?php
 define('AUTH_NO_GUARD', 1);
-require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/database/db.php';
+require_once __DIR__ . '/../src/auth.php';
+require_once __DIR__ . '/../src/config.php';
+require_once __DIR__ . '/../src/database/db.php';
 
 // --- DEV PREVIEW BYPASS (Toggle Mode) ---
 if (isset($_GET['dev_preview'])) {

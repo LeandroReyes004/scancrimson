@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/auth.php';
-require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/../src/auth.php';
+require_once __DIR__ . '/../src/config.php';
 
 $user = auth_get_user();
 if (!$user || $user['rol'] !== 'admin') {

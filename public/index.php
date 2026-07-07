@@ -1,4 +1,4 @@
-<?php require_once 'auth.php'; ?>
+<?php require_once __DIR__ . '/../src/auth.php'; ?>
 <!DOCTYPE html>
 <html lang="es">
 <head>

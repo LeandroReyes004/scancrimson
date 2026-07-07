@@ -1137,11 +1137,11 @@
         const limStr = diff < 0 ? `Vencida hace ${Math.abs(Math.round(diff))}h` : `En ${Math.round(diff)}h`;
         
         const extHTML = parseInt(t.extension_solicitada) === 1 
-          ? `<button class="act-btn" style="color:var(--orange); border-color:var(--orange);" onclick="aprobarExtension(${t.id})">Aprobar Extensión</button>`
+          ? `<button class="act-btn" style="color:var(--orange); border-color:var(--orange);" onclick="aprobarExtension('${t.id}')">Aprobar Extensión</button>`
           : '';
         const cancHTML = parseInt(t.cancelacion_solicitada) === 1
-          ? `<button class="act-btn" style="color:var(--red); border-color:var(--red); margin-left: 5px;" onclick="aprobarCancelacion(${t.id})">Aprobar Cancelación</button>
-             <button class="act-btn" style="color:var(--muted); border-color:var(--muted); margin-left: 5px;" onclick="rechazarCancelacion(${t.id})">Rechazar</button>`
+          ? `<button class="act-btn" style="color:var(--red); border-color:var(--red); margin-left: 5px;" onclick="aprobarCancelacion('${t.id}')">Aprobar Cancelación</button>
+             <button class="act-btn" style="color:var(--muted); border-color:var(--muted); margin-left: 5px;" onclick="rechazarCancelacion('${t.id}')">Rechazar</button>`
           : '';
 
         return `<tr>

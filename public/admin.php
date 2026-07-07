@@ -373,7 +373,10 @@
           <p class="page-sub">Staff</p>
           <h1 class="page-title">Gestión de <span>Usuarios</span></h1>
         </div>
-        <button class="btn btn-primary" onclick="openNuevoUsuario()">+ Nuevo usuario</button>
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <input type="text" id="filter-usuarios" class="field-input" placeholder="Buscar usuario..." oninput="renderUsuarios()" style="min-width: 250px;">
+          <button class="btn btn-primary" onclick="openNuevoUsuario()">+ Nuevo usuario</button>
+        </div>
       </div>
 
       <div class="panel">

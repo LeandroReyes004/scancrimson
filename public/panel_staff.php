@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../src/auth.php';
 require_once __DIR__ . '/../src/config.php';
-
+require_once __DIR__ . '/../src/database/db.php';
 $user = auth_get_user();
 if (!$user) { header('Location: login.php'); exit; }
 if ($user['rol'] === 'admin') { header('Location: admin.php'); exit; }

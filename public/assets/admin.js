@@ -1,6 +1,6 @@
 /* ─── CONFIG & STATE ─── */
 const PASS_KEY = 'cs_admin_auth';
-const TABS = ['dashboard', 'proyectos', 'nuevo', 'historial', 'usuarios', 'staff'];
+const TABS = ['dashboard', 'proyectos', 'nuevo', 'historial', 'usuarios', 'staff', 'tareasadmin', 'config'];
 const TAB_LABELS = { 
     dashboard: 'Dashboard', 
     proyectos: 'Proyectos', 
@@ -44,6 +44,8 @@ function switchTab(id) {
     else if (id === 'historial') cargarHistorialFull();
     else if (id === 'usuarios') cargarUsuarios();
     else if (id === 'staff') cargarStaff();
+    else if (id === 'tareasadmin' && typeof window.cargarTareasAdmin === 'function') window.cargarTareasAdmin();
+    else if (id === 'config' && typeof window.cargarConfig === 'function') window.cargarConfig();
 }
 
 /* ─── UI COMPONENTS ─── */

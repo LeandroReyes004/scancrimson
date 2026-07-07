@@ -209,6 +209,14 @@ $csrf_token = csrf_token_generate();
   .rol-Proofreader { background: rgba(16,185,129,.15);  color: #10b981; }
   .rol-Cleaner     { background: rgba(139,92,246,.15);  color: #8b5cf6; }
   .rol-Typer       { background: rgba(245,158,11,.15);  color: #f59e0b; }
+
+  @media (max-width: 500px) {
+    .hide-mobile { display: none; }
+    .header-user { display: none; }
+    .header-logo { font-size: 1.1rem; }
+    .header-right { gap: 0.4rem; }
+    .logout-btn { padding: 4px 6px; font-size: 0.7rem; }
+  }
 </style>
 </head>
 <body>
@@ -219,7 +227,7 @@ $csrf_token = csrf_token_generate();
   <div class="header-right">
     <div class="header-user"><strong><?= htmlspecialchars($user['usuario']) ?></strong></div>
     <?php if (strpos($user['usuario'], 'Preview') !== false): ?>
-    <a href="login.php?dev_preview=admin2026" class="logout-btn" style="background:rgba(245,158,11,.15);border-color:transparent;color:#f59e0b;text-decoration:none;margin-right:8px;" title="Volver a Modo Admin">👑 Modo Admin</a>
+    <a href="login.php?dev_preview=admin2026" class="logout-btn" style="background:rgba(245,158,11,.15);border-color:transparent;color:#f59e0b;text-decoration:none;margin-right:4px;" title="Volver a Modo Admin">👑 <span class="hide-mobile">Modo Admin</span></a>
     <?php endif; ?>
     <button class="logout-btn" style="background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12);color:var(--muted2)" onclick="abrirCambiarPass()">🔑</button>
     <form action="logout.php" method="post" style="margin:0">

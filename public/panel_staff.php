@@ -748,7 +748,6 @@ async function cargarTareas() {
         <div>
           <div class="task-obra">${t.obra}</div>
           <div class="task-cap">Capítulo #${t.cap}</div>
-          <div style="font-size:0.6rem; color:yellow;">RAW DATA: ${JSON.stringify(t)}</div>
         </div>
         <span class="task-rol rol-${t.rol}" style="background:${color}22;color:${color}">${t.rol}</span>
       </div>

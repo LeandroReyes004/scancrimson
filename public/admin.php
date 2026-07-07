@@ -37,9 +37,6 @@
     <nav class="header-tabs">
       <button class="htab active" id="htab-dashboard" onclick="switchTab('dashboard')">◈ Dashboard</button>
       <button class="htab" id="htab-proyectos" onclick="switchTab('proyectos')">◫ Proyectos</button>
-      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
-      <button class="htab" id="htab-nuevo" onclick="switchTab('nuevo')">⊕ Nuevo</button>
-      <?php endif; ?>
       <button class="htab" id="htab-historial" onclick="switchTab('historial')">≡ Historial</button>
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <button class="htab" id="htab-usuarios" onclick="switchTab('usuarios')">👤 Usuarios</button>
@@ -82,9 +79,6 @@
     <div class="mobile-nav-body">
       <button class="mobile-nav-item active" data-tab="dashboard" onclick="mobileNavSwitch('dashboard')">◈ Dashboard</button>
       <button class="mobile-nav-item" data-tab="proyectos" onclick="mobileNavSwitch('proyectos')">◫ Proyectos</button>
-      <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
-      <button class="mobile-nav-item" data-tab="nuevo" onclick="mobileNavSwitch('nuevo')">⊕ Nuevo Proyecto</button>
-      <?php endif; ?>
       <button class="mobile-nav-item" data-tab="historial" onclick="mobileNavSwitch('historial')">≡ Historial</button>
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <button class="mobile-nav-item" data-tab="usuarios" onclick="mobileNavSwitch('usuarios')">👤 Usuarios</button>

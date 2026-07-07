@@ -935,6 +935,7 @@ async function tomarMercadoTarea(capId, obra, cap, rol, btn) {
   } else {
     toast(res.mensaje || 'Error al tomar tarea.', 'err');
     btn.disabled = false;
+    btn.textContent = `Tomar ${rol}`;
   }
 }
 

@@ -767,16 +767,16 @@ async function solicitarExtension(tareaId, btn) {
   if (!confirm('¿Seguro que necesitas más tiempo? Se enviará un aviso a los líderes.')) return;
   btn.disabled = true; btn.textContent = '...';
   const res = await api('solicitarExtension', { tarea_id: tareaId });
-  if (res.exito) { toast('Extensión solicitada.'); cargarTareas(); }
-  else { toast('Error al solicitar.', 'err'); btn.disabled = false; }
+  if (res.exito) { toast(res.mensaje || 'Extensión solicitada.'); cargarTareas(); }
+  else { toast(res.mensaje || 'Error al solicitar.', 'err'); btn.disabled = false; }
 }
 
 async function cancelarTarea(tareaId, btn) {
   if (!confirm('¿Seguro que quieres abandonar esta tarea? (Esto avisará a los líderes)')) return;
   btn.disabled = true; btn.textContent = '...';
   const res = await api('cancelarTarea', { tarea_id: tareaId });
-  if (res.exito) { toast('Solicitud de cancelación enviada.'); cargarTareas(); }
-  else { toast('Error al cancelar.', 'err'); btn.disabled = false; }
+  if (res.exito) { toast(res.mensaje || 'Solicitud enviada.'); cargarTareas(); }
+  else { toast(res.mensaje || 'Error al cancelar.', 'err'); btn.disabled = false; }
 }
 
 window.mercadoCache = [];

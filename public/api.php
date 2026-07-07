@@ -1565,7 +1565,7 @@ switch ($action) {
 
     case 'adminAprobarExtension':
         requireAdmin();
-        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $tarea_id = trim($_POST['tarea_id'] ?? '');
         $dias     = (int)($_POST['dias'] ?? 0);
         if (!$tarea_id || $dias <= 0) { echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos.']); break; }
         
@@ -1578,7 +1578,7 @@ switch ($action) {
 
     case 'adminAprobarCancelacion':
         requireAdmin();
-        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $tarea_id = trim($_POST['tarea_id'] ?? '');
         if (!$tarea_id) { echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos.']); break; }
         
         $db = getDB();
@@ -1602,7 +1602,7 @@ switch ($action) {
 
     case 'adminRechazarCancelacion':
         requireAdmin();
-        $tarea_id = (int)($_POST['tarea_id'] ?? 0);
+        $tarea_id = trim($_POST['tarea_id'] ?? '');
         if (!$tarea_id) { echo json_encode(['exito' => false, 'mensaje' => 'Datos inválidos.']); break; }
         
         $db = getDB();

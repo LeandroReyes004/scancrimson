@@ -294,6 +294,26 @@ switch ($action) {
         }
         break;
 
+    case 'botUsuarioSalio':
+        $discord_id = $_POST['discord_id'] ?? '';
+        
+        if (!$discord_id) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Falta discord_id']);
+            break;
+        }
+
+        $db = getDB();
+        $db->prepare("UPDATE staff_discord SET activo = 0 WHERE discord_id = ?")->execute([$discord_id]);
+        $db->prepare("
+            UPDATE usuarios u
+            INNER JOIN staff_discord s ON u.usuario = s.usuario_form
+            SET u.activo = 0
+            WHERE s.discord_id = ?
+        ")->execute([$discord_id]);
+
+        echo json_encode(['exito' => true, 'mensaje' => 'Cuenta bloqueada correctamente']);
+        break;
+
     case 'botTareasActivas':
         $discord_id = $_GET['discord_id'] ?? '';
         if (!$discord_id) {

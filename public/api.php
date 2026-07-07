@@ -1432,11 +1432,19 @@ switch ($action) {
             break;
         }
 
-        $drow = $db->prepare("SELECT discord_id, nombre_display, rol FROM staff_discord WHERE usuario_form = ?");
+        $drow = $db->prepare("SELECT discord_id, nombre_display, rol, en_hiatus, activo FROM staff_discord WHERE usuario_form = ?");
         $drow->execute([$u['usuario']]);
         $st = $drow->fetch();
         if (!$st || !$st['discord_id']) {
             echo json_encode(['exito' => false, 'mensaje' => 'Tu cuenta no está vinculada a Discord.']);
+            break;
+        }
+        if ($st['activo'] == 0) {
+            echo json_encode(['exito' => false, 'mensaje' => 'Tu cuenta de staff está desactivada.']);
+            break;
+        }
+        if ($st['en_hiatus'] == 1) {
+            echo json_encode(['exito' => false, 'mensaje' => 'No puedes tomar tareas mientras estás en hiatus.']);
             break;
         }
         $discord_id = $st['discord_id'];

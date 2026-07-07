@@ -7,9 +7,17 @@ if (!$user) { header('Location: login.php'); exit; }
 if ($user['rol'] === 'admin') { header('Location: admin.php'); exit; }
 
 $db = getDB();
-$drow = $db->prepare("SELECT rol FROM staff_discord WHERE usuario_form = ?");
+$drow = $db->prepare("SELECT rol, activo, en_hiatus FROM staff_discord WHERE usuario_form = ?");
 $drow->execute([$user['usuario']]);
-$userDiscordRole = $drow->fetchColumn() ?: 'Staff';
+$staffData = $drow->fetch();
+
+if ($staffData && $staffData['activo'] == 0) {
+    header('Location: login.php?msg=bloqueado');
+    exit;
+}
+
+$userDiscordRole = $staffData['rol'] ?? 'Staff';
+$userHiatus = $staffData['en_hiatus'] ?? 0;
 
 $csrf_token = csrf_token_generate();
 ?>
@@ -790,8 +798,11 @@ async function cancelarTarea(tareaId, btn) {
 window.mercadoCache = [];
 window.proyectosOcultos = JSON.parse(localStorage.getItem('crimson_filtros_mercado_ocultos')) || [];
 window.userDiscordRole = "<?= addslashes(mb_strtolower($userDiscordRole)) ?>";
+window.userHiatus = <?= intval($userHiatus) ?>;
 
 function canTakeRole(reqRole) {
+  if (window.userHiatus === 1) return false; // Hiatus blocks all roles
+  
   const r = window.userDiscordRole;
   if (r.includes('admin') || r.includes('lider') || r.includes('líder') || r.includes('staff')) return true;
   reqRole = reqRole.toLowerCase();
@@ -806,6 +817,12 @@ async function cargarMercado() {
   const list = document.getElementById('mercado-list');
   if (!list) return;
   list.innerHTML = '<div class="empty"><span class="spinner"></span></div>';
+  
+  if (window.userHiatus === 1) {
+    list.innerHTML = '<div class="empty"><div class="empty-icon">🛌</div><div style="color:var(--amber); font-weight:bold;">Estás en Hiatus.</div><div>No puedes tomar tareas nuevas hasta que regreses.</div></div>';
+    return;
+  }
+
   const res = await api('getMercadoTareas');
   if (!res.exito) {
     list.innerHTML = '<div class="empty"><div class="empty-icon">❌</div><div>Error al cargar el mercado.</div></div>';

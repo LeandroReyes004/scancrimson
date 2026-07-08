@@ -715,7 +715,9 @@ switch ($action) {
 
     // ── VERIFICAR DRIVE Y SINCRONIZAR ESTADOS EN BD ───────────────────────
     case 'verificarDriveCapitulo':
-        requireLogin();
+        if (empty($_GET['sync'])) {
+            requireLogin();
+        }
         $proyecto_id  = intval($_GET['proyecto_id']  ?? 0);
         $capitulo_id  = intval($_GET['capitulo_id']  ?? 0);
         $capitulo_num = floatval($_GET['capitulo_num'] ?? 0);

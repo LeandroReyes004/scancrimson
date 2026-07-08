@@ -168,11 +168,11 @@
             </div>
             <div class="field-group" style="margin-bottom:0">
               <label class="field-label">Capítulo</label>
-              <input id="anuncio-cap" type="text" class="field-input" placeholder="Ej: 15" oninput="anuncioActualizarMensaje()" autocomplete="new-password" spellcheck="false" data-lpignore="true">
+              <input id="anuncio-cap" type="text" class="field-input" placeholder="Ej: 15" oninput="anuncioActualizarMensaje()" readonly onfocus="this.removeAttribute('readonly');">
             </div>
             <div class="field-group" style="margin-bottom:0">
               <label class="field-label">Link</label>
-              <input id="anuncio-link" type="url" class="field-input" placeholder="https://…" oninput="anuncioActualizarMensaje()" autocomplete="new-password" spellcheck="false" data-lpignore="true">
+              <input id="anuncio-link" type="text" class="field-input" placeholder="https://…" oninput="anuncioActualizarMensaje()" readonly onfocus="this.removeAttribute('readonly');">
             </div>
           </div>
           <div class="field-group" style="margin-bottom:12px">

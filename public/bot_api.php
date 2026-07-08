@@ -97,16 +97,17 @@ switch ($action) {
 
         $db->prepare("UPDATE tareas SET estado='entregada' WHERE id=?")->execute([$tarea_id]);
 
-        $campos_fecha = [
-            'Traductor'   => 'trad_fecha',
-            'Cleaner'     => 'clean_fecha',
-            'Typer'       => 'type_fecha',
-            'Proofreader' => 'proof_fecha',
+        $campos_map = [
+            'Traductor'   => ['estado_trad', 'trad_fecha'],
+            'Cleaner'     => ['estado_clean', 'clean_fecha'],
+            'Typer'       => ['estado_type', 'type_fecha'],
+            'Proofreader' => ['estado_proof', 'proof_fecha'],
         ];
 
-        if (isset($campos_fecha[$tarea['rol']]) && $tarea['capitulo_id']) {
-            $campo = $campos_fecha[$tarea['rol']];
-            $db->prepare("UPDATE capitulos SET {$campo}=NOW() WHERE id=?")
+        if (isset($campos_map[$tarea['rol']]) && $tarea['capitulo_id']) {
+            $campo_bool = $campos_map[$tarea['rol']][0];
+            $campo_fec  = $campos_map[$tarea['rol']][1];
+            $db->prepare("UPDATE capitulos SET {$campo_bool}=1, {$campo_fec}=NOW() WHERE id=?")
                ->execute([$tarea['capitulo_id']]);
 
             $stmt = $db->prepare("SELECT trad_fecha, clean_fecha, type_fecha, proof_fecha FROM capitulos WHERE id=?");

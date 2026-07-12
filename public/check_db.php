@@ -30,6 +30,17 @@ try {
     } else {
         echo "No hay errores registrados.\n";
     }
+    echo "\n--- ÚLTIMAS SUBIDAS EN LA BD ---\n";
+    $stmt = $pdo->query("SELECT * FROM subidas ORDER BY creado DESC LIMIT 10");
+    $subidas = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    if ($subidas) {
+        foreach ($subidas as $s) {
+            echo "ID: {$s['id']} | Fecha: {$s['creado']} | Proyecto: {$s['proyecto']} | Cap: {$s['capitulo']} | Etapa: {$s['etapa']} | Archivo: {$s['archivo']} | Usuario: {$s['usuario']}\n";
+        }
+    } else {
+        echo "No hay subidas registradas en la tabla.\n";
+    }
+
 } catch (Exception $e) {
     echo "ERROR: " . $e->getMessage();
 }

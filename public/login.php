@@ -122,12 +122,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     
-    // Registrar el error en un archivo especial para administradores
+    // Registrar el error en la base de datos para los administradores
     if ($error) {
         $ip = $_SERVER['REMOTE_ADDR'] ?? '?';
         $user_attempt = isset($_POST['usuario']) ? trim($_POST['usuario']) : '?';
-        $logMsg = date('Y-m-d H:i:s') . " | IP: {$ip} | Usuario: {$user_attempt} | Error: {$error}" . PHP_EOL;
-        file_put_contents(__DIR__ . '/../src/login_errors.log', $logMsg, FILE_APPEND);
+        try {
+            $db = getDB();
+            $db->prepare("INSERT INTO login_logs (usuario, ip, error) VALUES (?, ?, ?)")
+               ->execute([$user_attempt, $ip, $error]);
+        } catch (Exception $e) {
+            // Ignorar silenciosamente si falla el log
+        }
     }
 }
 ?>

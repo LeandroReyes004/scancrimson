@@ -1,13 +1,20 @@
 <?php
 require_once __DIR__ . '/../src/auth.php';
+require_once __DIR__ . '/../src/database/db.php';
 
 $user = auth_get_user();
 if (!$user || $user['rol'] !== 'admin') {
     header('Location: login.php'); exit;
 }
 
-$logFile = __DIR__ . '/../src/login_errors.log';
-$logs = file_exists($logFile) ? file_get_contents($logFile) : '';
+$logs = [];
+try {
+    $db = getDB();
+    $stmt = $db->query("SELECT * FROM login_logs ORDER BY fecha DESC LIMIT 100");
+    $logs = $stmt->fetchAll();
+} catch (Exception $e) {
+    // Ignorar si la tabla no existe
+}
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -29,19 +36,12 @@ $logs = file_exists($logFile) ? file_get_contents($logFile) : '';
   .top-bar .title span { color: var(--red-bright); }
   .back-link { color: var(--muted); font-size: .82rem; text-decoration: none; }
   .back-link:hover { color: var(--text); }
-  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
-  pre {
-    background: #000;
-    color: #0f0;
-    padding: 1rem;
-    border-radius: 8px;
-    overflow-x: auto;
-    font-family: monospace;
-    font-size: 0.85rem;
-    line-height: 1.5;
-    white-space: pre-wrap;
-    min-height: 200px;
-  }
+  .panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; text-align: left; }
+  th, td { padding: 0.75rem; border-bottom: 1px solid var(--border); }
+  th { color: var(--muted2); font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { font-size: 0.9rem; }
+  tr:last-child td { border-bottom: none; }
   .empty { color: var(--muted); font-style: italic; }
 </style>
 </head>
@@ -53,8 +53,27 @@ $logs = file_exists($logFile) ? file_get_contents($logFile) : '';
 </div>
 
 <div class="panel">
-  <?php if ($logs): ?>
-    <pre><?php echo htmlspecialchars($logs); ?></pre>
+  <?php if (count($logs) > 0): ?>
+    <table>
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>IP</th>
+          <th>Usuario Intentado</th>
+          <th>Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        <?php foreach ($logs as $log): ?>
+          <tr>
+            <td><?php echo htmlspecialchars($log['fecha']); ?></td>
+            <td><?php echo htmlspecialchars($log['ip']); ?></td>
+            <td><?php echo htmlspecialchars($log['usuario']); ?></td>
+            <td style="color: var(--red-bright);"><?php echo htmlspecialchars($log['error']); ?></td>
+          </tr>
+        <?php endforeach; ?>
+      </tbody>
+    </table>
   <?php else: ?>
     <div class="empty">No hay errores de inicio de sesión registrados aún.</div>
   <?php endif; ?>

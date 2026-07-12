@@ -198,6 +198,16 @@ function getDB(): PDO {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
+        $pdo->exec("
+            CREATE TABLE IF NOT EXISTS login_logs (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                usuario VARCHAR(100) NOT NULL,
+                ip VARCHAR(50) NOT NULL,
+                error TEXT NOT NULL,
+                fecha DATETIME DEFAULT CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
     } catch (PDOException $e) {
         // Log error silently if user lacks privileges
     }

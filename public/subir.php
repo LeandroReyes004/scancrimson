@@ -489,14 +489,19 @@
           csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
         })
       })
-      .then(res => res.json())
-      .then(data => {
-        if (!data.exito) {
-          alert('⚠️ El archivo se subió a Drive, pero hubo un error al registrarlo en el historial: ' + data.mensaje);
+      .then(function(result) {
+        if (result && result.exito) {
+          showStatus('¡Subida Completada! (Cerrando pestaña...)', false);
+          setTimeout(() => window.close(), 1500);
+        } else {
+          const err = (result && result.mensaje) ? result.mensaje : 'Error desconocido al registrar en el servidor.';
+          showStatus('⚠️ El archivo se subió a Drive, pero hubo un error al registrarlo: ' + err, true);
+          fetch('api.php?action=logError', { method: 'POST', body: JSON.stringify({mensaje: 'Error de servidor/registro: ' + err})});
         }
       })
-      .catch(err => {
-        console.error('Error al registrar subida:', err);
+      .catch(function(e) {
+          showStatus('Error de red durante la subida.', true);
+          fetch('api.php?action=logError', { method: 'POST', body: JSON.stringify({mensaje: 'Error de red en el navegador durante la subida (Catch fetch)'})});
       });
     }
 

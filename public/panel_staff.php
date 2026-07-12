@@ -667,8 +667,14 @@ async function subirArchivo() {
       xhr.upload.onload = () => { bytesSent = selectedFile.size; };
       xhr.onload  = () => xhr.status < 400 ? resolve() : reject(new Error('HTTP ' + xhr.status));
       // Drive a veces no devuelve CORS headers en la respuesta → onerror aunque el archivo sí llegó.
-      // Si todos los bytes fueron enviados, el archivo está en Drive → tratar como éxito.
-      xhr.onerror = () => bytesSent >= selectedFile.size ? resolve() : reject(new Error('Error de red'));
+      // Si todos los bytes fueron enviados, el archivo está en Drive
+      xhr.onerror = () => {
+        if (bytesSent >= selectedFile.size) resolve();
+        else {
+            fetch('api.php?action=logError', { method: 'POST', body: JSON.stringify({mensaje: 'Error de red (XHR onerror) en el navegador del staff al subir archivo'})});
+            reject(new Error('Error de red'));
+        }
+      };
       xhr.send(selectedFile);
     });
 

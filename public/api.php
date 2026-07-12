@@ -285,6 +285,23 @@ switch ($action) {
         echo json_encode(['exito' => true, 'datos' => $datos]);
         break;
 
+    // ── REPORTE DE ERRORES DEL NAVEGADOR AL SERVIDOR ─────────────
+    case 'logError':
+        requireLogin();
+        $input = json_decode(file_get_contents('php://input'), true);
+        $msg = $input['mensaje'] ?? 'Error desconocido en navegador';
+        try {
+            $db = getDB();
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '?';
+            $usuario = auth_get_user()['usuario'] ?? 'Desconocido';
+            $db->prepare("INSERT INTO system_logs (tipo, usuario, ip, mensaje) VALUES ('FRONTEND_ERROR', ?, ?, ?)")
+               ->execute([$usuario, $ip, $msg]);
+            echo json_encode(['exito' => true]);
+        } catch (Exception $e) {
+            echo json_encode(['exito' => false]);
+        }
+        break;
+
     // ── SOLO ADMIN ───────────────────────────────────────────────────────────
 
     case 'crearProyecto':

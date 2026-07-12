@@ -32,7 +32,7 @@ if (!defined('DB_HOST')) define('DB_HOST', getenv('DB_HOST') ?: '127.0.0.1');
 if (!defined('DB_PORT')) define('DB_PORT', getenv('DB_PORT') ?: '3306');
 if (!defined('DB_NAME')) define('DB_NAME', getenv('DB_NAME') ?: 'crimson_scan');
 if (!defined('DB_USER')) define('DB_USER', getenv('DB_USER') ?: 'root');
-if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASS') ?: '');
+if (!defined('DB_PASS')) define('DB_PASS', getenv('DB_PASSWORD') ?: getenv('DB_PASS') ?: '');
 
 define('DRIVE_API',  'https://www.googleapis.com/drive/v3');
 define('SHEETS_API', 'https://sheets.googleapis.com/v4/spreadsheets');

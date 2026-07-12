@@ -120,8 +120,19 @@ if ($action === 'initUpload') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true);
 
+    // Función de ayuda para loguear errores de subida
+    function log_upload_error($msg, $usuario = 'Desconocido', $tipo = 'UPLOAD_ERROR') {
+        try {
+            $db = getDB();
+            $ip = $_SERVER['REMOTE_ADDR'] ?? '?';
+            $db->prepare("INSERT INTO system_logs (tipo, usuario, ip, mensaje) VALUES (?, ?, ?, ?)")
+               ->execute([$tipo, $usuario, $ip, $msg]);
+        } catch(Exception $e){}
+    }
+
     // 1. Validar Token CSRF
     if (!csrf_token_verify($data['csrf_token'] ?? '')) {
+        log_upload_error('Token CSRF inválido o ausente.');
         echo json_encode(['exito' => false, 'mensaje' => 'Token CSRF inválido o ausente.']);
         exit;
     }
@@ -135,6 +146,7 @@ if ($action === 'initUpload') {
     $filename  = trim($data['filename']  ?? '');
 
     if (!$proyecto || !$capitulo || !$etapa || !$filename) {
+        log_upload_error("Faltan campos requeridos: $proyecto, $capitulo, $etapa, $filename", $usuario);
         echo json_encode(['exito' => false, 'mensaje' => 'Faltan campos requeridos.']);
         exit;
     }
@@ -145,8 +157,11 @@ if ($action === 'initUpload') {
         $db = getDB();
         $db->prepare("INSERT INTO subidas (proyecto, capitulo, etapa, archivo, usuario) VALUES (?, ?, ?, ?, ?)")
            ->execute([$proyecto, $capitulo, $etapa, $filename, $usuario]);
+           
+        log_upload_error("Subida exitosa: $proyecto - Cap $capitulo ($etapa)", $usuario, 'UPLOAD_EXITO');
     } catch (PDOException $e) {
         error_log("MySQL registrarSubida error: " . $e->getMessage());
+        log_upload_error("MySQL error al guardar subida: " . $e->getMessage(), $usuario);
         echo json_encode(['exito' => false, 'mensaje' => 'Error al guardar en base de datos.']);
         exit;
     }

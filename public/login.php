@@ -128,7 +128,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user_attempt = isset($_POST['usuario']) ? trim($_POST['usuario']) : '?';
         try {
             $db = getDB();
-            $db->prepare("INSERT INTO login_logs (usuario, ip, error) VALUES (?, ?, ?)")
+            $db->prepare("INSERT INTO system_logs (tipo, usuario, ip, mensaje) VALUES ('LOGIN_ERROR', ?, ?, ?)")
                ->execute([$user_attempt, $ip, $error]);
         } catch (Exception $e) {
             // Ignorar silenciosamente si falla el log

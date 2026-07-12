@@ -59,6 +59,7 @@
       <button class="btn btn-ghost btn-sm" onclick="refrescarTodo()">↺</button>
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
       <a href="login.php?dev_preview=staff2026" class="btn btn-ghost btn-sm" title="Ver Modo Staff" style="text-decoration:none; color: var(--color-warning);">👨‍💻 Modo Staff</a>
+      <a href="login_logs.php" class="btn btn-ghost btn-sm" title="Logs de Inicio de Sesión" style="text-decoration:none">📝 Logs</a>
       <a href="settings.php" class="btn btn-ghost btn-sm" title="Configuración" style="text-decoration:none">⚙</a>
       <?php endif; ?>
       <a href="logout.php" class="user-logout" title="Cerrar sesión" style="text-decoration:none">⎋ Salir</a>
@@ -87,6 +88,7 @@
       <a href="subir.php" class="mobile-nav-item">↑ Subir archivo</a>
       <a href="creditos.php" class="mobile-nav-item">✦ Hoja de Créditos</a>
       <?php if ($_SESSION['user']['rol'] === 'admin'): ?>
+      <a href="login_logs.php" class="mobile-nav-item">📝 Logs de Inicio de Sesión</a>
       <a href="settings.php" class="mobile-nav-item">⚙ Configuración</a>
       <?php endif; ?>
     </div>

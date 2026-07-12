@@ -226,7 +226,7 @@ switch ($action) {
 
         // ── Fallback: API Key (solo funciona si Drive es público) ────────────
         $capInt   = intval($capitulo);
-        $capRegex = '/cap[_\-\s]?0*' . $capInt . '(\.|$|[^0-9])/i';
+        $capRegex = '/(?:^|[^a-z0-9])(?:cap[_\-\s]?)?0*' . $capInt . '(\.|$|[^0-9])/i';
 
         $proyectoId = folderIdByName(CARPETA_RAIZ_ID, $proyecto);
         if (!$proyectoId) {

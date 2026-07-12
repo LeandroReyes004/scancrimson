@@ -103,7 +103,7 @@ function doGet(e) {
             if (c1.hasNext() || c2.hasNext()) { resultado[clave] = true; return; }
             var files = eFolder.getFiles();
             while (files.hasNext()) {
-              var m = files.next().getName().toLowerCase().match(/^cap[_\-\s]?0*(\d+)/);
+              var m = files.next().getName().toLowerCase().match(/^(?:cap[_\-\s]?)?0*(\d+)/);
               if (m && parseInt(m[1]) === capInt) { resultado[clave] = true; return; }
             }
             resultado[clave] = false;
@@ -296,11 +296,11 @@ function buscarCapituloConEnlaces(proyDriveId, capNum, etapaFiltro) {
         var eFolder = eFolders.next();
 
         if (clave === 'raw') {
-          // 1) Buscar archivo directo: Cap_N.zip / Cap_N.rar / cap-N.zip etc.
+          // 1) Buscar archivo directo: Cap_N.zip / Cap_N.rar / cap-N.zip etc. o 008.zip
           var files = eFolder.getFiles();
           while (files.hasNext()) {
             var f = files.next();
-            var m = f.getName().toLowerCase().match(/^cap[_\-\s]?0*(\d+)/);
+            var m = f.getName().toLowerCase().match(/^(?:cap[_\-\s]?)?0*(\d+)/);
             if (m && parseInt(m[1]) === capInt) {
               resultado[clave] = { encontrado: true, id: f.getId(), nombre: f.getName() };
               return;

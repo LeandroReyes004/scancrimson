@@ -54,13 +54,17 @@ function auth_set_cookie(array $user): void {
         'rol'     => $user['rol'],
         'exp'     => $exp,
     ]);
-    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
+    $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || 
+              (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+    
+    // En Vercel a veces SameSite=Strict con secure=false da problemas.
+    // Usamos Lax por defecto para mayor compatibilidad
     setcookie('auth_token', $token, [
         'expires'  => $exp,
         'path'     => '/',
         'secure'   => $secure,
         'httponly' => true,
-        'samesite' => 'Strict',
+        'samesite' => 'Lax',
     ]);
 }
 

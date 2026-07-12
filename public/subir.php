@@ -477,7 +477,6 @@
       }
     }
 
-    // Helper para registrar la subida de forma segura a través del proxy local
     function registrarSubida(file) {
       fetch('upload_api.php?action=registrarSubida', {
         method: 'POST',
@@ -489,6 +488,15 @@
           filename: file.name,
           csrf_token: '<?php echo $_SESSION['csrf_token']; ?>'
         })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (!data.exito) {
+          alert('⚠️ El archivo se subió a Drive, pero hubo un error al registrarlo en el historial: ' + data.mensaje);
+        }
+      })
+      .catch(err => {
+        console.error('Error al registrar subida:', err);
       });
     }
 

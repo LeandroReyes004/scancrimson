@@ -97,21 +97,15 @@ function doGet(e) {
           if (!eFolders.hasNext()) { resultado[clave] = false; return; }
           var eFolder = eFolders.next();
           // RAWs: buscar subcarpeta O archivo directo Cap_N.zip/rar
-          if (clave === 'raw') {
-            var c1 = eFolder.getFoldersByName(capNombre);
-            var c2 = eFolder.getFoldersByName(capNombreB);
-            if (c1.hasNext() || c2.hasNext()) { resultado[clave] = true; return; }
-            var files = eFolder.getFiles();
-            while (files.hasNext()) {
-              var m = files.next().getName().toLowerCase().match(/^(?:cap[_\-\s]?)?0*(\d+)/);
-              if (m && parseInt(m[1]) === capInt) { resultado[clave] = true; return; }
-            }
-            resultado[clave] = false;
-          } else {
-            var c1 = eFolder.getFoldersByName(capNombre);
-            var c2 = eFolder.getFoldersByName(capNombreB);
-            resultado[clave] = c1.hasNext() || c2.hasNext();
+          var c1 = eFolder.getFoldersByName(capNombre);
+          var c2 = eFolder.getFoldersByName(capNombreB);
+          if (c1.hasNext() || c2.hasNext()) { resultado[clave] = true; return; }
+          var files = eFolder.getFiles();
+          while (files.hasNext()) {
+            var m = files.next().getName().toLowerCase().match(/^(?:cap[_\-\s]?)?0*(\d+)/);
+            if (m && parseInt(m[1]) === capInt) { resultado[clave] = true; return; }
           }
+          resultado[clave] = false;
         } catch(err) { resultado[clave] = false; }
       });
       return jsonResponse({ exito: true, etapas: resultado });
@@ -295,7 +289,6 @@ function buscarCapituloConEnlaces(proyDriveId, capNum, etapaFiltro) {
         if (!eFolders.hasNext()) { resultado[clave] = { encontrado: false }; return; }
         var eFolder = eFolders.next();
 
-        if (clave === 'raw') {
           // 1) Buscar archivo directo: Cap_N.zip / Cap_N.rar / cap-N.zip etc. o 008.zip
           var files = eFolder.getFiles();
           while (files.hasNext()) {
@@ -322,25 +315,6 @@ function buscarCapituloConEnlaces(proyDriveId, capNum, etapaFiltro) {
             }
           }
           resultado[clave] = { encontrado: false };
-
-        } else {
-          // Otras etapas: buscar subcarpeta "Capítulo N"
-          var subFolders = [
-            eFolder.getFoldersByName(capNombre),
-            eFolder.getFoldersByName(capNombreB)
-          ];
-          for (var i = 0; i < subFolders.length; i++) {
-            if (subFolders[i].hasNext()) {
-              var capFiles = subFolders[i].next().getFiles();
-              if (capFiles.hasNext()) {
-                var cf = capFiles.next();
-                resultado[clave] = { encontrado: true, id: cf.getId(), nombre: cf.getName() };
-                return;
-              }
-            }
-          }
-          resultado[clave] = { encontrado: false };
-        }
       } catch(err) {
         resultado[clave] = { encontrado: false };
       }

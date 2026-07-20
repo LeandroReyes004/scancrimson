@@ -242,24 +242,16 @@ switch ($action) {
             $etapaId = folderIdByName($proyectoId, $etapa);
             if (!$etapaId) continue;
 
-            if ($etapa === "01. RAWs") {
-                $archivos   = driveQ("'{$etapaId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 200);
-                $encontrado = false;
-                foreach ($archivos as $arc) {
-                    if (preg_match($capRegex, $arc['name'])) {
-                        $resultados[$etapa] = ['nombre' => $arc['name'], 'url' => downloadUrl($arc['id'])];
-                        $encontrado = true;
-                        break;
-                    }
+            $archivos   = driveQ("'{$etapaId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 200);
+            $encontrado = false;
+            foreach ($archivos as $arc) {
+                if (preg_match($capRegex, $arc['name'])) {
+                    $resultados[$etapa] = ['nombre' => $arc['name'], 'url' => downloadUrl($arc['id'])];
+                    $encontrado = true;
+                    break;
                 }
-                if (!$encontrado) {
-                    $capId = folderIdByName($etapaId, "Capítulo {$capInt}");
-                    if ($capId) {
-                        $capFiles = driveQ("'{$capId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 1);
-                        if ($capFiles) $resultados[$etapa] = ['nombre' => $capFiles[0]['name'], 'url' => downloadUrl($capFiles[0]['id'])];
-                    }
-                }
-            } else {
+            }
+            if (!$encontrado) {
                 $capId = folderIdByName($etapaId, "Capítulo {$capInt}");
                 if ($capId) {
                     $capFiles = driveQ("'{$capId}' in parents and trashed=false and mimeType!='application/vnd.google-apps.folder'", 'files(id,name)', 1);
